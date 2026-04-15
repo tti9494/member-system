@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 모임 체험 신청</title>
+<style>
+  :root {
+    --primary: #4F46E5;
+    --primary-hover: #4338CA;
+    --bg: #F9FAFB;
+    --card: #FFFFFF;
+    --border: #E5E7EB;
+    --text: #111827;
+    --muted: #6B7280;
+    --error: #EF4444;
+    --success: #10B981;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; padding: 24px 16px 60px; }
+  .container { max-width: 600px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: var(--muted); font-size: 0.9rem; margin-bottom: 28px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 28px; margin-bottom: 20px; }
+  .field { margin-bottom: 20px; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; }
+  .required { color: var(--error); }
+  input[type=text], input[type=email], input[type=number], select, textarea {
+    width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 0.95rem; color: var(--text); background: #fff; outline: none; transition: border 0.2s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+  textarea { resize: vertical; min-height: 100px; }
+  .radio-group { display: flex; gap: 16px; }
+  .radio-group label { font-weight: normal; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .char-count { font-size: 0.8rem; color: var(--muted); text-align: right; margin-top: 4px; }
+  .char-count.warn { color: var(--error); }
+  .consent-box { background: #F3F4F6; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  .consent-box label { font-weight: normal; display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
+  .consent-box input[type=checkbox] { margin-top: 2px; flex-shrink: 0; width: 16px; height: 16px; }
+  .privacy-link { color: var(--primary); text-decoration: underline; }
+  .btn { display: block; width: 100%; padding: 14px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn:hover { background: var(--primary-hover); }
+  .btn:disabled { background: #9CA3AF; cursor: not-allowed; }
+  .error-list { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; color: var(--error); font-size: 0.88rem; }
+  .error-list li { margin-left: 16px; margin-top: 4px; }
+  .success-msg { background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 24px; text-align: center; }
+  .success-msg h2 { color: var(--success); margin-bottom: 8px; }
+  .full-link { text-align: center; margin-top: 16px; font-size: 0.9rem; color: var(--muted); }
+  .full-link a { color: var(--primary); font-weight: 600; }
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🤖 AI 모임 체험 신청</h1>
+  <p class="subtitle">필수 정보만 입력하면 사이트를 체험하실 수 있습니다.</p>
+
+  <div id="form-wrap">
+    <div id="error-area" class="error-list hidden"><ul id="error-list"></ul></div>
+
+    <form id="apply-form" class="card">
+      <div class="field">
+        <label>이름 <span class="required">*</span></label>
+        <input type="text" name="name" placeholder="실명을 입력해주세요" maxlength="50" required>
+      </div>
+      <div class="field">
+        <label>이메일 <span class="required">*</span></label>
+        <input type="email" name="email" placeholder="example@email.com" maxlength="100" required>
+      </div>
+      <div class="field">
+        <label>전화번호 <span class="required">*</span></label>
+        <input type="text" name="phone" placeholder="010-1234-5678" maxlength="13" required>
+      </div>
+      <div class="field">
+        <label>성별 <span class="required">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="gender" value="남" required> 남</label>
+          <label><input type="radio" name="gender" value="여"> 여</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>나이 <span class="required">*</span></label>
+        <input type="number" name="age" min="14" max="100" placeholder="만 나이" required>
+      </div>
+      <div class="field">
+        <label>직업/소속 <span class="required">*</span></label>
+        <input type="text" name="job" placeholder="직장인 / 학생 / 프리랜서 등" maxlength="100" required>
+      </div>
+      <div class="field">
+        <label>유입 경로 <span class="required">*</span></label>
+        <select name="referral_source" required>
+          <option value="">선택해주세요</option>
+          <option value="유튜브">유튜브</option>
+          <option value="지인소개">지인 소개</option>
+          <option value="SNS">SNS</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>AI에 관심 갖는 이유 <span class="required">*</span></label>
+        <textarea name="reason" id="reason" placeholder="최소 20자 이상 작성해주세요" maxlength="2000"></textarea>
+        <div class="char-count" id="reason-count">0자 / 최소 20자</div>
+      </div>
+      <div class="field">
+        <label>AI 자가진단 레벨 <span class="required">*</span></label>
+        <select name="ai_level" required>
+          <option value="">선택해주세요</option>
+          <option value="입문">입문 — AI가 뭔지 이제 알아가는 중</option>
+          <option value="초급">초급 — ChatGPT 정도는 써봤어요</option>
+          <option value="중급">중급 — 다양한 AI 도구를 활용 중</option>
+          <option value="고급">고급 — API/자동화까지 활용 가능</option>
+        </select>
+      </div>
+      <input type="hidden" name="plan_type" value="basic">
+
+      <div class="field">
+        <div class="consent-box">
+          <label>
+            <input type="checkbox" name="consent_personal" id="consent_personal" required>
+            <span>[필수] 개인정보 수집·이용에 동의합니다.
+              (<a href="privacy.html" target="_blank" class="privacy-link">처리방침 보기</a>)</span>
+          </label>
+        </div>
+        <div class="consent-box">
+          <label>
+            <input type="checkbox" name="consent_marketing">
+            <span>[선택] 마케팅 활용에 동의합니다.</span>
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" class="btn" id="submit-btn">체험 신청하기</button>
+    </form>
+
+    <p class="full-link">AI 모임에 적극 참여하고 싶으신가요? →
+      <a href="join-full.html">정식 신청하기</a>
+    </p>
+  </div>
+
+  <div id="success-wrap" class="hidden">
+    <div class="success-msg">
+      <h2>✅ 신청이 접수되었습니다!</h2>
+      <p>검토 후 승인 시 접속 코드를 알려드립니다.</p>
+      <p style="margin-top:12px;font-size:0.9rem;color:#6B7280;">보통 1-3일 내로 연락드립니다.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 전화번호 자동 하이픈
+  document.querySelector('[name=phone]').addEventListener('input', function(e) {
+    let v = e.target.value.replace(/\D/g, '');
+    if (v.length <= 3) e.target.value = v;
+    else if (v.length <= 7) e.target.value = v.slice(0,3) + '-' + v.slice(3);
+    else e.target.value = v.slice(0,3) + '-' + v.slice(3,7) + '-' + v.slice(7,11);
+  });
+
+  // 글자수 카운터
+  const reasonTa = document.getElementById('reason');
+  const reasonCount = document.getElementById('reason-count');
+  reasonTa.addEventListener('input', function() {
+    const len = this.value.length;
+    reasonCount.textContent = `${len}자 / 최소 20자`;
+    reasonCount.className = 'char-count' + (len < 20 ? ' warn' : '');
+  });
+
+  // 폼 제출
+  document.getElementById('apply-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submit-btn');
+    const errArea = document.getElementById('error-area');
+    const errList = document.getElementById('error-list');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>신청 중...';
+    errArea.classList.add('hidden');
+
+    const fd = new FormData(this);
+    const payload = {
+      name: fd.get('name'),
+      email: fd.get('email'),
+      phone: fd.get('phone'),
+      gender: fd.get('gender'),
+      age: parseInt(fd.get('age')),
+      job: fd.get('job'),
+      referral_source: fd.get('referral_source'),
+      reason: fd.get('reason'),
+      ai_level: fd.get('ai_level'),
+      plan_type: 'basic',
+      consent_personal: fd.get('consent_personal') === 'on',
+      consent_marketing: fd.get('consent_marketing') === 'on',
+    };
+
+    try {
+      const res = await fetch('/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('form-wrap').classList.add('hidden');
+        document.getElementById('success-wrap').classList.remove('hidden');
+      } else {
+        errList.innerHTML = (data.errors || data.detail?.errors || ['알 수 없는 오류']).map(e => `<li>${e}</li>`).join('');
+        errArea.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = '체험 신청하기';
+      }
+    } catch(err) {
+      errList.innerHTML = `<li>서버 연결 오류: ${err.message}</li>`;
+      errArea.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = '체험 신청하기';
+    }
+  });
+</script>
+</body>
+</html>

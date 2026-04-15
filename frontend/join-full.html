@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 모임 정식 신청</title>
+<style>
+  :root {
+    --primary: #4F46E5;
+    --primary-hover: #4338CA;
+    --bg: #F9FAFB;
+    --card: #FFFFFF;
+    --border: #E5E7EB;
+    --text: #111827;
+    --muted: #6B7280;
+    --error: #EF4444;
+    --success: #10B981;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; padding: 24px 16px 60px; }
+  .container { max-width: 600px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; }
+
+  /* 진행률 */
+  .progress-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; }
+  .step-dot { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; color: var(--muted); background: #fff; flex-shrink: 0; }
+  .step-dot.active { border-color: var(--primary); color: var(--primary); }
+  .step-dot.done { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .step-line { flex: 1; height: 2px; background: var(--border); }
+  .step-line.done { background: var(--primary); }
+  .step-label { text-align: center; font-size: 0.8rem; color: var(--muted); margin-bottom: 16px; }
+  .step-label span { font-weight: 600; color: var(--primary); }
+
+  /* 등급 배지 */
+  .grade-badge { display: flex; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%); border: 1px solid #C7D2FE; border-radius: 12px; padding: 12px 20px; margin-bottom: 20px; }
+  .grade-badge .grade-text { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+  .grade-badge .grade-count { font-size: 0.85rem; color: var(--muted); }
+  .grade-badge .grade-bar-wrap { flex: 1; max-width: 120px; height: 6px; background: #C7D2FE; border-radius: 3px; overflow: hidden; }
+  .grade-bar { height: 100%; background: var(--primary); border-radius: 3px; transition: width 0.3s ease; }
+
+  /* 카드 */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 28px; margin-bottom: 16px; }
+  .section-title { font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: var(--primary); }
+  .field { margin-bottom: 20px; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; }
+  .required { color: var(--error); }
+  .optional { color: var(--muted); font-weight: normal; font-size: 0.8rem; }
+  input[type=text], input[type=email], input[type=number], select, textarea {
+    width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 0.95rem; color: var(--text); background: #fff; outline: none; transition: border 0.2s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+  textarea { resize: vertical; min-height: 90px; }
+  .radio-group { display: flex; gap: 16px; flex-wrap: wrap; }
+  .radio-group label { font-weight: normal; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .checkbox-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .checkbox-grid label { font-weight: normal; display: flex; align-items: center; gap: 8px; background: #F9FAFB; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: all 0.15s; }
+  .checkbox-grid label:hover { border-color: var(--primary); }
+  .checkbox-grid input[type=checkbox]:checked + span { color: var(--primary); }
+  .checkbox-grid label:has(input:checked) { border-color: var(--primary); background: #EEF2FF; }
+  .char-count { font-size: 0.8rem; color: var(--muted); text-align: right; margin-top: 4px; }
+  .char-count.warn { color: var(--error); }
+
+  /* 동의 */
+  .consent-box { background: #F3F4F6; border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+  .consent-box label { font-weight: normal; display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
+  .consent-box input[type=checkbox] { margin-top: 2px; flex-shrink: 0; width: 16px; height: 16px; }
+  .privacy-link { color: var(--primary); text-decoration: underline; }
+  .privacy-full { background: #F9FAFB; border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-size: 0.82rem; color: var(--muted); line-height: 1.6; margin-bottom: 16px; max-height: 200px; overflow-y: auto; }
+
+  /* 버튼 */
+  .btn-row { display: flex; gap: 10px; margin-top: 8px; }
+  .btn { flex: 1; padding: 13px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-primary:disabled { background: #9CA3AF; cursor: not-allowed; }
+  .btn-secondary { background: #F3F4F6; color: var(--text); }
+  .btn-secondary:hover { background: #E5E7EB; }
+  .btn-skip { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-skip:hover { background: #F3F4F6; }
+
+  /* 알림 */
+  .error-list { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; color: var(--error); font-size: 0.88rem; }
+  .error-list li { margin-left: 16px; margin-top: 4px; }
+  .success-msg { background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 28px; text-align: center; }
+  .success-msg h2 { color: var(--success); margin-bottom: 8px; }
+
+  /* 단계 */
+  .step { display: none; }
+  .step.active { display: block; }
+
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🤖 AI 모임 정식 신청</h1>
+  <p class="subtitle">AI 모임에 적극 참여하고 싶으신 분을 위한 신청서입니다.</p>
+
+  <!-- 진행률 바 -->
+  <div class="progress-bar">
+    <div class="step-dot active" id="dot1">1</div>
+    <div class="step-line" id="line1"></div>
+    <div class="step-dot" id="dot2">2</div>
+    <div class="step-line" id="line2"></div>
+    <div class="step-dot" id="dot3">3</div>
+    <div class="step-line" id="line3"></div>
+    <div class="step-dot" id="dot4">4</div>
+  </div>
+  <div class="step-label" id="step-label"><span>1단계</span> / 4 — 기본 정보</div>
+
+  <!-- 참여 등급 배지 (2단계부터 표시) -->
+  <div class="grade-badge hidden" id="grade-badge">
+    <div>
+      <div class="grade-text" id="grade-text">🌱 새싹</div>
+      <div class="grade-count" id="grade-count">선택 항목 0 / 14개 입력됨</div>
+    </div>
+    <div class="grade-bar-wrap">
+      <div class="grade-bar" id="grade-bar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div id="error-area" class="error-list hidden"><ul id="error-list"></ul></div>
+
+  <!-- ══ 1단계: 기본 정보 ══ -->
+  <div class="step active" id="step1">
+    <div class="card">
+      <div class="section-title">📋 기본 정보</div>
+      <div class="field">
+        <label>이름 <span class="required">*</span></label>
+        <input type="text" id="name" placeholder="실명" maxlength="50">
+      </div>
+      <div class="field">
+        <label>이메일 <span class="required">*</span></label>
+        <input type="email" id="email" placeholder="example@email.com" maxlength="100">
+      </div>
+      <div class="field">
+        <label>전화번호 <span class="required">*</span></label>
+        <input type="text" id="phone" placeholder="010-1234-5678" maxlength="13">
+      </div>
+      <div class="field">
+        <label>성별 <span class="required">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="gender" value="남"> 남</label>
+          <label><input type="radio" name="gender" value="여"> 여</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>나이 <span class="required">*</span></label>
+        <input type="number" id="age" min="14" max="100" placeholder="만 나이">
+      </div>
+      <div class="field">
+        <label>직업/소속 <span class="required">*</span></label>
+        <input type="text" id="job" placeholder="직장인 / 학생 / 프리랜서 등" maxlength="100">
+      </div>
+      <div class="field">
+        <label>유입 경로 <span class="required">*</span></label>
+        <select id="referral_source">
+          <option value="">선택해주세요</option>
+          <option value="유튜브">유튜브</option>
+          <option value="지인소개">지인 소개</option>
+          <option value="SNS">SNS</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>AI에 관심 갖는 이유 <span class="required">*</span></label>
+        <textarea id="reason" placeholder="최소 20자 이상 작성해주세요" maxlength="2000"></textarea>
+        <div class="char-count" id="reason-count">0자 / 최소 20자</div>
+      </div>
+      <div class="field">
+        <label>AI 자가진단 레벨 <span class="required">*</span></label>
+        <select id="ai_level">
+          <option value="">선택해주세요</option>
+          <option value="입문">입문 — AI가 뭔지 이제 알아가는 중</option>
+          <option value="초급">초급 — ChatGPT 정도는 써봤어요</option>
+          <option value="중급">중급 — 다양한 AI 도구를 활용 중</option>
+          <option value="고급">고급 — API/자동화까지 활용 가능</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="goStep(2)">다음 →</button>
+    </div>
+  </div>
+
+  <!-- ══ 2단계: AI 활용 정보 ══ -->
+  <div class="step" id="step2">
+    <div class="card">
+      <div class="section-title">🤖 AI 활용 정보 <span class="optional">(선택)</span></div>
+      <div class="field">
+        <label>주로 쓰는 AI 도구 <span class="optional">(복수 선택 가능)</span></label>
+        <div class="checkbox-grid" id="ai_tools">
+          <label><input type="checkbox" value="ChatGPT"><span>ChatGPT</span></label>
+          <label><input type="checkbox" value="Claude"><span>Claude</span></label>
+          <label><input type="checkbox" value="Gemini"><span>Gemini</span></label>
+          <label><input type="checkbox" value="Copilot"><span>Copilot</span></label>
+          <label><input type="checkbox" value="Midjourney"><span>Midjourney</span></label>
+          <label><input type="checkbox" value="기타"><span>기타</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label>AI 구독 서비스 <span class="optional">(선택)</span></label>
+        <input type="text" id="ai_subscription" placeholder="ChatGPT Plus, Claude Pro 등" maxlength="200">
+      </div>
+      <div class="field">
+        <label>주당 AI 사용 시간 <span class="optional">(선택)</span></label>
+        <select id="ai_weekly_hours">
+          <option value="">선택</option>
+          <option value="1시간 미만">1시간 미만</option>
+          <option value="1-3시간">1-3시간</option>
+          <option value="3-5시간">3-5시간</option>
+          <option value="5시간 이상">5시간 이상</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>AI 활용 분야 <span class="optional">(복수 선택)</span></label>
+        <div class="checkbox-grid" id="ai_use_cases">
+          <label><input type="checkbox" value="글쓰기"><span>글쓰기</span></label>
+          <label><input type="checkbox" value="코딩"><span>코딩</span></label>
+          <label><input type="checkbox" value="이미지"><span>이미지</span></label>
+          <label><input type="checkbox" value="업무자동화"><span>업무자동화</span></label>
+          <label><input type="checkbox" value="분석"><span>분석</span></label>
+          <label><input type="checkbox" value="기타"><span>기타</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(1)">← 이전</button>
+      <button class="btn btn-skip" onclick="goStep(3)">건너뛰기</button>
+      <button class="btn btn-primary" onclick="goStep(3)">다음 →</button>
+    </div>
+  </div>
+
+  <!-- ══ 3단계: 모임 참여 정보 ══ -->
+  <div class="step" id="step3">
+    <div class="card">
+      <div class="section-title">🤝 모임 참여 정보 <span class="optional">(선택)</span></div>
+      <div class="field">
+        <label>모임 참여 목적 <span class="optional">(복수 선택)</span></label>
+        <div class="checkbox-grid" id="group_goals">
+          <label><input type="checkbox" value="배움"><span>배움</span></label>
+          <label><input type="checkbox" value="네트워킹"><span>네트워킹</span></label>
+          <label><input type="checkbox" value="실습"><span>실습</span></label>
+          <label><input type="checkbox" value="취업"><span>취업</span></label>
+          <label><input type="checkbox" value="창업"><span>창업</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label>단기 목표 <span class="optional">(선택)</span></label>
+        <textarea id="short_term_goal" placeholder="3개월 안에 이루고 싶은 목표" maxlength="1000"></textarea>
+      </div>
+      <div class="field">
+        <label>참여 방식 <span class="optional">(선택)</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="participation_type" value="온라인"> 온라인</label>
+          <label><input type="radio" name="participation_type" value="오프라인"> 오프라인</label>
+          <label><input type="radio" name="participation_type" value="둘다"> 둘 다 가능</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>선호 요일/시간대 <span class="optional">(선택)</span></label>
+        <input type="text" id="preferred_schedule" placeholder="주말 오후, 평일 저녁 등" maxlength="200">
+      </div>
+      <div class="field">
+        <label>거주 지역 <span class="optional">(선택)</span></label>
+        <input type="text" id="region" placeholder="서울 강남구, 경기 수원 등" maxlength="100">
+      </div>
+      <div class="field">
+        <label>주 사용 기기 <span class="optional">(선택)</span></label>
+        <select id="main_device">
+          <option value="">선택</option>
+          <option value="맥">맥</option>
+          <option value="윈도우">윈도우</option>
+          <option value="아이패드">아이패드</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>코딩 가능 여부 <span class="optional">(선택)</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="can_code" value="yes"> 예</label>
+          <label><input type="radio" name="can_code" value="no"> 아니오</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>발표/강의 가능 여부 <span class="optional">(선택)</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="can_present" value="yes"> 예</label>
+          <label><input type="radio" name="can_present" value="no"> 아니오</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>보유 스킬 <span class="optional">(선택)</span></label>
+        <textarea id="skills" placeholder="디자인, 마케팅, 개발 등" maxlength="1000"></textarea>
+      </div>
+      <div class="field">
+        <label>기여 방식 <span class="optional">(선택)</span></label>
+        <textarea id="contribution" placeholder="모임에 어떻게 기여하고 싶으신가요?" maxlength="1000"></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(2)">← 이전</button>
+      <button class="btn btn-skip" onclick="goStep(4)">건너뛰기</button>
+      <button class="btn btn-primary" onclick="goStep(4)">다음 →</button>
+    </div>
+  </div>
+
+  <!-- ══ 4단계: 동의 및 제출 ══ -->
+  <div class="step" id="step4">
+    <div class="card">
+      <div class="section-title">📜 개인정보 동의</div>
+      <details style="margin-bottom:16px;">
+        <summary style="cursor:pointer;font-size:0.9rem;color:var(--muted);">개인정보처리방침 전문 보기</summary>
+        <div class="privacy-full" style="margin-top:10px;">
+          <strong>AI 모임 개인정보처리방침</strong><br><br>
+          1. 수집 항목<br>
+          필수: 이름, 이메일, 전화번호, 성별, 나이, 직업, 신청이유<br>
+          선택: AI 활용 정보, 모임 참여 정보<br><br>
+          2. 수집 목적<br>
+          서비스 접근 코드 부여 및 모임 운영<br><br>
+          3. 보유 기간<br>
+          서비스 종료 시까지<br><br>
+          4. 제3자 제공<br>
+          없음<br><br>
+          5. 파기 방법<br>
+          DB 삭제 및 Sheets 마스킹 처리<br><br>
+          6. 담당자<br>
+          윤상욱<br><br>
+          버전: 1.0
+        </div>
+      </details>
+      <div class="consent-box">
+        <label>
+          <input type="checkbox" id="consent_personal">
+          <span>[필수] 개인정보 수집·이용에 동의합니다.
+            (<a href="privacy.html" target="_blank" class="privacy-link">처리방침 보기</a>)</span>
+        </label>
+      </div>
+      <div class="consent-box">
+        <label>
+          <input type="checkbox" id="consent_marketing">
+          <span>[선택] 마케팅 활용에 동의합니다.</span>
+        </label>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(3)">← 이전</button>
+      <button class="btn btn-primary" id="submit-btn" onclick="submitForm()">✉️ 신청 제출</button>
+    </div>
+  </div>
+
+  <!-- 성공 -->
+  <div class="hidden" id="success-wrap">
+    <div class="success-msg">
+      <h2>✅ 신청이 접수되었습니다!</h2>
+      <p>검토 후 승인 시 접속 코드를 알려드립니다.</p>
+      <p id="success-grade" style="margin-top:12px;font-size:1.1rem;font-weight:700;"></p>
+      <p style="margin-top:8px;font-size:0.9rem;color:#6B7280;">보통 1-3일 내로 연락드립니다.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentStep = 1;
+const TOTAL_STEPS = 4;
+const STEP_LABELS = ['기본 정보', 'AI 활용 정보', '모임 참여 정보', '동의 및 제출'];
+
+// 선택 항목 14개 정의
+const OPTIONAL_IDS = [
+  'ai_tools', 'ai_subscription', 'ai_weekly_hours', 'ai_use_cases',
+  'group_goals', 'short_term_goal', 'participation_type', 'preferred_schedule',
+  'region', 'main_device', 'can_code', 'can_present', 'skills', 'contribution'
+];
+
+const GRADE_RULES = [
+  { max: 0, label: '🌱 새싹' },
+  { max: 4, label: '🔥 열정' },
+  { max: 9, label: '⭐ 적극' },
+  { max: 13, label: '💎 헌신' },
+  { max: 14, label: '👑 마스터' },
+];
+
+function getGrade(count) {
+  if (count === 0) return '🌱 새싹';
+  if (count <= 4) return '🔥 열정';
+  if (count <= 9) return '⭐ 적극';
+  if (count <= 13) return '💎 헌신';
+  return '👑 마스터';
+}
+
+function countOptional() {
+  let count = 0;
+  // checkbox 그룹
+  const cbGroups = ['ai_tools', 'ai_use_cases', 'group_goals'];
+  for (const id of cbGroups) {
+    const el = document.getElementById(id);
+    if (el && el.querySelectorAll('input:checked').length > 0) count++;
+  }
+  // 텍스트 필드
+  const textIds = ['ai_subscription', 'ai_weekly_hours', 'short_term_goal', 'preferred_schedule', 'region', 'main_device', 'skills', 'contribution'];
+  for (const id of textIds) {
+    const el = document.getElementById(id);
+    if (el && el.value.trim() !== '') count++;
+  }
+  // 라디오 그룹
+  const radioGroups = ['participation_type', 'can_code', 'can_present'];
+  for (const name of radioGroups) {
+    if (document.querySelector(`input[name=${name}]:checked`)) count++;
+  }
+  return count;
+}
+
+function updateGrade() {
+  const count = countOptional();
+  const grade = getGrade(count);
+  document.getElementById('grade-text').textContent = grade;
+  document.getElementById('grade-count').textContent = `선택 항목 ${count} / 14개 입력됨`;
+  document.getElementById('grade-bar').style.width = `${(count / 14) * 100}%`;
+}
+
+// 선택 항목 변경 감지
+function attachGradeListeners() {
+  document.querySelectorAll('input[type=checkbox], input[type=radio], select, textarea').forEach(el => {
+    el.addEventListener('change', updateGrade);
+    el.addEventListener('input', updateGrade);
+  });
+}
+
+function updateProgress(step) {
+  for (let i = 1; i <= TOTAL_STEPS; i++) {
+    const dot = document.getElementById(`dot${i}`);
+    dot.className = 'step-dot';
+    if (i < step) dot.classList.add('done'), dot.textContent = '✓';
+    else if (i === step) dot.classList.add('active'), dot.textContent = i;
+    else dot.textContent = i;
+  }
+  for (let i = 1; i < TOTAL_STEPS; i++) {
+    const line = document.getElementById(`line${i}`);
+    line.className = 'step-line' + (i < step ? ' done' : '');
+  }
+  document.getElementById('step-label').innerHTML = `<span>${step}단계</span> / ${TOTAL_STEPS} — ${STEP_LABELS[step-1]}`;
+}
+
+function goStep(target) {
+  // 1단계 → 2단계 이동 시 유효성 검사
+  if (currentStep === 1 && target > 1) {
+    const errors = validateStep1();
+    if (errors.length > 0) {
+      showErrors(errors);
+      return;
+    }
+  }
+  hideErrors();
+  document.getElementById(`step${currentStep}`).classList.remove('active');
+  currentStep = target;
+  document.getElementById(`step${currentStep}`).classList.add('active');
+  updateProgress(currentStep);
+  // 2단계부터 등급 배지 표시
+  if (currentStep >= 2) {
+    document.getElementById('grade-badge').classList.remove('hidden');
+    updateGrade();
+  } else {
+    document.getElementById('grade-badge').classList.add('hidden');
+  }
+  window.scrollTo(0, 0);
+}
+
+function validateStep1() {
+  const errors = [];
+  if (!document.getElementById('name').value.trim()) errors.push('이름을 입력해주세요.');
+  if (!document.getElementById('email').value.trim()) errors.push('이메일을 입력해주세요.');
+  if (!document.getElementById('phone').value.trim()) errors.push('전화번호를 입력해주세요.');
+  if (!document.querySelector('input[name=gender]:checked')) errors.push('성별을 선택해주세요.');
+  const age = parseInt(document.getElementById('age').value);
+  if (!age) errors.push('나이를 입력해주세요.');
+  else if (age < 14) errors.push('만 14세 미만은 신청할 수 없습니다.');
+  if (!document.getElementById('job').value.trim()) errors.push('직업/소속을 입력해주세요.');
+  if (!document.getElementById('referral_source').value) errors.push('유입 경로를 선택해주세요.');
+  if (document.getElementById('reason').value.trim().length < 20) errors.push('신청 이유를 20자 이상 입력해주세요.');
+  if (!document.getElementById('ai_level').value) errors.push('AI 레벨을 선택해주세요.');
+  return errors;
+}
+
+function showErrors(errors) {
+  const area = document.getElementById('error-area');
+  const list = document.getElementById('error-list');
+  list.innerHTML = errors.map(e => `<li>${e}</li>`).join('');
+  area.classList.remove('hidden');
+  area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function hideErrors() {
+  document.getElementById('error-area').classList.add('hidden');
+}
+
+function getChecked(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return [];
+  return Array.from(el.querySelectorAll('input:checked')).map(cb => cb.value);
+}
+
+async function submitForm() {
+  if (!document.getElementById('consent_personal').checked) {
+    showErrors(['개인정보 수집·이용 동의는 필수입니다.']);
+    return;
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>제출 중...';
+  hideErrors();
+
+  const canCodeEl = document.querySelector('input[name=can_code]:checked');
+  const canPresentEl = document.querySelector('input[name=can_present]:checked');
+  const participationTypeEl = document.querySelector('input[name=participation_type]:checked');
+
+  const payload = {
+    name: document.getElementById('name').value.trim(),
+    email: document.getElementById('email').value.trim(),
+    phone: document.getElementById('phone').value.trim(),
+    gender: document.querySelector('input[name=gender]:checked')?.value || '',
+    age: parseInt(document.getElementById('age').value),
+    job: document.getElementById('job').value.trim(),
+    referral_source: document.getElementById('referral_source').value,
+    reason: document.getElementById('reason').value.trim(),
+    ai_level: document.getElementById('ai_level').value,
+    plan_type: 'full',
+    // 선택 항목
+    ai_tools: getChecked('ai_tools'),
+    ai_subscription: document.getElementById('ai_subscription').value.trim() || null,
+    ai_weekly_hours: document.getElementById('ai_weekly_hours').value || null,
+    ai_use_cases: getChecked('ai_use_cases'),
+    group_goals: getChecked('group_goals'),
+    short_term_goal: document.getElementById('short_term_goal').value.trim() || null,
+    participation_type: participationTypeEl?.value || null,
+    preferred_schedule: document.getElementById('preferred_schedule').value.trim() || null,
+    region: document.getElementById('region').value.trim() || null,
+    main_device: document.getElementById('main_device').value || null,
+    can_code: canCodeEl ? canCodeEl.value === 'yes' : null,
+    can_present: canPresentEl ? canPresentEl.value === 'yes' : null,
+    skills: document.getElementById('skills').value.trim() || null,
+    contribution: document.getElementById('contribution').value.trim() || null,
+    // 동의
+    consent_personal: document.getElementById('consent_personal').checked,
+    consent_marketing: document.getElementById('consent_marketing').checked,
+  };
+
+  try {
+    const res = await fetch('/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.querySelector('.container').innerHTML = `
+        <div class="success-msg">
+          <h2>✅ 신청이 접수되었습니다!</h2>
+          <p>검토 후 승인 시 접속 코드를 알려드립니다.</p>
+          <p style="margin-top:16px;font-size:1.3rem;font-weight:700;">${getGrade(countOptional())}</p>
+          <p style="margin-top:4px;font-size:0.9rem;color:#6B7280;">선택 항목 ${countOptional()} / 14개 입력</p>
+          <p style="margin-top:12px;font-size:0.9rem;color:#6B7280;">보통 1-3일 내로 연락드립니다.</p>
+        </div>`;
+    } else {
+      showErrors(data.errors || data.detail?.errors || ['알 수 없는 오류가 발생했습니다.']);
+      btn.disabled = false;
+      btn.textContent = '✉️ 신청 제출';
+    }
+  } catch(err) {
+    showErrors([`서버 연결 오류: ${err.message}`]);
+    btn.disabled = false;
+    btn.textContent = '✉️ 신청 제출';
+  }
+}
+
+// 전화번호 자동 하이픈
+document.getElementById('phone').addEventListener('input', function(e) {
+  let v = e.target.value.replace(/\D/g, '');
+  if (v.length <= 3) e.target.value = v;
+  else if (v.length <= 7) e.target.value = v.slice(0,3) + '-' + v.slice(3);
+  else e.target.value = v.slice(0,3) + '-' + v.slice(3,7) + '-' + v.slice(7,11);
+});
+
+// reason 글자수
+document.getElementById('reason').addEventListener('input', function() {
+  const len = this.value.length;
+  const el = document.getElementById('reason-count');
+  el.textContent = `${len}자 / 최소 20자`;
+  el.className = 'char-count' + (len < 20 ? ' warn' : '');
+  updateGrade();
+});
+
+// 초기화
+updateProgress(1);
+attachGradeListeners();
+</script>
+</body>
+</html>
