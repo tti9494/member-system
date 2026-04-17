@@ -101,7 +101,11 @@ app = FastAPI(title="Member System", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8100", "http://127.0.0.1:8100"],
+    allow_origins=[
+        "http://localhost:8100", "http://127.0.0.1:8100",
+        "https://arsen-ai.com", "https://www.arsen-ai.com",
+        "https://apply.arsen-ai.com",
+    ],
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
