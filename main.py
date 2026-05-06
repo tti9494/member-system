@@ -85,6 +85,8 @@ scheduler.add_job(job_unlock_check, CronTrigger(minute=0), id="unlock_check", re
 # 매주 월요일 09:00 — 주간 리포트
 scheduler.add_job(job_weekly_report, CronTrigger(day_of_week="mon", hour=9, minute=0), id="weekly_report", replace_existing=True)
 
+ENABLE_API_DOCS = os.getenv("ENABLE_API_DOCS", "").lower() in {"1", "true", "yes", "on"}
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -97,7 +99,14 @@ async def lifespan(app: FastAPI):
     log.info("스케줄러 종료")
 
 
-app = FastAPI(title="Member System", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="Member System",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs" if ENABLE_API_DOCS else None,
+    redoc_url="/redoc" if ENABLE_API_DOCS else None,
+    openapi_url="/openapi.json" if ENABLE_API_DOCS else None,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -213,7 +222,6 @@ async def index():
       <li><a href="/frontend/join-basic.html">체험 신청 (Basic)</a></li>
       <li><a href="/frontend/join-full.html">정식 신청 (Full)</a></li>
       <li><a href="/frontend/privacy.html">개인정보처리방침</a></li>
-      <li><a href="/docs">API 문서</a></li>
     </ul>
     </body></html>
     """
