@@ -121,8 +121,8 @@ ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "")
 def require_admin(request: Request):
     key = request.headers.get("X-Admin-Key", "")
     if not ADMIN_API_KEY:
-        log.warning("ADMIN_API_KEY 미설정 — 관리자 인증 비활성화 (개발 모드)")
-        return
+        log.error("ADMIN_API_KEY 미설정 — 관리자 엔드포인트 차단")
+        raise HTTPException(status_code=503, detail="관리자 인증 설정이 필요합니다.")
     if not key or key != ADMIN_API_KEY:
         raise HTTPException(status_code=401, detail="관리자 인증 필요 (X-Admin-Key 헤더)")
 
