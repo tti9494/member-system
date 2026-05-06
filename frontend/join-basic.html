@@ -6,51 +6,64 @@
 <title>AI 모임 체험 신청</title>
 <style>
   :root {
-    --primary: #1F4FBE;
-    --primary-hover: #183F9A;
-    --bg: #EEF2F6;
+    --primary: #18438F;
+    --primary-hover: #103174;
+    --bg: #EAF0F7;
     --card: #FFFFFF;
-    --border: #C8D1DF;
-    --text: #111827;
-    --muted: #46546A;
-    --error: #EF4444;
-    --success: #10B981;
+    --border: #B9C4D4;
+    --text: #0E1726;
+    --muted: #3A485F;
+    --error: #B0241B;
+    --error-soft: #FDE2DF;
+    --success: #0A6A47;
+    --success-soft: #DEF4E8;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', sans-serif; min-height: 100vh; padding: 32px 18px 72px; font-size: 17px; line-height: 1.62; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; min-height: 100vh; padding: 36px 18px 80px; font-size: 18px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
   .container { max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 2rem; font-weight: 800; text-align: center; margin-bottom: 8px; letter-spacing: 0; }
-  .subtitle { text-align: center; color: var(--muted); font-size: 1rem; margin-bottom: 30px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 34px; margin-bottom: 22px; box-shadow: 0 14px 34px rgba(24,34,53,0.08); }
-  .field { margin-bottom: 24px; }
-  label { display: block; font-weight: 750; margin-bottom: 8px; font-size: 1rem; }
-  .required { color: var(--error); }
+  h1 { font-size: 2.15rem; font-weight: 850; text-align: center; margin-bottom: 10px; letter-spacing: -0.01em; color: var(--text); }
+  .subtitle { text-align: center; color: var(--muted); font-size: 1.05rem; margin-bottom: 32px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 36px; margin-bottom: 22px; box-shadow: 0 16px 40px rgba(20,30,50,0.10); }
+  .field { margin-bottom: 26px; }
+  label { display: block; font-weight: 750; margin-bottom: 9px; font-size: 1.02rem; color: var(--text); }
+  .required { color: var(--error); margin-left: 2px; }
   input[type=text], input[type=email], input[type=number], select, textarea {
-    width: 100%; padding: 13px 15px; border: 1px solid var(--border); border-radius: 10px;
-    min-height: 50px; font-size: 1.05rem; color: var(--text); background: #fff; outline: none; transition: border 0.2s, box-shadow 0.2s;
+    width: 100%; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 10px;
+    min-height: 54px; font-size: 1.08rem; color: var(--text); background: #fff; outline: none; transition: border 0.15s, box-shadow 0.15s;
   }
-  input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(31,79,190,0.12); }
-  textarea { resize: vertical; min-height: 130px; }
-  .radio-group { display: flex; gap: 16px; }
-  .radio-group label { font-weight: 650; display: flex; align-items: center; gap: 7px; cursor: pointer; }
-  .char-count { font-size: 0.9rem; color: var(--muted); text-align: right; margin-top: 6px; }
-  .char-count.warn { color: var(--error); }
-  .consent-box { background: #F7F9FC; border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 12px; }
-  .consent-box label { font-weight: 600; display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
-  .consent-box input[type=checkbox] { margin-top: 3px; flex-shrink: 0; width: 18px; height: 18px; }
-  .privacy-link { color: var(--primary); text-decoration: underline; }
-  .btn { display: block; width: 100%; padding: 16px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-size: 1.08rem; font-weight: 750; cursor: pointer; transition: background 0.2s; }
+  input::placeholder, textarea::placeholder { color: #7585A0; }
+  input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(24,67,143,0.18); }
+  textarea { resize: vertical; min-height: 140px; line-height: 1.6; }
+  .radio-group { display: flex; gap: 12px; flex-wrap: wrap; }
+  .radio-group label { font-weight: 700; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 18px; border: 1.5px solid var(--border); border-radius: 10px; min-height: 50px; background: #fff; flex: 1; min-width: 110px; transition: border-color 0.15s, background 0.15s; }
+  .radio-group label:hover { border-color: var(--primary); }
+  .radio-group input[type=radio] { width: 18px; height: 18px; accent-color: var(--primary); }
+  .radio-group label:has(input:checked) { border-color: var(--primary); background: #EEF3FB; color: var(--primary); }
+  .char-count { font-size: 0.95rem; color: var(--muted); text-align: right; margin-top: 8px; }
+  .char-count.warn { color: var(--error); font-weight: 700; }
+  .consent-box { background: #F4F7FB; border: 1.5px solid var(--border); border-radius: 11px; padding: 18px 20px; margin-bottom: 12px; transition: border-color 0.15s; }
+  .consent-box:has(input:checked) { border-color: var(--primary); background: #EEF3FB; }
+  .consent-box label { font-weight: 650; font-size: 1rem; display: flex; align-items: flex-start; gap: 12px; cursor: pointer; line-height: 1.55; }
+  .consent-box input[type=checkbox] { margin-top: 3px; flex-shrink: 0; width: 20px; height: 20px; accent-color: var(--primary); }
+  .privacy-link { color: var(--primary); text-decoration: underline; font-weight: 700; }
+  .btn { display: block; width: 100%; padding: 18px; background: var(--primary); color: #fff; border: none; border-radius: 11px; font-size: 1.12rem; font-weight: 800; cursor: pointer; transition: background 0.15s; letter-spacing: -0.005em; }
   .btn:hover { background: var(--primary-hover); }
-  .btn:disabled { background: #9CA3AF; cursor: not-allowed; }
-  .error-list { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; color: var(--error); font-size: 1rem; }
-  .error-list li { margin-left: 16px; margin-top: 4px; }
-  .success-msg { background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 12px; padding: 30px; text-align: center; }
-  .success-msg h2 { color: var(--success); margin-bottom: 8px; }
-  .full-link { text-align: center; margin-top: 18px; font-size: 1rem; color: var(--muted); }
-  .full-link a { color: var(--primary); font-weight: 600; }
+  .btn:disabled { background: #9CA8BD; cursor: not-allowed; }
+  .error-list { background: var(--error-soft); border: 1.5px solid var(--error); border-radius: 11px; padding: 15px 20px; margin-bottom: 20px; color: var(--error); font-size: 1.02rem; font-weight: 650; }
+  .error-list li { margin-left: 18px; margin-top: 5px; }
+  .success-msg { background: var(--success-soft); border: 1.5px solid var(--success); border-radius: 14px; padding: 36px; text-align: center; }
+  .success-msg h2 { color: var(--success); margin-bottom: 10px; font-size: 1.5rem; font-weight: 850; }
+  .success-msg p { font-size: 1.05rem; color: var(--text); }
+  .full-link { text-align: center; margin-top: 20px; font-size: 1.02rem; color: var(--muted); }
+  .full-link a { color: var(--primary); font-weight: 750; text-decoration: underline; }
   .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 8px; vertical-align: middle; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .hidden { display: none; }
+  @media (max-width: 480px) {
+    body { padding: 24px 14px 60px; font-size: 17px; }
+    .card { padding: 24px 20px; }
+    h1 { font-size: 1.85rem; }
+  }
 </style>
 </head>
 <body>
