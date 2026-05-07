@@ -27,6 +27,7 @@
   .field { margin-bottom: 26px; }
   label { display: block; font-weight: 750; margin-bottom: 9px; font-size: 1.02rem; color: var(--text); }
   .required { color: var(--error); margin-left: 2px; }
+  .optional { color: var(--muted); font-weight: 650; font-size: 0.92rem; margin-left: 4px; }
   input[type=text], input[type=email], input[type=number], select, textarea {
     width: 100%; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 10px;
     min-height: 54px; font-size: 1.08rem; color: var(--text); background: #fff; outline: none; transition: border 0.15s, box-shadow 0.15s;
@@ -41,6 +42,7 @@
   .radio-group label:has(input:checked) { border-color: var(--primary); background: #EEF3FB; color: var(--primary); }
   .char-count { font-size: 0.95rem; color: var(--muted); text-align: right; margin-top: 8px; }
   .char-count.warn { color: var(--error); font-weight: 700; }
+  .hint { margin-top: 8px; color: var(--muted); font-size: 0.95rem; }
   .consent-box { background: #F4F7FB; border: 1.5px solid var(--border); border-radius: 11px; padding: 18px 20px; margin-bottom: 12px; transition: border-color 0.15s; }
   .consent-box:has(input:checked) { border-color: var(--primary); background: #EEF3FB; }
   .consent-box label { font-weight: 650; font-size: 1rem; display: flex; align-items: flex-start; gap: 12px; cursor: pointer; line-height: 1.55; }
@@ -127,6 +129,21 @@
           <option value="고급">고급 — API/자동화까지 활용 가능</option>
         </select>
       </div>
+      <div class="field">
+        <label>희망 강의/상담 일정 <span class="optional">(선택)</span></label>
+        <select name="session_id" id="session_id">
+          <option value="">일정 선택 없이 먼저 신청</option>
+        </select>
+        <div class="hint" id="session-hint">신청 후 확인 → 입금 안내 → 입금 확인 → 확정 순서로 진행됩니다.</div>
+      </div>
+      <div class="field">
+        <label>구현하고 싶은 내용 <span class="optional">(선택)</span></label>
+        <textarea name="desired_outcome" id="desired_outcome" placeholder="예: 블로그 자동화, 업무 문서 정리, 예약 시스템, AI 기초 설정 등" maxlength="1000"></textarea>
+      </div>
+      <div class="field">
+        <label>준비 상태 <span class="optional">(선택)</span></label>
+        <textarea name="preparedness" id="preparedness" placeholder="노트북, GPT/Claude 유료 구독, 현재 막힌 지점 등을 적어주세요." maxlength="1000"></textarea>
+      </div>
       <input type="hidden" name="plan_type" value="basic">
 
       <div class="field">
@@ -180,6 +197,28 @@
     reasonCount.className = 'char-count' + (len < 20 ? ' warn' : '');
   });
 
+  async function loadSessions() {
+    const select = document.getElementById('session_id');
+    const hint = document.getElementById('session-hint');
+    try {
+      const res = await fetch('/sessions');
+      const data = await res.json();
+      const sessions = data.data || [];
+      for (const session of sessions) {
+        const option = document.createElement('option');
+        option.value = session.id;
+        const start = new Date(session.starts_at);
+        const when = Number.isNaN(start.getTime()) ? session.starts_at : start.toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        option.textContent = `${when} · ${session.location} · ${session.confirmed_count}/${session.capacity_max}명 · ${Number(session.price_krw || 0).toLocaleString()}원`;
+        option.disabled = session.status === 'full';
+        select.appendChild(option);
+      }
+      hint.textContent = sessions.length ? '일정을 선택하면 관리자 화면에서 예약 신청으로 함께 관리됩니다.' : '현재 공개된 일정이 없습니다. 일정 선택 없이 신청하셔도 됩니다.';
+    } catch (_) {
+      hint.textContent = '일정 목록을 불러오지 못했습니다. 일정 선택 없이 신청하셔도 됩니다.';
+    }
+  }
+
   // 폼 제출
   document.getElementById('apply-form').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -203,6 +242,9 @@
       reason: fd.get('reason'),
       ai_level: fd.get('ai_level'),
       plan_type: 'basic',
+      session_id: fd.get('session_id') || null,
+      desired_outcome: fd.get('desired_outcome') || null,
+      preparedness: fd.get('preparedness') || null,
       consent_personal: fd.get('consent_personal') === 'on',
       consent_marketing: fd.get('consent_marketing') === 'on',
     };
@@ -230,6 +272,7 @@
       btn.textContent = '체험 신청하기';
     }
   });
+  loadSessions();
 </script>
 </body>
 </html>

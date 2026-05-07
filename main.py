@@ -25,6 +25,11 @@ from agents.db_manager import (
     blacklist_member, get_stats, save_to_sheets, log_action,
     cleanup_expired_codes, get_expiring_soon, release_expired_locks,
 )
+from agents.booking_manager import (
+    create_booking, create_session, get_session, list_bookings, list_sessions,
+    refresh_session_counts, seed_default_sunday_sessions, set_booking_state,
+    update_session,
+)
 from agents.code_generator import generate_code, verify_code, revoke_code, regenerate_code
 from agents.telegram_notifier import (
     notify_admin_new_apply, notify_member_approved, notify_member_rejected,
@@ -164,6 +169,9 @@ class ApplyRequest(BaseModel):
     can_present: Optional[bool] = None
     skills: Optional[str] = None
     contribution: Optional[str] = None
+    session_id: Optional[str] = None
+    desired_outcome: Optional[str] = None
+    preparedness: Optional[str] = None
     # 동의
     consent_personal: bool
     consent_marketing: Optional[bool] = False
@@ -182,6 +190,50 @@ class VerifyCodeRequest(BaseModel):
     member_id: str
 
 
+class SessionRequest(BaseModel):
+    title: str = "AI 기초 셋팅 및 컨설팅 강의 1:4"
+    description: Optional[str] = None
+    program_type: str = "ai_basic_setup"
+    audience_level: str = "all"
+    starts_at: str
+    ends_at: str
+    timezone: str = "Asia/Seoul"
+    capacity_min: int = 4
+    capacity_max: int = 5
+    price_krw: int = 50000
+    location: str
+    materials: Optional[str] = None
+    status: str = "open"
+    payment_guide: Optional[str] = None
+
+
+class SessionUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    program_type: Optional[str] = None
+    audience_level: Optional[str] = None
+    starts_at: Optional[str] = None
+    ends_at: Optional[str] = None
+    timezone: Optional[str] = None
+    capacity_min: Optional[int] = None
+    capacity_max: Optional[int] = None
+    price_krw: Optional[int] = None
+    location: Optional[str] = None
+    materials: Optional[str] = None
+    status: Optional[str] = None
+    payment_guide: Optional[str] = None
+
+
+class BookingStateRequest(BaseModel):
+    status: Optional[str] = None
+    payment_status: Optional[str] = None
+    payment_note: Optional[str] = None
+
+
+class SeedSessionsRequest(BaseModel):
+    weeks: int = 4
+
+
 # ── 유틸 ────────────────────────────────────────────
 
 def _grade_count(data: dict) -> str:
@@ -190,6 +242,7 @@ def _grade_count(data: dict) -> str:
         "ai_tools", "ai_subscription", "ai_weekly_hours", "ai_use_cases",
         "group_goals", "short_term_goal", "participation_type", "preferred_schedule",
         "region", "main_device", "can_code", "can_present", "skills", "contribution",
+        "session_id", "desired_outcome", "preparedness",
     ]
     count = 0
     for field in optional_fields:
@@ -227,10 +280,24 @@ async def index():
     """
 
 
+@app.get("/sessions")
+async def public_sessions():
+    rows = list_sessions(include_closed=False)
+    return {
+        "ok": True,
+        "data": rows,
+        "total": len(rows),
+        "workflow": "신청 → 확인 → 입금 안내 → 입금 확인 → 확정",
+    }
+
+
 @app.post("/apply")
 async def apply(req: ApplyRequest, request: Request):
     data = req.model_dump()
     client_ip = request.client.host if request.client else "unknown"
+    selected_session = get_session(data.get("session_id")) if data.get("session_id") else None
+    if data.get("session_id") and not selected_session:
+        raise HTTPException(400, detail="선택한 세션을 찾을 수 없습니다.")
 
     # 1. 보안 검토
     sec = check_security(data)
@@ -289,7 +356,29 @@ async def apply(req: ApplyRequest, request: Request):
     # 12. 이력 기록
     log_action(member_id, "apply", f"plan={data['plan_type']}, grade={grade}", client_ip)
 
-    return {"ok": True, "message": "신청이 접수되었습니다.", "member_id": member_id}
+    booking_id = None
+    if data.get("session_id") or data.get("desired_outcome") or data.get("preparedness"):
+        amount = int(selected_session["price_krw"]) if selected_session else 50000
+        booking_id = create_booking({
+            "session_id": data.get("session_id"),
+            "member_id": member_id,
+            "applicant_name": data["name"],
+            "phone_masked": member.get("phone_masked", ""),
+            "desired_outcome": data.get("desired_outcome") or data.get("short_term_goal") or data.get("reason"),
+            "preparedness": data.get("preparedness") or "",
+            "status": "requested",
+            "payment_status": "not_sent",
+            "payment_amount_krw": amount,
+        })
+        refresh_session_counts(data.get("session_id"))
+        log_action(member_id, "booking_requested", f"booking_id={booking_id}", client_ip)
+
+    return {
+        "ok": True,
+        "message": "신청이 접수되었습니다.",
+        "member_id": member_id,
+        "booking_id": booking_id,
+    }
 
 
 @app.post("/approve/{member_id}")
@@ -386,6 +475,67 @@ async def stats():
     data = get_stats()
     data["expiring_7d"] = len(get_expiring_soon(days=7))
     return {"ok": True, "data": data}
+
+
+@app.get("/admin/sessions")
+async def admin_sessions(status: Optional[str] = None, _=Depends(require_admin)):
+    rows = list_sessions(status=status, include_closed=True)
+    return {"ok": True, "data": rows, "total": len(rows)}
+
+
+@app.post("/admin/sessions")
+async def admin_create_session(body: SessionRequest, request: Request, _=Depends(require_admin)):
+    data = body.model_dump()
+    session_id = create_session(data)
+    log_action(session_id, "session_create", data.get("title"), request.client.host if request.client else None)
+    return {"ok": True, "id": session_id, "data": get_session(session_id)}
+
+
+@app.post("/admin/sessions/seed-default-sunday")
+async def admin_seed_sessions(body: SeedSessionsRequest, request: Request, _=Depends(require_admin)):
+    ids = seed_default_sunday_sessions(body.weeks)
+    log_action("booking", "session_seed_default_sunday", f"created={len(ids)}", request.client.host if request.client else None)
+    return {"ok": True, "created": len(ids), "ids": ids}
+
+
+@app.post("/admin/sessions/{session_id}")
+async def admin_update_session(session_id: str, body: SessionUpdateRequest, request: Request, _=Depends(require_admin)):
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    ok = update_session(session_id, updates)
+    if not ok:
+        raise HTTPException(404, detail="세션을 찾을 수 없거나 변경할 값이 없습니다.")
+    log_action(session_id, "session_update", ",".join(sorted(updates)), request.client.host if request.client else None)
+    return {"ok": True, "data": get_session(session_id)}
+
+
+@app.get("/admin/bookings")
+async def admin_bookings(
+    status: Optional[str] = None,
+    session_id: Optional[str] = None,
+    _=Depends(require_admin),
+):
+    rows = list_bookings(status=status, session_id=session_id)
+    return {"ok": True, "data": rows, "total": len(rows)}
+
+
+@app.post("/admin/bookings/{booking_id}/state")
+async def admin_booking_state(booking_id: str, body: BookingStateRequest, request: Request, _=Depends(require_admin)):
+    allowed_status = {"requested", "payment_guide_sent", "payment_pending", "payment_confirmed", "confirmed", "canceled", "rejected", "completed", "no_show"}
+    allowed_payment = {"not_sent", "guide_sent", "pending", "paid", "waived", "refunded", "failed"}
+    if body.status and body.status not in allowed_status:
+        raise HTTPException(400, detail=f"status 가능 값: {sorted(allowed_status)}")
+    if body.payment_status and body.payment_status not in allowed_payment:
+        raise HTTPException(400, detail=f"payment_status 가능 값: {sorted(allowed_payment)}")
+    ok = set_booking_state(
+        booking_id,
+        status=body.status,
+        payment_status=body.payment_status,
+        payment_note=body.payment_note,
+    )
+    if not ok:
+        raise HTTPException(404, detail="예약 신청을 찾을 수 없습니다.")
+    log_action(booking_id, "booking_state_update", f"status={body.status}, payment={body.payment_status}", request.client.host if request.client else None)
+    return {"ok": True, "data": list_bookings()}
 
 
 @app.get("/scheduler/status")

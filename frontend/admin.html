@@ -528,6 +528,84 @@
     color: var(--text);
   }
 
+  .booking-panel {
+    padding: 18px;
+    margin-bottom: 18px;
+  }
+
+  .booking-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .booking-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .booking-column {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-soft);
+    overflow: hidden;
+  }
+
+  .booking-column h2 {
+    margin: 0;
+    padding: 14px 16px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    font-size: 18px;
+  }
+
+  .booking-list {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    max-height: 360px;
+    overflow: auto;
+  }
+
+  .booking-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    background: #fff;
+  }
+
+  .booking-title {
+    font-weight: 850;
+    line-height: 1.35;
+  }
+
+  .booking-meta {
+    color: var(--muted);
+    font-size: 15px;
+    margin-top: 4px;
+  }
+
+  .booking-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .session-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .session-form .wide {
+    grid-column: 1 / -1;
+  }
+
   .empty-state {
     color: var(--muted);
     text-align: center;
@@ -550,6 +628,7 @@
     h1 { font-size: 28px; }
     .auth-panel, .toolbar { grid-template-columns: 1fr; }
     .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .booking-grid, .session-form { grid-template-columns: 1fr; }
     .section-grid { grid-template-columns: 1fr; }
     .kv { grid-template-columns: 118px minmax(0, 1fr); }
   }
@@ -589,6 +668,42 @@
       <div class="stat-card accent-blacklist"><div class="stat-label">차단</div><div class="stat-value" id="stat-blacklist">-</div></div>
       <div class="stat-card"><div class="stat-label">Basic</div><div class="stat-value" id="stat-basic">-</div></div>
       <div class="stat-card accent-expiring"><div class="stat-label">7일 내 만료</div><div class="stat-value" id="stat-expiring">-</div></div>
+    </section>
+
+    <section class="panel booking-panel" aria-label="강의 일정과 예약">
+      <div class="booking-head">
+        <div>
+          <div class="panel-title">강의 일정 / 예약</div>
+          <div class="panel-caption">신청 → 확인 → 입금 안내 → 입금 확인 → 확정 흐름을 관리합니다.</div>
+        </div>
+        <div class="top-actions">
+          <button class="btn" id="seed-sessions-btn" type="button">일요일 3타임 생성</button>
+          <button class="btn primary" id="booking-refresh-btn" type="button">예약 새로고침</button>
+        </div>
+      </div>
+      <div class="booking-grid">
+        <div class="booking-column">
+          <h2>공개 일정</h2>
+          <div id="session-list" class="booking-list"></div>
+        </div>
+        <div class="booking-column">
+          <h2>예약 신청</h2>
+          <div id="booking-list" class="booking-list"></div>
+        </div>
+      </div>
+      <details>
+        <summary style="cursor:pointer;margin-top:14px;font-weight:800;color:var(--primary);">새 일정 직접 추가</summary>
+        <div class="session-form">
+          <div class="field"><label>시작</label><input id="new-session-start" type="datetime-local"></div>
+          <div class="field"><label>종료</label><input id="new-session-end" type="datetime-local"></div>
+          <div class="field"><label>장소</label><select id="new-session-location"><option>영등포시장역 사무실</option><option>서울 공유오피스</option><option>안양 공유오피스</option></select></div>
+          <div class="field"><label>정원</label><input id="new-session-capacity" type="number" min="1" value="5"></div>
+          <div class="field"><label>가격</label><input id="new-session-price" type="number" min="0" value="50000"></div>
+          <div class="field"><label>상태</label><select id="new-session-status"><option value="open">공개</option><option value="draft">비공개</option></select></div>
+          <div class="field wide"><label>설명</label><textarea id="new-session-description">AI 기초 설정, 유료 구독 점검, 구현하고 싶은 업무 자동화 방향 설계까지 함께 진행합니다.</textarea></div>
+          <div class="field wide"><button class="btn green" id="create-session-btn" type="button">일정 추가</button></div>
+        </div>
+      </details>
     </section>
 
     <section class="panel toolbar" aria-label="신청자 필터">
@@ -655,6 +770,8 @@
   const state = {
     key: sessionStorage.getItem("memberAdminKey") || "",
     members: [],
+    sessions: [],
+    bookings: [],
     detail: null,
     scheduler: null,
     selectedId: "",
@@ -673,6 +790,8 @@
     gradeFilter: $("grade-filter"),
     listCaption: $("list-caption"),
     activeFilterLabel: $("active-filter-label"),
+    sessionList: $("session-list"),
+    bookingList: $("booking-list"),
   };
 
   fields.adminKey.value = state.key;
@@ -741,6 +860,16 @@
       }
     }
     return String(value);
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    }[ch]));
   }
 
   function statusLabel(status) {
@@ -947,6 +1076,105 @@
     return section;
   }
 
+  function renderSessions() {
+    fields.sessionList.innerHTML = "";
+    if (!state.sessions.length) {
+      fields.sessionList.innerHTML = '<div class="empty-state">공개 또는 등록된 일정이 없습니다.</div>';
+      return;
+    }
+    for (const session of state.sessions) {
+      const item = document.createElement("article");
+      item.className = "booking-item";
+      item.innerHTML = `
+        <div class="booking-title">${escapeHtml(session.title || "AI 기초 셋팅 및 컨설팅 강의")}</div>
+        <div class="booking-meta">${escapeHtml(formatDate(session.starts_at))} - ${escapeHtml(formatDate(session.ends_at))}</div>
+        <div class="booking-meta">${escapeHtml(session.location || "-")} · ${session.confirmed_count || 0}/${session.capacity_max || 5}명 · ${Number(session.price_krw || 0).toLocaleString()}원 · ${escapeHtml(session.status)}</div>
+      `;
+      const actions = document.createElement("div");
+      actions.className = "booking-actions";
+      actions.append(
+        actionButton("공개", "green", session.status === "open", () => updateSessionStatus(session.id, "open")),
+        actionButton("비공개", "", session.status === "draft", () => updateSessionStatus(session.id, "draft")),
+        actionButton("취소", "red", session.status === "canceled", () => updateSessionStatus(session.id, "canceled"))
+      );
+      item.appendChild(actions);
+      fields.sessionList.appendChild(item);
+    }
+  }
+
+  function renderBookings() {
+    fields.bookingList.innerHTML = "";
+    if (!state.bookings.length) {
+      fields.bookingList.innerHTML = '<div class="empty-state">예약 신청이 없습니다.</div>';
+      return;
+    }
+    for (const booking of state.bookings) {
+      const item = document.createElement("article");
+      item.className = "booking-item";
+      item.innerHTML = `
+        <div class="booking-title">${escapeHtml(booking.applicant_name || booking.member_name || "신청자")}</div>
+        <div class="booking-meta">${escapeHtml(booking.session_title || "일정 미선택")} · ${escapeHtml(booking.session_location || "-")}</div>
+        <div class="booking-meta">${escapeHtml(formatDate(booking.session_starts_at))} · 예약 ${escapeHtml(booking.status)} · 입금 ${escapeHtml(booking.payment_status)}</div>
+        <div class="booking-meta">${escapeHtml(booking.desired_outcome || "")}</div>
+      `;
+      const actions = document.createElement("div");
+      actions.className = "booking-actions";
+      actions.append(
+        actionButton("입금 안내", "amber", booking.status === "payment_guide_sent", () => updateBookingState(booking.id, "payment_guide_sent", "guide_sent")),
+        actionButton("입금 확인", "primary", booking.payment_status === "paid", () => updateBookingState(booking.id, "payment_confirmed", "paid")),
+        actionButton("확정", "green", booking.status === "confirmed", () => updateBookingState(booking.id, "confirmed", "paid")),
+        actionButton("취소", "red", booking.status === "canceled", () => updateBookingState(booking.id, "canceled", null))
+      );
+      item.appendChild(actions);
+      fields.bookingList.appendChild(item);
+    }
+  }
+
+  async function loadBookingData() {
+    const [sessions, bookings] = await Promise.all([
+      api("/admin/sessions"),
+      api("/admin/bookings"),
+    ]);
+    state.sessions = sessions.data || [];
+    state.bookings = bookings.data || [];
+    renderSessions();
+    renderBookings();
+  }
+
+  async function updateSessionStatus(sessionId, status) {
+    try {
+      await api(`/admin/sessions/${encodeURIComponent(sessionId)}`, {
+        method: "POST",
+        body: JSON.stringify({ status }),
+      });
+      await loadBookingData();
+      setStatus("일정 상태를 변경했습니다.", "ok");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  }
+
+  async function updateBookingState(bookingId, status, paymentStatus) {
+    try {
+      const body = { status };
+      if (paymentStatus) body.payment_status = paymentStatus;
+      await api(`/admin/bookings/${encodeURIComponent(bookingId)}/state`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      await loadBookingData();
+      setStatus("예약 상태를 변경했습니다.", "ok");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  }
+
+  function toIsoFromLocalInput(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toISOString();
+  }
+
   function renderDetail(member) {
     fields.detailBody.innerHTML = "";
     const top = document.createElement("div");
@@ -1054,20 +1282,26 @@
     setStatus("데이터를 불러오는 중입니다.");
 
     try {
-      const [stats, members, scheduler] = await Promise.all([
+      const [stats, members, scheduler, sessions, bookings] = await Promise.all([
         api("/stats"),
         api(`/members${buildQuery()}`),
         api("/scheduler/status").catch(() => null),
+        api("/admin/sessions").catch(() => ({ data: [] })),
+        api("/admin/bookings").catch(() => ({ data: [] })),
       ]);
       updateStats(stats.data || {});
       state.members = members.data || [];
       state.scheduler = scheduler;
+      state.sessions = sessions.data || [];
+      state.bookings = bookings.data || [];
       if (state.selectedId && !state.members.some((member) => member.id === state.selectedId)) {
         state.selectedId = "";
         state.detail = null;
         fields.detailBody.innerHTML = '<div class="detail-empty">왼쪽 목록에서 신청자를 선택하세요.</div>';
       }
       renderMembers();
+      renderSessions();
+      renderBookings();
       setStatus("신청자 목록을 갱신했습니다.", "ok");
     } catch (error) {
       setStatus(error.message, "error");
@@ -1140,6 +1374,55 @@
   });
 
   $("refresh-btn").addEventListener("click", loadDashboard);
+  $("booking-refresh-btn").addEventListener("click", async () => {
+    try {
+      await loadBookingData();
+      setStatus("예약 정보를 갱신했습니다.", "ok");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+  $("seed-sessions-btn").addEventListener("click", async () => {
+    if (!window.confirm("다음 4주 일요일 3타임 일정을 생성할까요? 이미 같은 시간/장소가 있으면 건너뜁니다.")) return;
+    try {
+      const data = await api("/admin/sessions/seed-default-sunday", {
+        method: "POST",
+        body: JSON.stringify({ weeks: 4 }),
+      });
+      await loadBookingData();
+      setStatus(`일요일 기본 일정을 ${data.created}건 생성했습니다.`, "ok");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+  $("create-session-btn").addEventListener("click", async () => {
+    const startsAt = toIsoFromLocalInput($("new-session-start").value);
+    const endsAt = toIsoFromLocalInput($("new-session-end").value);
+    if (!startsAt || !endsAt) {
+      setStatus("시작/종료 시간을 입력하세요.", "error");
+      return;
+    }
+    try {
+      await api("/admin/sessions", {
+        method: "POST",
+        body: JSON.stringify({
+          title: "AI 기초 셋팅 및 컨설팅 강의 1:4",
+          description: $("new-session-description").value.trim(),
+          starts_at: startsAt,
+          ends_at: endsAt,
+          location: $("new-session-location").value,
+          capacity_min: Math.min(4, Number($("new-session-capacity").value || 5)),
+          capacity_max: Number($("new-session-capacity").value || 5),
+          price_krw: Number($("new-session-price").value || 50000),
+          status: $("new-session-status").value,
+        }),
+      });
+      await loadBookingData();
+      setStatus("새 일정을 추가했습니다.", "ok");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
   fields.statusFilter.addEventListener("change", () => {
     state.selectedId = "";
     loadDashboard();
