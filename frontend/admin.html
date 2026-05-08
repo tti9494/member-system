@@ -1120,9 +1120,8 @@
       const actions = document.createElement("div");
       actions.className = "booking-actions";
       actions.append(
-        actionButton("입금 안내", "amber", booking.status === "payment_guide_sent", () => updateBookingState(booking.id, "payment_guide_sent", "guide_sent")),
-        actionButton("입금 확인", "primary", booking.payment_status === "paid", () => updateBookingState(booking.id, "payment_confirmed", "paid")),
-        actionButton("확정", "green", booking.status === "confirmed", () => updateBookingState(booking.id, "confirmed", "paid")),
+        actionButton("입금 안내", "amber", booking.status === "payment_guide_sent", () => sendPaymentGuide(booking.id)),
+        actionButton("입금 확인+확정", "primary", booking.status === "confirmed", () => confirmPayment(booking.id)),
         actionButton("취소", "red", booking.status === "canceled", () => updateBookingState(booking.id, "canceled", null))
       );
       item.appendChild(actions);
@@ -1164,6 +1163,34 @@
       });
       await loadBookingData();
       setStatus("예약 상태를 변경했습니다.", "ok");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  }
+
+  async function sendPaymentGuide(bookingId) {
+    try {
+      const data = await api(`/admin/bookings/${encodeURIComponent(bookingId)}/send-payment-guide`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      await loadBookingData();
+      const guide = data.payment_guide ? `\n\n${data.payment_guide}` : "";
+      setStatus(`입금 안내 상태로 변경했습니다. 신청자에게 안내 문구를 전달하세요.${guide}`, "ok");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  }
+
+  async function confirmPayment(bookingId) {
+    if (!window.confirm("입금 확인 후 예약을 확정할까요? 정원이 이미 마감된 경우 확정되지 않습니다.")) return;
+    try {
+      const data = await api(`/admin/bookings/${encodeURIComponent(bookingId)}/confirm-payment`, {
+        method: "POST",
+        body: JSON.stringify({ payment_note: "운영자 수동 입금 확인" }),
+      });
+      await loadBookingData();
+      setStatus(data.message || "입금 확인 및 예약 확정 완료", "ok");
     } catch (error) {
       setStatus(error.message, "error");
     }

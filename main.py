@@ -26,8 +26,9 @@ from agents.db_manager import (
     cleanup_expired_codes, get_expiring_soon, release_expired_locks,
 )
 from agents.booking_manager import (
-    create_booking, create_session, get_session, list_bookings, list_sessions,
-    refresh_session_counts, seed_default_sunday_sessions, set_booking_state,
+    confirm_payment_state, create_booking, create_session, default_payment_guide,
+    get_booking, get_session, list_bookings, list_sessions, refresh_session_counts,
+    seed_default_sunday_sessions, send_payment_guide_state, session_acceptance, set_booking_state,
     update_session,
 )
 from agents.code_generator import generate_code, verify_code, revoke_code, regenerate_code
@@ -230,6 +231,10 @@ class BookingStateRequest(BaseModel):
     payment_note: Optional[str] = None
 
 
+class PaymentGuideRequest(BaseModel):
+    payment_note: Optional[str] = None
+
+
 class SeedSessionsRequest(BaseModel):
     weeks: int = 4
 
@@ -283,10 +288,15 @@ async def index():
 @app.get("/sessions")
 async def public_sessions():
     rows = list_sessions(include_closed=False)
+    safe_rows = []
+    for row in rows:
+        safe = dict(row)
+        safe.pop("payment_guide", None)
+        safe_rows.append(safe)
     return {
         "ok": True,
-        "data": rows,
-        "total": len(rows),
+        "data": safe_rows,
+        "total": len(safe_rows),
         "workflow": "신청 → 확인 → 입금 안내 → 입금 확인 → 확정",
     }
 
@@ -296,8 +306,10 @@ async def apply(req: ApplyRequest, request: Request):
     data = req.model_dump()
     client_ip = request.client.host if request.client else "unknown"
     selected_session = get_session(data.get("session_id")) if data.get("session_id") else None
-    if data.get("session_id") and not selected_session:
-        raise HTTPException(400, detail="선택한 세션을 찾을 수 없습니다.")
+    if data.get("session_id"):
+        ok, reason = session_acceptance(selected_session)
+        if not ok:
+            raise HTTPException(400, detail=reason)
 
     # 1. 보안 검토
     sec = check_security(data)
@@ -357,6 +369,11 @@ async def apply(req: ApplyRequest, request: Request):
     log_action(member_id, "apply", f"plan={data['plan_type']}, grade={grade}", client_ip)
 
     booking_id = None
+    booking_next_steps = [
+        "운영자가 신청 내용을 확인합니다.",
+        "입금 안내를 받은 뒤 안내 금액을 입금합니다.",
+        "입금 확인 후 예약이 확정됩니다.",
+    ]
     if data.get("session_id") or data.get("desired_outcome") or data.get("preparedness"):
         amount = int(selected_session["price_krw"]) if selected_session else 50000
         booking_id = create_booking({
@@ -378,6 +395,13 @@ async def apply(req: ApplyRequest, request: Request):
         "message": "신청이 접수되었습니다.",
         "member_id": member_id,
         "booking_id": booking_id,
+        "next_steps": booking_next_steps,
+        "payment": {
+            "method": "bank_transfer_manual_confirm",
+            "amount_krw": int(selected_session["price_krw"]) if selected_session else 50000,
+            "status": "operator_review_required",
+            "message": "카드 자동결제가 아닌 수동 입금 확인 MVP입니다. 운영자 확인 후 입금 안내가 전달됩니다.",
+        } if booking_id else None,
     }
 
 
@@ -536,6 +560,37 @@ async def admin_booking_state(booking_id: str, body: BookingStateRequest, reques
         raise HTTPException(404, detail="예약 신청을 찾을 수 없습니다.")
     log_action(booking_id, "booking_state_update", f"status={body.status}, payment={body.payment_status}", request.client.host if request.client else None)
     return {"ok": True, "data": list_bookings()}
+
+
+@app.get("/admin/bookings/{booking_id}")
+async def admin_booking_detail(booking_id: str, _=Depends(require_admin)):
+    booking = get_booking(booking_id)
+    if not booking:
+        raise HTTPException(404, detail="예약 신청을 찾을 수 없습니다.")
+    return {"ok": True, "data": booking}
+
+
+@app.post("/admin/bookings/{booking_id}/send-payment-guide")
+async def admin_send_payment_guide(booking_id: str, body: PaymentGuideRequest, request: Request, _=Depends(require_admin)):
+    updated = send_payment_guide_state(booking_id, body.payment_note)
+    if not updated:
+        raise HTTPException(404, detail="예약 신청을 찾을 수 없습니다.")
+    log_action(booking_id, "booking_payment_guide_sent", "manual_copy", request.client.host if request.client else None)
+    return {
+        "ok": True,
+        "message": "입금 안내 상태로 변경했습니다. 아래 문구를 신청자에게 전달하세요.",
+        "payment_guide": updated.get("payment_note") or default_payment_guide(None, updated),
+        "data": updated,
+    }
+
+
+@app.post("/admin/bookings/{booking_id}/confirm-payment")
+async def admin_confirm_payment(booking_id: str, body: PaymentGuideRequest, request: Request, _=Depends(require_admin)):
+    ok, message, booking = confirm_payment_state(booking_id, body.payment_note)
+    if not ok:
+        raise HTTPException(400, detail=message)
+    log_action(booking_id, "booking_payment_confirmed", "manual_confirm", request.client.host if request.client else None)
+    return {"ok": True, "message": message, "data": booking}
 
 
 @app.get("/scheduler/status")

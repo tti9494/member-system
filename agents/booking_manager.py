@@ -190,7 +190,24 @@ def list_bookings(status: str | None = None, session_id: str | None = None) -> l
 
 def get_booking(booking_id: str) -> dict | None:
     conn = get_conn()
-    row = conn.execute("SELECT * FROM bookings WHERE id=?", (booking_id,)).fetchone()
+    row = conn.execute(
+        """
+        SELECT
+            b.*,
+            s.title AS session_title,
+            s.starts_at AS session_starts_at,
+            s.ends_at AS session_ends_at,
+            s.location AS session_location,
+            s.capacity_max AS session_capacity_max,
+            s.confirmed_count AS session_confirmed_count,
+            s.price_krw AS session_price_krw,
+            s.payment_guide AS session_payment_guide
+        FROM bookings b
+        LEFT JOIN sessions s ON s.id = b.session_id
+        WHERE b.id=?
+        """,
+        (booking_id,),
+    ).fetchone()
     conn.close()
     return _row_to_dict(row)
 
@@ -262,6 +279,89 @@ def set_booking_state(
     changed = update_booking(booking_id, updates)
     refresh_session_counts(booking.get("session_id"))
     return changed
+
+
+def session_acceptance(session: dict | None) -> tuple[bool, str]:
+    if not session:
+        return False, "선택한 세션을 찾을 수 없습니다."
+    if session.get("status") not in {"open", "full"}:
+        return False, "현재 공개 예약 가능한 세션이 아닙니다."
+    if session.get("status") == "full":
+        return False, "이미 마감된 세션입니다."
+    confirmed = int(session.get("confirmed_count") or 0)
+    capacity = int(session.get("capacity_max") or DEFAULT_CAPACITY_MAX)
+    if confirmed >= capacity:
+        return False, "정원이 마감된 세션입니다."
+    return True, ""
+
+
+def default_payment_guide(session: dict | None, booking: dict | None = None) -> str:
+    amount = int((booking or {}).get("payment_amount_krw") or (session or {}).get("price_krw") or DEFAULT_PRICE)
+    title = (session or {}).get("title") or DEFAULT_TITLE
+    starts = (session or {}).get("starts_at") or ""
+    location = (session or {}).get("location") or ""
+    custom = ((session or {}).get("payment_guide") or "").strip()
+    lines = [
+        "[입금 안내]",
+        f"과정: {title}",
+        f"일정: {starts}",
+        f"장소: {location}",
+        f"금액: {amount:,}원",
+        "입금 후 입금자명과 신청자명이 다르면 운영자에게 알려주세요.",
+    ]
+    if custom:
+        lines.append("")
+        lines.append(custom)
+    else:
+        lines.append("")
+        lines.append("계좌 정보는 운영자가 확인 후 개별 안내합니다.")
+    return "\n".join(lines).strip()
+
+
+def send_payment_guide_state(booking_id: str, note: str | None = None) -> dict | None:
+    booking = get_booking(booking_id)
+    if not booking:
+        return None
+    guide = note or default_payment_guide(
+        {
+            "title": booking.get("session_title"),
+            "starts_at": booking.get("session_starts_at"),
+            "location": booking.get("session_location"),
+            "price_krw": booking.get("session_price_krw"),
+            "payment_guide": booking.get("session_payment_guide"),
+        },
+        booking,
+    )
+    set_booking_state(
+        booking_id,
+        status="payment_guide_sent",
+        payment_status="guide_sent",
+        payment_note=guide,
+    )
+    return get_booking(booking_id)
+
+
+def confirm_payment_state(booking_id: str, note: str | None = None) -> tuple[bool, str, dict | None]:
+    booking = get_booking(booking_id)
+    if not booking:
+        return False, "예약 신청을 찾을 수 없습니다.", None
+    if booking.get("status") == "confirmed":
+        return True, "이미 확정된 예약입니다.", booking
+    if booking.get("session_id"):
+        refresh_session_counts(booking.get("session_id"))
+        session = get_session(booking["session_id"])
+        confirmed = int((session or {}).get("confirmed_count") or 0)
+        capacity = int((session or {}).get("capacity_max") or DEFAULT_CAPACITY_MAX)
+        if confirmed >= capacity:
+            return False, "정원이 이미 마감되어 확정할 수 없습니다.", booking
+    payment_note = note if note is not None else booking.get("payment_note")
+    set_booking_state(
+        booking_id,
+        status="confirmed",
+        payment_status="paid",
+        payment_note=payment_note,
+    )
+    return True, "입금 확인 및 예약 확정 완료", get_booking(booking_id)
 
 
 def seed_default_sunday_sessions(weeks: int = 4) -> list[str]:
