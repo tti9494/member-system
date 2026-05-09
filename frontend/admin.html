@@ -505,6 +505,130 @@
     padding: 10px;
   }
 
+  .application-focus {
+    padding: 22px;
+    margin-bottom: 18px;
+    border-left: 6px solid var(--green);
+  }
+
+  .application-focus-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .application-focus-title {
+    margin: 0;
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 900;
+  }
+
+  .application-focus-caption {
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 750;
+  }
+
+  .application-focus-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1.4fr 1.5fr;
+    gap: 12px;
+  }
+
+  .application-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .application-metric,
+  .application-storage,
+  .recent-applications {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-soft);
+    padding: 16px;
+  }
+
+  .application-metric {
+    min-height: 150px;
+  }
+
+  .application-metric-label,
+  .application-storage-label,
+  .recent-applications-label {
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 850;
+    line-height: 1.35;
+  }
+
+  .application-metric-value {
+    margin-top: 10px;
+    font-size: 48px;
+    line-height: 1;
+    font-weight: 900;
+  }
+
+  .application-metric-note,
+  .application-storage-line,
+  .recent-application-meta {
+    color: var(--subtle);
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 700;
+  }
+
+  .application-metric-note {
+    margin-top: 12px;
+  }
+
+  .application-storage-main {
+    margin-top: 8px;
+    color: var(--text);
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.25;
+  }
+
+  .application-storage-line {
+    margin-top: 8px;
+    overflow-wrap: anywhere;
+  }
+
+  .recent-applications-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .recent-application {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    align-items: start;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    padding: 10px 12px;
+  }
+
+  .recent-application-name {
+    font-weight: 850;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .recent-application-time {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
   .toolbar {
     display: grid;
     grid-template-columns: 1.1fr 180px 180px auto;
@@ -905,6 +1029,7 @@
     .stats-grid { grid-template-columns: repeat(4, minmax(120px, 1fr)); }
     .today-task-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ops-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .application-focus-grid { grid-template-columns: 1fr; }
     .layout { grid-template-columns: 1fr; }
     .member-list { max-height: none; }
   }
@@ -920,6 +1045,10 @@
     .today-tasks-head { align-items: flex-start; flex-direction: column; }
     .today-task-list { grid-template-columns: 1fr; }
     .today-task { min-height: 96px; }
+    .application-focus { padding: 16px; }
+    .application-focus-head { align-items: flex-start; flex-direction: column; }
+    .application-focus-title { font-size: 25px; }
+    .application-metrics { grid-template-columns: 1fr; }
     .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ops-summary-head { align-items: flex-start; flex-direction: column; }
     .ops-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -974,6 +1103,42 @@
   </section>
 
   <section id="dashboard" class="hidden">
+    <section class="panel application-focus" aria-label="신청 확인 중심 요약">
+      <div class="application-focus-head">
+        <div>
+          <h2 class="application-focus-title">신청 확인</h2>
+          <div class="application-focus-caption" id="application-focus-caption">관리자 키로 연결하면 신청/예약/저장 상태를 한 번에 확인합니다.</div>
+        </div>
+        <button class="btn primary" id="application-focus-refresh-btn" type="button">신청 현황 새로고침</button>
+      </div>
+      <div class="application-focus-grid">
+        <div class="application-metrics">
+          <div class="application-metric">
+            <div class="application-metric-label">신청자 수</div>
+            <div class="application-metric-value" id="focus-applicant-count">-</div>
+            <div class="application-metric-note" id="focus-applicant-note">전체 신청서 기준</div>
+          </div>
+          <div class="application-metric">
+            <div class="application-metric-label">예약 수</div>
+            <div class="application-metric-value" id="focus-booking-count">-</div>
+            <div class="application-metric-note" id="focus-booking-note">전체 예약 신청 기준</div>
+          </div>
+        </div>
+        <div class="application-storage">
+          <div class="application-storage-label">저장 위치 / 백업 상태</div>
+          <div class="application-storage-main" id="focus-storage-main">-</div>
+          <div class="application-storage-line" id="focus-storage-path">DB 위치를 불러오지 않았습니다.</div>
+          <div class="application-storage-line" id="focus-backup-status">백업 상태를 불러오지 않았습니다.</div>
+        </div>
+        <div class="recent-applications">
+          <div class="recent-applications-label">최근 신청 5건</div>
+          <div class="recent-applications-list" id="focus-recent-applications">
+            <div class="empty-state">최근 신청을 불러오려면 관리자 키로 연결하세요.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="panel today-tasks" aria-label="오늘 할 일">
       <div class="today-tasks-head">
         <div>
@@ -1182,6 +1347,15 @@
     opsSummaryCaption: $("ops-summary-caption"),
     opsConfirmNeededCard: $("ops-confirm-needed-card"),
     opsConfirmNeededNote: $("ops-confirm-needed-note"),
+    applicationFocusCaption: $("application-focus-caption"),
+    focusApplicantCount: $("focus-applicant-count"),
+    focusApplicantNote: $("focus-applicant-note"),
+    focusBookingCount: $("focus-booking-count"),
+    focusBookingNote: $("focus-booking-note"),
+    focusStorageMain: $("focus-storage-main"),
+    focusStoragePath: $("focus-storage-path"),
+    focusBackupStatus: $("focus-backup-status"),
+    focusRecentApplications: $("focus-recent-applications"),
   };
 
   fields.adminKey.value = state.key;
@@ -1553,6 +1727,71 @@
     return statusText(value);
   }
 
+  function latestBackupSummary() {
+    const backup = (state.storage && state.storage.backup) || {};
+    const lastRun = backup.last_run || {};
+    const detail = lastRun.detail || {};
+    const targets = backup.targets || [];
+    const okCount = Number(detail.ok_count || 0);
+    const failedCount = Number(detail.failed_count || 0);
+    const unavailableCount = targets.filter((target) => target.available === false).length;
+    const latestTargetCount = targets.filter((target) => target.latest).length;
+    return {
+      okCount,
+      failedCount,
+      unavailableCount,
+      latestTargetCount,
+      targetCount: targets.length,
+      lastRunAt: lastRun.created_at,
+    };
+  }
+
+  function renderApplicationFocus(stats = {}) {
+    const storage = state.storage || {};
+    const counts = storage.counts || {};
+    const db = storage.db || {};
+    const recent = (storage.recent || []).slice(0, 5);
+    const activeBookings = state.bookings.filter(isActiveBooking).length;
+    const pendingMembers = stats.pending ?? state.members.filter((member) => member.status === "pending").length;
+    const backup = latestBackupSummary();
+    const applicantCount = stats.total ?? counts.members ?? state.members.length ?? 0;
+    const bookingCount = counts.bookings ?? state.bookings.length ?? 0;
+    const storageMain = db.exists ? "DB 저장 중" : "DB 확인 필요";
+    const backupProblems = backup.failedCount + backup.unavailableCount;
+    const backupText = backup.lastRunAt
+      ? `마지막 백업 ${formatDate(backup.lastRunAt)} · ${backup.okCount} 성공 · ${backup.failedCount} 실패`
+      : `백업 대상 ${backup.targetCount}곳 · 최근 백업 기록 없음`;
+
+    fields.focusApplicantCount.textContent = applicantCount;
+    fields.focusApplicantNote.textContent = `대기 ${pendingMembers}명 · 전체 신청 통계 기준`;
+    fields.focusBookingCount.textContent = bookingCount;
+    fields.focusBookingNote.textContent = `진행 중 ${activeBookings}건 · 전체 예약 테이블 기준`;
+    fields.focusStorageMain.textContent = storageMain;
+    fields.focusStoragePath.textContent = `DB: ${db.path || "-"} · ${Number(db.size_bytes || 0).toLocaleString()} bytes`;
+    fields.focusBackupStatus.textContent = `${backupText} · 사용 불가 대상 ${backup.unavailableCount}곳 · 최신 파일 확인 ${backup.latestTargetCount}곳`;
+    fields.applicationFocusCaption.textContent = backupProblems
+      ? `신청 데이터는 로드됐지만 백업 점검 대상 ${backupProblems}건이 있습니다.`
+      : "신청자, 예약, 저장 위치를 확인했습니다.";
+
+    fields.focusRecentApplications.innerHTML = "";
+    if (!recent.length) {
+      fields.focusRecentApplications.innerHTML = '<div class="empty-state">최근 신청이 없습니다.</div>';
+      return;
+    }
+    for (const item of recent) {
+      const row = document.createElement("div");
+      row.className = "recent-application";
+      row.innerHTML = `
+        <div>
+          <div class="recent-application-name">${escapeHtml(item.name || "신청자")} · ${escapeHtml(item.phone_masked || "-")}</div>
+          <div class="recent-application-meta">신청 ${escapeHtml(statusLabel(item.status))} · 예약 ${escapeHtml(statusText(item.booking_status))} · 백업 ${escapeHtml(backupStatusText(item.backup_status))}</div>
+        </div>
+        <div class="recent-application-time">${escapeHtml(formatDate(item.created_at))}</div>
+      `;
+      fields.focusRecentApplications.appendChild(row);
+    }
+  }
+
   function renderStorageStatus() {
     const data = state.storage || {};
     const db = data.db || {};
@@ -1871,6 +2110,7 @@
     state.sessions = sessions.data || [];
     state.bookings = bookings.data || [];
     updateOperationSummary();
+    renderApplicationFocus();
     renderSessions();
     renderBookings();
   }
@@ -1880,6 +2120,7 @@
     try {
       const data = await api("/admin/backup-now", { method: "POST" });
       state.storage = (await api("/admin/storage-status")).data || null;
+      renderApplicationFocus();
       renderStorageStatus();
       setStatus(`DB 백업 실행 완료: ${data.data.ok_count || 0}곳 성공, ${data.data.failed_count || 0}곳 실패`, "ok");
     } catch (error) {
@@ -2123,6 +2364,7 @@
         fields.detailBody.innerHTML = '<div class="detail-empty">왼쪽 목록에서 신청자를 선택하세요.</div>';
       }
       renderMembers();
+      renderApplicationFocus(stats.data || {});
       updateOperationSummary(stats.data || {});
       renderSessions();
       renderBookings();
@@ -2199,6 +2441,7 @@
   });
 
   $("refresh-btn").addEventListener("click", loadDashboard);
+  $("application-focus-refresh-btn").addEventListener("click", loadDashboard);
   $("booking-refresh-btn").addEventListener("click", async () => {
     try {
       await loadBookingData();
