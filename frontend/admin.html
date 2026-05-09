@@ -882,6 +882,32 @@
     }[status] || status || "-";
   }
 
+  function bookingStatusLabel(status) {
+    return {
+      requested: "신청 접수",
+      payment_guide_sent: "입금 안내 발송",
+      payment_pending: "입금 대기",
+      payment_confirmed: "입금 확인",
+      confirmed: "확정",
+      canceled: "취소",
+      rejected: "거절",
+      completed: "종료",
+      no_show: "노쇼",
+    }[status] || status || "-";
+  }
+
+  function paymentStatusLabel(status) {
+    return {
+      not_sent: "안내 전",
+      guide_sent: "안내 발송",
+      pending: "입금 대기",
+      paid: "입금 완료",
+      waived: "면제",
+      refunded: "환불",
+      failed: "실패",
+    }[status] || status || "-";
+  }
+
   function statusPill(status) {
     const span = document.createElement("span");
     span.className = `pill ${status || "neutral"}`;
@@ -1115,7 +1141,7 @@
       item.innerHTML = `
         <div class="booking-title">${escapeHtml(booking.applicant_name || booking.member_name || "신청자")}</div>
         <div class="booking-meta">${escapeHtml(booking.session_title || "일정 미선택")} · ${escapeHtml(booking.session_location || "-")}</div>
-        <div class="booking-meta">${escapeHtml(formatDate(booking.session_starts_at))} · 예약 ${escapeHtml(booking.status)} · 입금 ${escapeHtml(booking.payment_status)}</div>
+        <div class="booking-meta">${escapeHtml(formatDate(booking.session_starts_at))} · 예약 ${escapeHtml(bookingStatusLabel(booking.status))} · 입금 ${escapeHtml(paymentStatusLabel(booking.payment_status))}</div>
         <div class="booking-meta">${escapeHtml(booking.desired_outcome || "")}</div>
       `;
       const actions = document.createElement("div");

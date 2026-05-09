@@ -286,7 +286,7 @@
         <select id="session_id">
           <option value="">일정 선택 없이 먼저 신청</option>
         </select>
-        <div class="hint" id="session-hint">신청 후 확인 → 입금 안내 → 입금 확인 → 확정 순서로 진행됩니다.</div>
+        <div class="hint" id="session-hint">결제는 계좌이체로 받으며 운영자가 입금을 직접 확인합니다(카드 자동결제 아님). 신청 → 확인 → 입금 안내 → 입금 확인 → 확정 순서로 진행됩니다.</div>
       </div>
       <div class="field">
         <label>이번 강의에서 구현하고 싶은 내용 <span class="optional">(선택)</span></label>
@@ -592,9 +592,11 @@ async function submitForm() {
     });
     const data = await res.json();
     if (data.ok) {
-      const amount = data.payment?.amount_krw ? Number(data.payment.amount_krw).toLocaleString() + '원' : '50,000원';
+      const amountText = data.payment?.amount_krw
+        ? `예상 금액: ${Number(data.payment.amount_krw).toLocaleString()}원`
+        : '예상 금액은 운영자 확인 후 안내드립니다';
       const bookingLine = data.booking_id
-        ? `<p style="margin-top:12px;font-size:1rem;color:#46546A;">예약 접수번호: ${data.booking_id} · 예상 금액: ${amount}</p>`
+        ? `<p style="margin-top:12px;font-size:1rem;color:#46546A;">예약 접수번호: ${data.booking_id} · ${amountText}</p>`
         : '';
       document.querySelector('.container').innerHTML = `
         <div class="success-msg">
