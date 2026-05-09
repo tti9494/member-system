@@ -114,7 +114,7 @@
 <body>
 <div class="container">
   <h1>🤖 AI 모임 정식 신청</h1>
-  <p class="subtitle">AI 모임에 적극 참여하고 싶으신 분을 위한 신청서입니다.</p>
+  <p class="subtitle">기본 정보는 필수, 나머지는 가능한 만큼만 적어주세요.</p>
 
   <!-- 진행률 바 -->
   <div class="progress-bar">
@@ -147,14 +147,14 @@
       <div class="section-title">📋 기본 정보</div>
       <div class="field">
         <label>이름 <span class="required">*</span></label>
-        <input type="text" id="name" placeholder="실명" maxlength="50">
+        <input type="text" id="name" placeholder="예: 홍길동" maxlength="50">
       </div>
       <div class="field">
         <label>이메일 <span class="required">*</span></label>
         <input type="email" id="email" placeholder="example@email.com" maxlength="100">
       </div>
       <div class="field">
-        <label>전화번호 <span class="required">*</span></label>
+        <label>연락받을 전화번호 <span class="required">*</span></label>
         <input type="text" id="phone" placeholder="010-1234-5678" maxlength="13">
       </div>
       <div class="field">
@@ -166,16 +166,16 @@
       </div>
       <div class="field">
         <label>나이 <span class="required">*</span></label>
-        <input type="number" id="age" min="14" max="100" placeholder="만 나이">
+        <input type="number" id="age" min="14" max="100" placeholder="예: 29">
       </div>
       <div class="field">
         <label>직업/소속 <span class="required">*</span></label>
-        <input type="text" id="job" placeholder="직장인 / 학생 / 프리랜서 등" maxlength="100">
+        <input type="text" id="job" placeholder="예: 직장인, 학생, 프리랜서" maxlength="100">
       </div>
       <div class="field">
         <label>유입 경로 <span class="required">*</span></label>
         <select id="referral_source">
-          <option value="">선택해주세요</option>
+          <option value="">알게 된 경로를 선택해주세요</option>
           <option value="유튜브">유튜브</option>
           <option value="지인소개">지인 소개</option>
           <option value="SNS">SNS</option>
@@ -184,13 +184,13 @@
       </div>
       <div class="field">
         <label>AI에 관심 갖는 이유 <span class="required">*</span></label>
-        <textarea id="reason" placeholder="최소 20자 이상 작성해주세요" maxlength="2000"></textarea>
+        <textarea id="reason" placeholder="예: 업무에 AI를 적용해 보고 싶어서 신청합니다. 현재 가장 궁금한 점도 함께 적어주세요." maxlength="2000"></textarea>
         <div class="char-count" id="reason-count">0자 / 최소 20자</div>
       </div>
       <div class="field">
         <label>AI 자가진단 레벨 <span class="required">*</span></label>
         <select id="ai_level">
-          <option value="">선택해주세요</option>
+          <option value="">현재 수준을 선택해주세요</option>
           <option value="입문">입문 — AI가 뭔지 이제 알아가는 중</option>
           <option value="초급">초급 — ChatGPT 정도는 써봤어요</option>
           <option value="중급">중급 — 다양한 AI 도구를 활용 중</option>
@@ -220,7 +220,7 @@
       </div>
       <div class="field">
         <label>AI 구독 서비스 <span class="optional">(선택)</span></label>
-        <input type="text" id="ai_subscription" placeholder="ChatGPT Plus, Claude Pro 등" maxlength="200">
+        <input type="text" id="ai_subscription" placeholder="예: ChatGPT Plus, Claude Pro / 없으면 비워두세요" maxlength="200">
       </div>
       <div class="field">
         <label>주당 AI 사용 시간 <span class="optional">(선택)</span></label>
@@ -279,26 +279,26 @@
       </div>
       <div class="field">
         <label>선호 요일/시간대 <span class="optional">(선택)</span></label>
-        <input type="text" id="preferred_schedule" placeholder="주말 오후, 평일 저녁 등" maxlength="200">
+        <input type="text" id="preferred_schedule" placeholder="예: 주말 오후, 평일 저녁" maxlength="200">
       </div>
       <div class="field">
         <label>희망 강의/상담 일정 <span class="optional">(선택)</span></label>
         <select id="session_id">
           <option value="">일정 선택 없이 먼저 신청</option>
         </select>
-        <div class="hint" id="session-hint">오늘은 신청서 접수와 인원 확인을 우선 진행합니다. 신청 → 운영자 확인 → 자리 확정 안내 순서로 진행됩니다.</div>
+        <div class="hint" id="session-hint">일정을 고르면 예약 신청으로 함께 접수됩니다. 일정이 없어도 먼저 신청할 수 있습니다.</div>
       </div>
       <div class="field">
-        <label>이번 강의에서 구현하고 싶은 내용 <span class="optional">(선택)</span></label>
-        <textarea id="desired_outcome" placeholder="예: 내 업무 자동화, 블로그 자동화, 예약 시스템, AI 도구 세팅 등" maxlength="1000"></textarea>
+        <label>강의에서 해보고 싶은 내용 <span class="optional">(선택)</span></label>
+        <textarea id="desired_outcome" placeholder="예: 내 업무 자동화, 블로그 자동화, 예약 시스템, AI 도구 세팅" maxlength="1000"></textarea>
       </div>
       <div class="field">
         <label>준비 상태 <span class="optional">(선택)</span></label>
-        <textarea id="preparedness" placeholder="노트북, 필기구, GPT/Claude 유료 구독, 현재 막힌 지점 등을 적어주세요." maxlength="1000"></textarea>
+        <textarea id="preparedness" placeholder="예: 노트북 지참 가능, ChatGPT 사용 중, 아직 계정 없음" maxlength="1000"></textarea>
       </div>
       <div class="field">
         <label>거주 지역 <span class="optional">(선택)</span></label>
-        <input type="text" id="region" placeholder="서울 강남구, 경기 수원 등" maxlength="100">
+        <input type="text" id="region" placeholder="예: 서울 강남구, 경기 수원" maxlength="100">
       </div>
       <div class="field">
         <label>주 사용 기기 <span class="optional">(선택)</span></label>
@@ -349,8 +349,8 @@
         <div class="privacy-full" style="margin-top:10px;">
           <strong>AI 모임 개인정보처리방침</strong><br><br>
           1. 수집 항목<br>
-          필수: 이름, 이메일, 전화번호, 성별, 나이, 직업, 신청이유<br>
-          선택: AI 활용 정보, 모임 참여 정보<br><br>
+          필수: 이름, 이메일, 전화번호, 성별, 나이, 직업/소속, 유입 경로, 신청 이유, AI 자가진단 레벨<br>
+          선택: AI 활용 정보, 모임 참여 정보, 희망 일정과 준비 상태<br><br>
           2. 수집 목적<br>
           서비스 접근 코드 부여 및 모임 운영<br><br>
           3. 보유 기간<br>

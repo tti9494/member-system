@@ -71,7 +71,7 @@
 <body>
 <div class="container">
   <h1>🤖 AI 모임 체험 신청</h1>
-  <p class="subtitle">필수 정보만 입력하면 사이트를 체험하실 수 있습니다.</p>
+  <p class="subtitle">연락 가능한 정보와 AI 관심 이유만 간단히 남겨주세요.</p>
 
   <div id="form-wrap">
     <div id="error-area" class="error-list hidden"><ul id="error-list"></ul></div>
@@ -79,14 +79,14 @@
     <form id="apply-form" class="card">
       <div class="field">
         <label>이름 <span class="required">*</span></label>
-        <input type="text" name="name" placeholder="실명을 입력해주세요" maxlength="50" required>
+        <input type="text" name="name" placeholder="예: 홍길동" maxlength="50" required>
       </div>
       <div class="field">
         <label>이메일 <span class="required">*</span></label>
         <input type="email" name="email" placeholder="example@email.com" maxlength="100" required>
       </div>
       <div class="field">
-        <label>전화번호 <span class="required">*</span></label>
+        <label>연락받을 전화번호 <span class="required">*</span></label>
         <input type="text" name="phone" placeholder="010-1234-5678" maxlength="13" required>
       </div>
       <div class="field">
@@ -98,16 +98,16 @@
       </div>
       <div class="field">
         <label>나이 <span class="required">*</span></label>
-        <input type="number" name="age" min="14" max="100" placeholder="만 나이" required>
+        <input type="number" name="age" min="14" max="100" placeholder="예: 29" required>
       </div>
       <div class="field">
         <label>직업/소속 <span class="required">*</span></label>
-        <input type="text" name="job" placeholder="직장인 / 학생 / 프리랜서 등" maxlength="100" required>
+        <input type="text" name="job" placeholder="예: 직장인, 학생, 프리랜서" maxlength="100" required>
       </div>
       <div class="field">
         <label>유입 경로 <span class="required">*</span></label>
         <select name="referral_source" required>
-          <option value="">선택해주세요</option>
+          <option value="">알게 된 경로를 선택해주세요</option>
           <option value="유튜브">유튜브</option>
           <option value="지인소개">지인 소개</option>
           <option value="SNS">SNS</option>
@@ -116,13 +116,13 @@
       </div>
       <div class="field">
         <label>AI에 관심 갖는 이유 <span class="required">*</span></label>
-        <textarea name="reason" id="reason" placeholder="최소 20자 이상 작성해주세요" maxlength="2000"></textarea>
+        <textarea name="reason" id="reason" placeholder="예: 업무에 AI를 적용해 보고 싶어서 신청합니다. 현재 가장 궁금한 점도 함께 적어주세요." maxlength="2000" required></textarea>
         <div class="char-count" id="reason-count">0자 / 최소 20자</div>
       </div>
       <div class="field">
         <label>AI 자가진단 레벨 <span class="required">*</span></label>
         <select name="ai_level" required>
-          <option value="">선택해주세요</option>
+          <option value="">현재 수준을 선택해주세요</option>
           <option value="입문">입문 — AI가 뭔지 이제 알아가는 중</option>
           <option value="초급">초급 — ChatGPT 정도는 써봤어요</option>
           <option value="중급">중급 — 다양한 AI 도구를 활용 중</option>
@@ -134,15 +134,15 @@
         <select name="session_id" id="session_id">
           <option value="">일정 선택 없이 먼저 신청</option>
         </select>
-        <div class="hint" id="session-hint">오늘은 신청서 접수와 인원 확인을 우선 진행합니다. 신청 → 운영자 확인 → 자리 확정 안내 순서로 진행됩니다.</div>
+        <div class="hint" id="session-hint">일정을 고르면 예약 신청으로 함께 접수됩니다. 일정이 없어도 먼저 신청할 수 있습니다.</div>
       </div>
       <div class="field">
-        <label>구현하고 싶은 내용 <span class="optional">(선택)</span></label>
-        <textarea name="desired_outcome" id="desired_outcome" placeholder="예: 블로그 자동화, 업무 문서 정리, 예약 시스템, AI 기초 설정 등" maxlength="1000"></textarea>
+        <label>강의에서 해보고 싶은 내용 <span class="optional">(선택)</span></label>
+        <textarea name="desired_outcome" id="desired_outcome" placeholder="예: 블로그 자동화, 업무 문서 정리, 예약 시스템, AI 기초 세팅" maxlength="1000"></textarea>
       </div>
       <div class="field">
         <label>준비 상태 <span class="optional">(선택)</span></label>
-        <textarea name="preparedness" id="preparedness" placeholder="노트북, GPT/Claude 유료 구독, 현재 막힌 지점 등을 적어주세요." maxlength="1000"></textarea>
+        <textarea name="preparedness" id="preparedness" placeholder="예: 노트북 지참 가능, ChatGPT 사용 중, 아직 계정 없음" maxlength="1000"></textarea>
       </div>
       <input type="hidden" name="plan_type" value="basic">
 
