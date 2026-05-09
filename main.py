@@ -23,7 +23,7 @@ from agents.consent_checker import check_consent
 from agents.db_manager import (
     create_member, get_member, list_members, update_status,
     blacklist_member, get_stats, save_to_sheets, log_action,
-    cleanup_expired_codes, get_expiring_soon, release_expired_locks,
+    cleanup_expired_codes, get_expiring_soon, get_storage_status, release_expired_locks,
 )
 from agents.booking_manager import (
     DEFAULT_PRICE, confirm_payment_state, create_booking, create_session, default_payment_guide,
@@ -359,13 +359,11 @@ async def apply(req: ApplyRequest, request: Request):
     sheets_data = {k: v for k, v in member_data.items()
                    if k not in ("phone_encrypted", "email_encrypted")}
     sheets_data["member_id"] = member_id
-    save_to_sheets(sheets_data)
+    sheets_ok = save_to_sheets(sheets_data)
+    log_action(member_id, "sheets_sync", "ok" if sheets_ok else "not_configured_or_failed", client_ip)
 
-    # 11. 텔레그램 알림
+    # 11. 이력 기록
     member = get_member(member_id)
-    notify_admin_new_apply(member)
-
-    # 12. 이력 기록
     log_action(member_id, "apply", f"plan={data['plan_type']}, grade={grade}", client_ip)
 
     booking_id = None
@@ -388,6 +386,18 @@ async def apply(req: ApplyRequest, request: Request):
         })
         refresh_session_counts(data.get("session_id"))
         log_action(member_id, "booking_requested", f"booking_id={booking_id}", client_ip)
+
+    # 12. Hermes/Telegram 알림
+    booking = get_booking(booking_id) if booking_id else None
+    hermes_ok = notify_admin_new_apply(
+        member,
+        booking=booking,
+        storage_status={
+            "db": "ok",
+            "sheets": "ok" if sheets_ok else "not_configured_or_failed",
+        },
+    )
+    log_action(member_id, "hermes_notify", "ok" if hermes_ok else "not_configured_or_failed", client_ip)
 
     return {
         "ok": True,
@@ -498,6 +508,11 @@ async def stats():
     data = get_stats()
     data["expiring_7d"] = len(get_expiring_soon(days=7))
     return {"ok": True, "data": data}
+
+
+@app.get("/admin/storage-status")
+async def admin_storage_status(_=Depends(require_admin)):
+    return {"ok": True, "data": get_storage_status()}
 
 
 @app.get("/admin/sessions")

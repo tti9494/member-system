@@ -181,6 +181,64 @@ def log_action(member_id: str, action: str, detail: str = None, ip: str = None):
     conn.close()
 
 
+def get_storage_status(limit: int = 10) -> dict:
+    """Return operator-safe persistence status without exposing secrets or raw PII."""
+    conn = get_conn()
+    members = conn.execute(
+        """
+        SELECT id, name, phone_masked, plan_type, status, created_at
+        FROM members
+        ORDER BY created_at DESC
+        LIMIT ?
+        """,
+        (limit,),
+    ).fetchall()
+    recent = []
+    for row in members:
+        member = dict(row)
+        logs = conn.execute(
+            """
+            SELECT action, detail, created_at
+            FROM member_logs
+            WHERE member_id=?
+              AND action IN ('apply', 'sheets_sync', 'hermes_notify', 'booking_requested')
+            ORDER BY created_at DESC
+            """,
+            (member["id"],),
+        ).fetchall()
+        sheet_log = next((dict(log) for log in logs if log["action"] == "sheets_sync"), None)
+        hermes_log = next((dict(log) for log in logs if log["action"] == "hermes_notify"), None)
+        booking_log = next((dict(log) for log in logs if log["action"] == "booking_requested"), None)
+        member["db_saved"] = True
+        member["sheets_status"] = sheet_log["detail"] if sheet_log else "unknown"
+        member["sheets_checked_at"] = sheet_log["created_at"] if sheet_log else None
+        member["hermes_status"] = hermes_log["detail"] if hermes_log else "unknown"
+        member["hermes_checked_at"] = hermes_log["created_at"] if hermes_log else None
+        member["booking_status"] = booking_log["detail"] if booking_log else "not_requested"
+        recent.append(member)
+
+    counts = {
+        "members": conn.execute("SELECT COUNT(*) FROM members").fetchone()[0],
+        "bookings": conn.execute("SELECT COUNT(*) FROM bookings").fetchone()[0],
+        "sessions": conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0],
+    }
+    conn.close()
+    db_path = Path.home() / "member-system" / "members.db"
+    return {
+        "db": {
+            "path": str(db_path),
+            "exists": db_path.exists(),
+            "size_bytes": db_path.stat().st_size if db_path.exists() else 0,
+        },
+        "sheets": {
+            "configured": bool(GAS_URL and "YOUR_SCRIPT_ID" not in GAS_URL),
+            "mode": "google_sheets_append" if GAS_URL and "YOUR_SCRIPT_ID" not in GAS_URL else "not_configured",
+        },
+        "counts": counts,
+        "recent": recent,
+    }
+
+
 def cleanup_expired_codes() -> dict:
     """만료된 코드 무효화 (매일 자정 실행)"""
     from datetime import datetime, timezone

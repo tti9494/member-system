@@ -28,12 +28,26 @@ def _send(chat_id: str, text: str) -> bool:
         return False
 
 
-def notify_admin_new_apply(member: dict) -> bool:
+def notify_admin_new_apply(member: dict, booking: dict | None = None, storage_status: dict | None = None) -> bool:
     plan = member.get("plan_type", "")
     grade = member.get("participation_grade", "🌱 새싹")
     reason = str(member.get("reason", ""))
+    booking_lines = ""
+    if booking:
+        booking_lines = (
+            f"\n예약: {booking.get('session_title') or '일정 미선택'}"
+            f"\n시간: {booking.get('session_starts_at') or '-'}"
+            f"\n장소: {booking.get('session_location') or '-'}"
+            f"\n예약ID: {booking.get('id')}"
+        )
+    storage_lines = ""
+    if storage_status:
+        storage_lines = (
+            f"\nDB 저장: {storage_status.get('db', '-')}"
+            f"\nSheets: {storage_status.get('sheets', '-')}"
+        )
     text = (
-        f"🆕 신규 신청 ({plan})\n"
+        f"🆕 Hermes 신규 신청 ({plan})\n"
         f"이름: {member.get('name')}\n"
         f"연락처: {member.get('phone_masked')}\n"
         f"나이/성별: {member.get('age')}세 / {member.get('gender')}\n"
@@ -41,6 +55,8 @@ def notify_admin_new_apply(member: dict) -> bool:
         f"참여등급: {grade}\n"
         f"유입: {member.get('referral_source')}\n"
         f"신청이유: {reason[:50]}{'...' if len(reason) > 50 else ''}\n"
+        f"{booking_lines}"
+        f"{storage_lines}\n"
         f"[승인: /approve_{member.get('id')}] [거절: /reject_{member.get('id')}]"
     )
     return _send(ADMIN_CHAT_ID, text)

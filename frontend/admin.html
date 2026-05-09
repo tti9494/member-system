@@ -239,6 +239,49 @@
     color: var(--text);
   }
 
+  .storage-panel {
+    margin-bottom: 18px;
+  }
+
+  .storage-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 12px;
+  }
+
+  .storage-box {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    padding: 14px;
+  }
+
+  .storage-title {
+    font-weight: 850;
+    margin-bottom: 8px;
+  }
+
+  .storage-line {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+  }
+
+  .storage-list {
+    display: grid;
+    gap: 8px;
+    max-height: 220px;
+    overflow: auto;
+  }
+
+  .storage-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    padding: 10px;
+  }
+
   .toolbar {
     display: grid;
     grid-template-columns: 1.1fr 180px 180px auto;
@@ -648,7 +691,7 @@
     h1 { font-size: 28px; }
     .auth-panel, .toolbar { grid-template-columns: 1fr; }
     .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .booking-grid, .session-form { grid-template-columns: 1fr; }
+    .booking-grid, .session-form, .storage-grid { grid-template-columns: 1fr; }
     .section-grid { grid-template-columns: 1fr; }
     .kv { grid-template-columns: 118px minmax(0, 1fr); }
   }
@@ -688,6 +731,18 @@
       <div class="stat-card accent-blacklist"><div class="stat-label">차단</div><div class="stat-value" id="stat-blacklist">-</div></div>
       <div class="stat-card"><div class="stat-label">Basic</div><div class="stat-value" id="stat-basic">-</div></div>
       <div class="stat-card accent-expiring"><div class="stat-label">7일 내 만료</div><div class="stat-value" id="stat-expiring">-</div></div>
+    </section>
+
+    <section class="panel storage-panel" aria-label="저장과 Hermes 알림 상태">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">저장 / Hermes 알림 확인</div>
+          <div class="panel-caption">신청이 DB에 들어갔는지, Sheets 전송과 Hermes 알림이 시도됐는지 확인합니다.</div>
+        </div>
+      </div>
+      <div id="storage-status" class="storage-grid">
+        <div class="empty-state">저장 상태를 불러오려면 관리자 키로 연결하세요.</div>
+      </div>
     </section>
 
     <section class="panel booking-panel" aria-label="강의 일정과 예약">
@@ -795,6 +850,7 @@
     bookings: [],
     detail: null,
     scheduler: null,
+    storage: null,
     selectedId: "",
   };
 
@@ -813,6 +869,7 @@
     activeFilterLabel: $("active-filter-label"),
     sessionList: $("session-list"),
     bookingList: $("booking-list"),
+    storageStatus: $("storage-status"),
   };
 
   fields.adminKey.value = state.key;
@@ -944,6 +1001,58 @@
     $("stat-blacklist").textContent = data.blacklist ?? "-";
     $("stat-basic").textContent = data.basic ?? "-";
     $("stat-expiring").textContent = data.expiring_7d ?? "-";
+  }
+
+  function statusText(value) {
+    return {
+      ok: "성공",
+      not_configured_or_failed: "미설정 또는 실패",
+      unknown: "확인 전",
+      not_requested: "예약 없음",
+    }[value] || value || "-";
+  }
+
+  function renderStorageStatus() {
+    const data = state.storage || {};
+    const db = data.db || {};
+    const sheets = data.sheets || {};
+    const counts = data.counts || {};
+    const recent = data.recent || [];
+    fields.storageStatus.innerHTML = "";
+
+    const summary = document.createElement("div");
+    summary.className = "storage-box";
+    summary.innerHTML = `
+      <div class="storage-title">저장 위치</div>
+      <div class="storage-line">DB: ${escapeHtml(db.exists ? "저장 중" : "없음")} · ${escapeHtml(db.path || "-")}</div>
+      <div class="storage-line">DB 크기: ${Number(db.size_bytes || 0).toLocaleString()} bytes</div>
+      <div class="storage-line">Sheets: ${escapeHtml(sheets.configured ? "설정됨" : "미설정/비활성")}</div>
+      <div class="storage-line">누적: 신청자 ${counts.members ?? 0}명 · 예약 ${counts.bookings ?? 0}건 · 일정 ${counts.sessions ?? 0}개</div>
+    `;
+
+    const list = document.createElement("div");
+    list.className = "storage-box";
+    const title = document.createElement("div");
+    title.className = "storage-title";
+    title.textContent = "최근 신청 저장 상태";
+    const recentList = document.createElement("div");
+    recentList.className = "storage-list";
+    if (!recent.length) {
+      recentList.innerHTML = '<div class="empty-state">최근 신청이 없습니다.</div>';
+    } else {
+      for (const item of recent) {
+        const row = document.createElement("div");
+        row.className = "storage-item";
+        row.innerHTML = `
+          <div class="booking-title">${escapeHtml(item.name || "신청자")} · ${escapeHtml(item.phone_masked || "-")}</div>
+          <div class="storage-line">DB 저장: 성공 · Sheets: ${escapeHtml(statusText(item.sheets_status))} · Hermes: ${escapeHtml(statusText(item.hermes_status))}</div>
+          <div class="storage-line">예약: ${escapeHtml(statusText(item.booking_status))} · ${escapeHtml(formatDate(item.created_at))}</div>
+        `;
+        recentList.appendChild(row);
+      }
+    }
+    list.append(title, recentList);
+    fields.storageStatus.append(summary, list);
   }
 
   function buildQuery() {
@@ -1371,18 +1480,20 @@
     setStatus("데이터를 불러오는 중입니다.");
 
     try {
-      const [stats, members, scheduler, sessions, bookings] = await Promise.all([
+      const [stats, members, scheduler, sessions, bookings, storage] = await Promise.all([
         api("/stats"),
         api(`/members${buildQuery()}`),
         api("/scheduler/status").catch(() => null),
         api("/admin/sessions").catch(() => ({ data: [] })),
         api("/admin/bookings").catch(() => ({ data: [] })),
+        api("/admin/storage-status").catch(() => ({ data: null })),
       ]);
       updateStats(stats.data || {});
       state.members = members.data || [];
       state.scheduler = scheduler;
       state.sessions = sessions.data || [];
       state.bookings = bookings.data || [];
+      state.storage = storage.data || null;
       if (state.selectedId && !state.members.some((member) => member.id === state.selectedId)) {
         state.selectedId = "";
         state.detail = null;
@@ -1391,6 +1502,7 @@
       renderMembers();
       renderSessions();
       renderBookings();
+      renderStorageStatus();
       setStatus("신청자 목록을 갱신했습니다.", "ok");
     } catch (error) {
       setStatus(error.message, "error");
