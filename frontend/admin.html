@@ -505,6 +505,42 @@
     padding: 10px;
   }
 
+  .operator-export-box {
+    grid-column: 1 / -1;
+    background: var(--primary-soft);
+    border-color: var(--primary);
+  }
+
+  .operator-export-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .operator-export-kv {
+    border: 1px solid rgba(24, 67, 143, 0.22);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.72);
+    padding: 12px;
+    min-width: 0;
+  }
+
+  .operator-export-label {
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 850;
+    line-height: 1.35;
+  }
+
+  .operator-export-value {
+    margin-top: 6px;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
   .application-focus {
     padding: 22px;
     margin-bottom: 18px;
@@ -1052,7 +1088,7 @@
     .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ops-summary-head { align-items: flex-start; flex-direction: column; }
     .ops-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .booking-grid, .session-form, .storage-grid { grid-template-columns: 1fr; }
+    .booking-grid, .session-form, .storage-grid, .operator-export-grid { grid-template-columns: 1fr; }
     .section-grid { grid-template-columns: 1fr; }
     .kv { grid-template-columns: 118px minmax(0, 1fr); }
   }
@@ -1200,16 +1236,16 @@
       <div class="stat-card accent-expiring"><div class="stat-label">7일 내 만료</div><div class="stat-value" id="stat-expiring">-</div></div>
     </section>
 
-    <section class="panel storage-panel" aria-label="저장과 Hermes 알림 상태">
+    <section class="panel storage-panel" aria-label="백업과 내보내기 상태">
       <div class="panel-head">
         <div>
-          <div class="panel-title">저장 / Hermes 알림 확인</div>
-          <div class="panel-caption">신청이 DB에 들어갔는지, 백업 위치와 Sheets/Hermes 알림이 정상인지 확인합니다.</div>
+          <div class="panel-title">백업 / 내보내기</div>
+          <div class="panel-caption">Mac Air 로컬 DB 위치, 마지막 백업 시각, JSON/CSV 내보내기를 한 화면에서 확인합니다.</div>
         </div>
         <div class="top-actions">
-          <button class="btn" id="storage-json-btn" type="button">JSON 요약</button>
-          <button class="btn" id="storage-csv-btn" type="button">CSV 요약</button>
-          <button class="btn primary" id="backup-now-btn" type="button">DB 백업 지금 실행</button>
+          <button class="btn" id="storage-json-btn" type="button">JSON 다운로드</button>
+          <button class="btn" id="storage-csv-btn" type="button">CSV 다운로드</button>
+          <button class="btn primary" id="backup-now-btn" type="button">백업 지금 실행</button>
         </div>
       </div>
       <div id="storage-status" class="storage-grid">
@@ -1746,6 +1782,12 @@
     };
   }
 
+  function latestAvailableBackupTarget(targets) {
+    return targets.find((target) => target.name === "local" && target.latest)
+      || targets.find((target) => target.latest)
+      || null;
+  }
+
   function renderApplicationFocus(stats = {}) {
     const storage = state.storage || {};
     const counts = storage.counts || {};
@@ -1802,7 +1844,33 @@
     const recent = data.recent || [];
     const backupTargets = backup.targets || [];
     const lastRun = backup.last_run || {};
+    const latestTarget = latestAvailableBackupTarget(backupTargets);
+    const latestFile = latestTarget && latestTarget.latest ? latestTarget.latest : null;
     fields.storageStatus.innerHTML = "";
+
+    const operator = document.createElement("div");
+    operator.className = "storage-box operator-export-box";
+    operator.innerHTML = `
+      <div class="storage-title">운영자 백업 / 내보내기 확인</div>
+      <div class="operator-export-grid">
+        <div class="operator-export-kv">
+          <div class="operator-export-label">DB 파일 위치</div>
+          <div class="operator-export-value">${escapeHtml(db.path || "-")}</div>
+        </div>
+        <div class="operator-export-kv">
+          <div class="operator-export-label">마지막 백업 시각</div>
+          <div class="operator-export-value">${escapeHtml(lastRun.created_at ? formatDate(lastRun.created_at) : "최근 백업 기록 없음")}</div>
+        </div>
+        <div class="operator-export-kv">
+          <div class="operator-export-label">최근 백업 파일</div>
+          <div class="operator-export-value">${escapeHtml(latestFile ? latestFile.path : "아직 확인된 백업 파일 없음")}</div>
+        </div>
+        <div class="operator-export-kv">
+          <div class="operator-export-label">내보내기</div>
+          <div class="operator-export-value">JSON: /admin/storage-snapshot · CSV: /admin/storage-snapshot.csv</div>
+        </div>
+      </div>
+    `;
 
     const summary = document.createElement("div");
     summary.className = "storage-box";
@@ -1811,7 +1879,7 @@
       <div class="storage-line">관리자 키: 운영 환경의 확인 키로만 검증합니다. 실제 값은 화면에 표시하지 않습니다.</div>
       <div class="storage-line">DB: ${escapeHtml(db.exists ? "저장 중" : "없음")} · ${escapeHtml(db.path || "-")}</div>
       <div class="storage-line">저장 방식: SQLite 파일 · 테이블 members/bookings/sessions/member_logs</div>
-      <div class="storage-line">열람 endpoint: /admin/storage-snapshot · /admin/storage-snapshot.csv</div>
+      <div class="storage-line">내보내기 endpoint: /admin/storage-snapshot · /admin/storage-snapshot.csv</div>
       <div class="storage-line">DB 크기: ${Number(db.size_bytes || 0).toLocaleString()} bytes</div>
       <div class="storage-line">Sheets: ${escapeHtml(sheets.configured ? "설정됨" : "미설정/비활성")}</div>
       <div class="storage-line">Hermes/Telegram: ${escapeHtml(hermes.active ? "ON" : "OFF")} · enabled ${escapeHtml(hermes.enabled ? "ON" : "OFF")} · token/chat_id ${escapeHtml(hermes.configured ? "설정됨" : "미설정")}</div>
@@ -1864,7 +1932,7 @@
       }
     }
     list.append(title, recentList);
-    fields.storageStatus.append(summary, mirror, list);
+    fields.storageStatus.append(operator, summary, mirror, list);
   }
 
   function buildQuery() {

@@ -251,6 +251,41 @@ class HermesStatusTest(unittest.TestCase):
         self.assertNotIn("민감한 자유입력", snapshot_text)
         self.assertNotIn("민감한 준비상태", snapshot_text)
 
+    def test_storage_status_reports_local_backup_after_existing_backup_api(self):
+        backup_dir = Path(self.tmpdir.name) / "snapshots"
+        with patch.object(
+            db_manager,
+            "_backup_targets",
+            return_value=[
+                {
+                    "name": "local",
+                    "label": "Mac Air local",
+                    "path": backup_dir,
+                    "available": True,
+                }
+            ],
+        ), patch.object(db_manager, "_run_quiet", return_value=(False, "test_skip_remote")):
+            result = db_manager.backup_database(reason="test")
+            db_manager.log_action(
+                "system",
+                "db_backup",
+                '{"ok_count": 1, "failed_count": 1, "targets": [{"name": "local", "status": "ok"}, {"name": "macpro", "status": "failed"}]}',
+                "127.0.0.1",
+            )
+            status = db_manager.get_storage_status()
+
+        local_target = next(target for target in status["backup"]["targets"] if target["name"] == "local")
+        status_text = str(status)
+
+        self.assertTrue(backup_dir.exists())
+        self.assertEqual(result["targets"][0]["status"], "ok")
+        self.assertEqual(local_target["path"], str(backup_dir))
+        self.assertIsNotNone(local_target["latest"])
+        self.assertEqual(status["backup"]["last_run"]["detail"]["ok_count"], 1)
+        self.assertEqual(status["backup"]["last_run"]["detail"]["failed_count"], 1)
+        self.assertNotIn("encrypted-email", status_text)
+        self.assertNotIn("encrypted-phone", status_text)
+
 
 if __name__ == "__main__":
     unittest.main()
