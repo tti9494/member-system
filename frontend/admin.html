@@ -1010,6 +1010,7 @@
     return {
       ok: "성공",
       not_configured_or_failed: "미설정 또는 실패",
+      not_configured: "미설정",
       unknown: "확인 전",
       not_requested: "예약 없음",
       failed: "실패",
@@ -1034,6 +1035,7 @@
     const data = state.storage || {};
     const db = data.db || {};
     const sheets = data.sheets || {};
+    const hermes = data.hermes || {};
     const backup = data.backup || {};
     const counts = data.counts || {};
     const recent = data.recent || [];
@@ -1049,6 +1051,7 @@
       <div class="storage-line">DB: ${escapeHtml(db.exists ? "저장 중" : "없음")} · ${escapeHtml(db.path || "-")}</div>
       <div class="storage-line">DB 크기: ${Number(db.size_bytes || 0).toLocaleString()} bytes</div>
       <div class="storage-line">Sheets: ${escapeHtml(sheets.configured ? "설정됨" : "미설정/비활성")}</div>
+      <div class="storage-line">Hermes/Telegram: ${escapeHtml(hermes.configured ? "설정됨" : "미설정")}</div>
       <div class="storage-line">누적: 신청자 ${counts.members ?? 0}명 · 예약 ${counts.bookings ?? 0}건 · 일정 ${counts.sessions ?? 0}개</div>
     `;
 

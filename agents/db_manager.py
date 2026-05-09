@@ -15,6 +15,8 @@ sys.path.insert(0, str(Path.home() / "member-system"))
 from db import DB_PATH, get_conn
 
 GAS_URL = os.getenv("GAS_URL", "")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_ADMIN_CHAT_ID = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
 
 MACPRO_BACKUP_HOST = os.getenv("MACPRO_BACKUP_HOST", "macpro")
 MACPRO_BACKUP_DIR = os.getenv("MACPRO_BACKUP_DIR", "/Users/sanguk/member-system/backups")
@@ -353,6 +355,12 @@ def get_backup_status() -> dict:
 
 def get_storage_status(limit: int = 10) -> dict:
     """Return operator-safe persistence status without exposing secrets or raw PII."""
+    hermes_configured = bool(
+        TELEGRAM_BOT_TOKEN
+        and TELEGRAM_BOT_TOKEN != "your_bot_token_here"
+        and TELEGRAM_ADMIN_CHAT_ID
+        and TELEGRAM_ADMIN_CHAT_ID != "your_chat_id_here"
+    )
     conn = get_conn()
     members = conn.execute(
         """
@@ -425,6 +433,10 @@ def get_storage_status(limit: int = 10) -> dict:
         "sheets": {
             "configured": bool(GAS_URL and "YOUR_SCRIPT_ID" not in GAS_URL),
             "mode": "google_sheets_append" if GAS_URL and "YOUR_SCRIPT_ID" not in GAS_URL else "not_configured",
+        },
+        "hermes": {
+            "configured": hermes_configured,
+            "mode": "telegram_sendMessage" if hermes_configured else "not_configured",
         },
         "backup": backup_status,
         "counts": counts,

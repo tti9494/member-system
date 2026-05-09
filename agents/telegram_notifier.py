@@ -12,23 +12,36 @@ SERVICE_NAME = os.getenv("SERVICE_NAME", "AI 모임")
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 
-def _send(chat_id: str, text: str) -> bool:
-    if not BOT_TOKEN or BOT_TOKEN == "your_bot_token_here":
-        print(f"[Telegram 미설정] 메시지 미발송:\n{text}")
-        return False
+def _is_configured() -> bool:
+    return bool(
+        BOT_TOKEN
+        and BOT_TOKEN != "your_bot_token_here"
+        and ADMIN_CHAT_ID
+        and ADMIN_CHAT_ID != "your_chat_id_here"
+    )
+
+
+def _send_status(chat_id: str, text: str) -> str:
+    if not _is_configured() or not chat_id:
+        print("[Telegram 미설정] 메시지 미발송")
+        return "not_configured"
     try:
         resp = httpx.post(
             f"{TELEGRAM_API}/sendMessage",
             json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
             timeout=10,
         )
-        return resp.status_code == 200
+        return "ok" if resp.status_code == 200 else "failed"
     except Exception as e:
-        print(f"[Telegram 오류] {e}")
-        return False
+        print(f"[Telegram 오류] {e.__class__.__name__}")
+        return "failed"
 
 
-def notify_admin_new_apply(member: dict, booking: dict | None = None, storage_status: dict | None = None) -> bool:
+def _send(chat_id: str, text: str) -> bool:
+    return _send_status(chat_id, text) == "ok"
+
+
+def notify_admin_new_apply(member: dict, booking: dict | None = None, storage_status: dict | None = None) -> str:
     plan = member.get("plan_type", "")
     grade = member.get("participation_grade", "🌱 새싹")
     reason = str(member.get("reason", ""))
@@ -60,7 +73,7 @@ def notify_admin_new_apply(member: dict, booking: dict | None = None, storage_st
         f"{storage_lines}\n"
         f"[승인: /approve_{member.get('id')}] [거절: /reject_{member.get('id')}]"
     )
-    return _send(ADMIN_CHAT_ID, text)
+    return _send_status(ADMIN_CHAT_ID, text)
 
 
 def notify_member_approved(member: dict, code: str, expires_at: str, phone: str) -> bool:

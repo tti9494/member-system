@@ -403,7 +403,7 @@ async def apply(req: ApplyRequest, request: Request):
 
     # 13. Hermes/Telegram 알림
     booking = get_booking(booking_id) if booking_id else None
-    hermes_ok = notify_admin_new_apply(
+    hermes_status = notify_admin_new_apply(
         member,
         booking=booking,
         storage_status={
@@ -412,7 +412,7 @@ async def apply(req: ApplyRequest, request: Request):
             "backup": f"{backup_result.get('ok_count', 0)} ok / {backup_result.get('failed_count', 0)} failed",
         },
     )
-    log_action(member_id, "hermes_notify", "ok" if hermes_ok else "not_configured_or_failed", client_ip)
+    log_action(member_id, "hermes_notify", hermes_status, client_ip)
 
     return {
         "ok": True,
