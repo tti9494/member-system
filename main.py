@@ -26,7 +26,7 @@ from agents.db_manager import (
     cleanup_expired_codes, get_expiring_soon, release_expired_locks,
 )
 from agents.booking_manager import (
-    confirm_payment_state, create_booking, create_session, default_payment_guide,
+    DEFAULT_PRICE, confirm_payment_state, create_booking, create_session, default_payment_guide,
     get_booking, get_session, list_bookings, list_sessions, refresh_session_counts,
     seed_default_sunday_sessions, send_payment_guide_state, session_acceptance, set_booking_state,
     update_session,
@@ -375,7 +375,7 @@ async def apply(req: ApplyRequest, request: Request):
         "입금 확인 후 예약이 확정됩니다.",
     ]
     if data.get("session_id") or data.get("desired_outcome") or data.get("preparedness"):
-        amount = int(selected_session["price_krw"]) if selected_session else 50000
+        amount = int(selected_session["price_krw"]) if selected_session else DEFAULT_PRICE
         booking_id = create_booking({
             "session_id": data.get("session_id"),
             "member_id": member_id,
@@ -398,7 +398,7 @@ async def apply(req: ApplyRequest, request: Request):
         "next_steps": booking_next_steps,
         "payment": {
             "method": "bank_transfer_manual_confirm",
-            "amount_krw": int(selected_session["price_krw"]) if selected_session else 50000,
+            "amount_krw": int(selected_session["price_krw"]) if selected_session else DEFAULT_PRICE,
             "status": "operator_review_required",
             "message": "카드 자동결제가 아닌 수동 입금 확인 MVP입니다. 운영자 확인 후 입금 안내가 전달됩니다.",
         } if booking_id else None,

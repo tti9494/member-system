@@ -588,6 +588,26 @@
     margin-top: 4px;
   }
 
+  .booking-guide {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--amber);
+    border-radius: 10px;
+    background: var(--amber-soft);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+
+  .booking-guide-label {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--amber-strong);
+    font-size: 13px;
+    font-weight: 850;
+  }
+
   .booking-actions {
     display: flex;
     gap: 8px;
@@ -1144,10 +1164,17 @@
         <div class="booking-meta">${escapeHtml(formatDate(booking.session_starts_at))} · 예약 ${escapeHtml(bookingStatusLabel(booking.status))} · 입금 ${escapeHtml(paymentStatusLabel(booking.payment_status))}</div>
         <div class="booking-meta">${escapeHtml(booking.desired_outcome || "")}</div>
       `;
+      if (booking.payment_note) {
+        const guide = document.createElement("div");
+        guide.className = "booking-guide";
+        guide.innerHTML = `<span class="booking-guide-label">입금 안내 문구</span>${escapeHtml(booking.payment_note)}`;
+        item.appendChild(guide);
+      }
       const actions = document.createElement("div");
       actions.className = "booking-actions";
       actions.append(
         actionButton("입금 안내", "amber", booking.status === "payment_guide_sent", () => sendPaymentGuide(booking.id)),
+        actionButton("안내 복사", "", !booking.payment_note, async () => copyPaymentGuide(booking.payment_note)),
         actionButton("입금 확인+확정", "primary", booking.status === "confirmed", () => confirmPayment(booking.id)),
         actionButton("취소", "red", booking.status === "canceled", () => updateBookingState(booking.id, "canceled", null))
       );
@@ -1206,6 +1233,16 @@
       setStatus(`입금 안내 상태로 변경했습니다. 신청자에게 안내 문구를 전달하세요.${guide}`, "ok");
     } catch (error) {
       setStatus(error.message, "error");
+    }
+  }
+
+  async function copyPaymentGuide(text) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus("입금 안내 문구를 클립보드에 복사했습니다.", "ok");
+    } catch (_) {
+      window.prompt("복사할 입금 안내 문구를 선택하세요.", text);
     }
   }
 
