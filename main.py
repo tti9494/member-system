@@ -1,11 +1,13 @@
 import os
 import sys
 import json
+import csv
+import io
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException, Depends
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -25,7 +27,7 @@ from agents.db_manager import (
     create_member, get_member, list_members, update_status,
     blacklist_member, get_stats, save_to_sheets, log_action,
     backup_database, cleanup_expired_codes, get_expiring_soon, get_storage_status,
-    get_operator_health, release_expired_locks,
+    get_operator_health, get_storage_snapshot, release_expired_locks,
 )
 from agents.booking_manager import (
     DEFAULT_PRICE, confirm_payment_state, create_booking, create_session, default_payment_guide,
@@ -533,6 +535,41 @@ async def operator_health():
 @app.get("/admin/storage-status")
 async def admin_storage_status(_=Depends(require_admin)):
     return {"ok": True, "data": get_storage_status()}
+
+
+@app.get("/admin/storage-snapshot")
+async def admin_storage_snapshot(limit: int = 50, _=Depends(require_admin)):
+    return {"ok": True, "data": get_storage_snapshot(limit=limit)}
+
+
+@app.get("/admin/storage-snapshot.csv")
+async def admin_storage_snapshot_csv(limit: int = 50, _=Depends(require_admin)):
+    snapshot = get_storage_snapshot(limit=limit)
+    output = io.StringIO()
+    fields = [
+        "member_id",
+        "applicant",
+        "phone_masked",
+        "plan_type",
+        "participation_grade",
+        "member_status",
+        "member_created_at",
+        "booking_id",
+        "booking_status",
+        "payment_status",
+        "booking_created_at",
+        "session_starts_at",
+        "session_location",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fields)
+    writer.writeheader()
+    for row in snapshot["recent"]:
+        writer.writerow({field: row.get(field, "") for field in fields})
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=booking-storage-snapshot.csv"},
+    )
 
 
 @app.post("/admin/backup-now")

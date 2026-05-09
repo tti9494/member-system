@@ -388,6 +388,7 @@ def get_storage_status(limit: int = 10) -> dict:
         hermes_log = next((dict(log) for log in logs if log["action"] == "hermes_notify"), None)
         booking_log = next((dict(log) for log in logs if log["action"] == "booking_requested"), None)
         backup_log = next((dict(log) for log in logs if log["action"] == "db_backup"), None)
+        member["name"] = _mask_name(member.get("name"))
         member["db_saved"] = True
         member["sheets_status"] = sheet_log["detail"] if sheet_log else "unknown"
         member["sheets_checked_at"] = sheet_log["created_at"] if sheet_log else None
@@ -441,6 +442,101 @@ def get_storage_status(limit: int = 10) -> dict:
         "backup": backup_status,
         "counts": counts,
         "recent": recent,
+    }
+
+
+def _mask_name(value: str | None) -> str:
+    if not value:
+        return "-"
+    text = str(value).strip()
+    if len(text) <= 1:
+        return "*"
+    if len(text) == 2:
+        return f"{text[0]}*"
+    return f"{text[0]}{'*' * (len(text) - 2)}{text[-1]}"
+
+
+def get_storage_snapshot(limit: int = 50) -> dict:
+    """Return a read-only, masked snapshot for storage visibility/export."""
+    limit = max(1, min(int(limit or 50), 200))
+    conn = get_conn()
+    recent_members = conn.execute(
+        """
+        SELECT
+            m.id,
+            m.name,
+            m.phone_masked,
+            m.plan_type,
+            m.participation_grade,
+            m.status,
+            m.created_at,
+            b.id AS booking_id,
+            b.status AS booking_status,
+            b.payment_status AS payment_status,
+            b.created_at AS booking_created_at,
+            s.starts_at AS session_starts_at,
+            s.location AS session_location
+        FROM members m
+        LEFT JOIN bookings b ON b.member_id=m.id
+        LEFT JOIN sessions s ON s.id=b.session_id
+        ORDER BY m.created_at DESC
+        LIMIT ?
+        """,
+        (limit,),
+    ).fetchall()
+    counts = {
+        "members": conn.execute("SELECT COUNT(*) FROM members").fetchone()[0],
+        "bookings": conn.execute("SELECT COUNT(*) FROM bookings").fetchone()[0],
+        "sessions": conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0],
+        "logs": conn.execute("SELECT COUNT(*) FROM member_logs").fetchone()[0],
+    }
+    booking_status_rows = conn.execute(
+        "SELECT status, COUNT(*) AS count FROM bookings GROUP BY status ORDER BY status"
+    ).fetchall()
+    latest_member = conn.execute(
+        "SELECT created_at FROM members ORDER BY created_at DESC LIMIT 1"
+    ).fetchone()
+    latest_booking = conn.execute(
+        "SELECT created_at FROM bookings ORDER BY created_at DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+
+    rows = []
+    for row in recent_members:
+        item = dict(row)
+        rows.append({
+            "member_id": item["id"],
+            "applicant": _mask_name(item.get("name")),
+            "phone_masked": item.get("phone_masked") or "-",
+            "plan_type": item.get("plan_type") or "-",
+            "participation_grade": item.get("participation_grade") or "-",
+            "member_status": item.get("status") or "-",
+            "member_created_at": item.get("created_at"),
+            "booking_id": item.get("booking_id"),
+            "booking_status": item.get("booking_status") or "not_requested",
+            "payment_status": item.get("payment_status") or "-",
+            "booking_created_at": item.get("booking_created_at"),
+            "session_starts_at": item.get("session_starts_at"),
+            "session_location": item.get("session_location") or "-",
+        })
+
+    db_stat = DB_PATH.stat() if DB_PATH.exists() else None
+    return {
+        "storage": {
+            "mode": "sqlite_file",
+            "path": str(DB_PATH),
+            "exists": DB_PATH.exists(),
+            "size_bytes": db_stat.st_size if db_stat else 0,
+            "tables": ["members", "bookings", "sessions", "member_logs"],
+            "pii_policy": "masked_summary_only",
+        },
+        "counts": counts,
+        "booking_status_counts": {row["status"]: row["count"] for row in booking_status_rows},
+        "latest": {
+            "member_created_at": latest_member["created_at"] if latest_member else None,
+            "booking_created_at": latest_booking["created_at"] if latest_booking else None,
+        },
+        "recent": rows,
     }
 
 

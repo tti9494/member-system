@@ -74,10 +74,14 @@ def count_tables() -> dict[str, int]:
 def admin_counts() -> dict[str, int | str | bool]:
     health = db_manager.get_operator_health()
     storage = db_manager.get_storage_status(limit=1)
+    snapshot = db_manager.get_storage_snapshot(limit=1)
     return {
         "members": storage["counts"]["members"],
         "bookings": storage["counts"]["bookings"],
         "sessions": storage["counts"]["sessions"],
+        "snapshot_members": snapshot["counts"]["members"],
+        "snapshot_bookings": snapshot["counts"]["bookings"],
+        "snapshot_path": snapshot["storage"]["path"],
         "public_sessions": health["public_sessions"]["count"],
         "open_sessions": health["public_sessions"]["open_count"],
         "requested_bookings": health["application_system"]["requested_booking_count"],
@@ -203,6 +207,12 @@ def main() -> int:
         errors.append("admin requested_bookings delta expected 1")
     if int(after_admin["active_bookings"]) - int(before_admin["active_bookings"]) != 1:
         errors.append("admin active_bookings delta expected 1")
+    if int(after_admin["snapshot_members"]) != after["members"]:
+        errors.append("storage snapshot member count does not match DB")
+    if int(after_admin["snapshot_bookings"]) != after["bookings"]:
+        errors.append("storage snapshot booking count does not match DB")
+    if str(after_admin["snapshot_path"]) != str(db_path):
+        errors.append("storage snapshot DB path does not match active DB path")
 
     report = {
         "ok": not errors,

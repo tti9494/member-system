@@ -163,6 +163,50 @@ class HermesStatusTest(unittest.TestCase):
         self.assertNotIn("encrypted", status_text)
         self.assertNotIn("targets", status_text)
 
+    def test_storage_snapshot_is_masked_read_only_summary(self):
+        member_id = self._insert_member()
+        conn = sqlite3.connect(str(self.db_path))
+        conn.execute(
+            """
+            INSERT INTO bookings (
+                id, session_id, member_id, applicant_name, phone_masked,
+                desired_outcome, preparedness, status, payment_status,
+                payment_amount_krw, created_at, updated_at
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                "booking-1",
+                None,
+                member_id,
+                "테스트",
+                "010-****-1234",
+                "민감한 자유입력 목표 원문",
+                "민감한 준비상태 원문",
+                "requested",
+                "not_sent",
+                50000,
+                "2026-05-09T00:00:00+00:00",
+                "2026-05-09T00:00:00+00:00",
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        snapshot = db_manager.get_storage_snapshot(limit=10)
+        snapshot_text = str(snapshot)
+
+        self.assertEqual(snapshot["storage"]["mode"], "sqlite_file")
+        self.assertEqual(snapshot["storage"]["path"], str(self.db_path))
+        self.assertEqual(snapshot["counts"]["members"], 1)
+        self.assertEqual(snapshot["counts"]["bookings"], 1)
+        self.assertEqual(snapshot["recent"][0]["member_id"], member_id)
+        self.assertEqual(snapshot["recent"][0]["applicant"], "테*트")
+        self.assertEqual(snapshot["recent"][0]["phone_masked"], "010-****-1234")
+        self.assertNotIn("encrypted-email", snapshot_text)
+        self.assertNotIn("encrypted-phone", snapshot_text)
+        self.assertNotIn("민감한 자유입력", snapshot_text)
+        self.assertNotIn("민감한 준비상태", snapshot_text)
+
 
 if __name__ == "__main__":
     unittest.main()
