@@ -101,24 +101,86 @@ def update_session(session_id: str, data: dict) -> bool:
 
 def list_sessions(status: str | None = None, include_closed: bool = False) -> list[dict]:
     conn = get_conn()
-    query = "SELECT * FROM sessions WHERE 1=1"
+    query = """
+        SELECT
+            s.*,
+            (
+                SELECT COUNT(*)
+                FROM bookings b
+                WHERE b.session_id=s.id
+                  AND b.status NOT IN ('canceled', 'rejected', 'no_show')
+            ) AS active_booking_count,
+            (
+                SELECT COUNT(*)
+                FROM bookings b
+                WHERE b.session_id=s.id
+                  AND b.status='requested'
+            ) AS requested_count,
+            (
+                SELECT COUNT(*)
+                FROM bookings b
+                WHERE b.session_id=s.id
+                  AND b.status='confirmed'
+            ) AS confirmed_booking_count
+        FROM sessions s
+        WHERE 1=1
+    """
     params: list = []
     if status:
-        query += " AND status=?"
+        query += " AND s.status=?"
         params.append(status)
     elif not include_closed:
-        query += " AND status IN ('open', 'full')"
-    query += " ORDER BY starts_at ASC"
+        query += " AND s.status IN ('open', 'full')"
+    query += " ORDER BY s.starts_at ASC"
     rows = conn.execute(query, params).fetchall()
     conn.close()
-    return [dict(row) for row in rows]
+    return [_with_capacity_fields(dict(row)) for row in rows]
 
 
 def get_session(session_id: str) -> dict | None:
     conn = get_conn()
-    row = conn.execute("SELECT * FROM sessions WHERE id=?", (session_id,)).fetchone()
+    row = conn.execute(
+        """
+        SELECT
+            s.*,
+            (
+                SELECT COUNT(*)
+                FROM bookings b
+                WHERE b.session_id=s.id
+                  AND b.status NOT IN ('canceled', 'rejected', 'no_show')
+            ) AS active_booking_count,
+            (
+                SELECT COUNT(*)
+                FROM bookings b
+                WHERE b.session_id=s.id
+                  AND b.status='requested'
+            ) AS requested_count,
+            (
+                SELECT COUNT(*)
+                FROM bookings b
+                WHERE b.session_id=s.id
+                  AND b.status='confirmed'
+            ) AS confirmed_booking_count
+        FROM sessions s
+        WHERE s.id=?
+        """,
+        (session_id,),
+    ).fetchone()
     conn.close()
-    return _row_to_dict(row)
+    data = _row_to_dict(row)
+    return _with_capacity_fields(data) if data else None
+
+
+def _with_capacity_fields(session: dict) -> dict:
+    capacity = int(session.get("capacity_max") or DEFAULT_CAPACITY_MAX)
+    active = int(session.get("active_booking_count") or 0)
+    confirmed = int(session.get("confirmed_booking_count") or session.get("confirmed_count") or 0)
+    session["active_booking_count"] = active
+    session["requested_count"] = int(session.get("requested_count") or 0)
+    session["confirmed_booking_count"] = confirmed
+    session["remaining_capacity"] = max(capacity - active, 0)
+    session["is_request_full"] = active >= capacity
+    return session
 
 
 def create_booking(data: dict) -> str:
@@ -233,23 +295,32 @@ def refresh_session_counts(session_id: str | None) -> None:
     if not session_id:
         return
     conn = get_conn()
-    count = conn.execute(
+    confirmed_count = conn.execute(
         "SELECT COUNT(*) FROM bookings WHERE session_id=? AND status='confirmed'",
+        (session_id,),
+    ).fetchone()[0]
+    active_count = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM bookings
+        WHERE session_id=?
+          AND status NOT IN ('canceled', 'rejected', 'no_show')
+        """,
         (session_id,),
     ).fetchone()[0]
     row = conn.execute("SELECT capacity_max FROM sessions WHERE id=?", (session_id,)).fetchone()
     status = None
     if row:
-        status = "full" if count >= int(row["capacity_max"]) else "open"
+        status = "full" if active_count >= int(row["capacity_max"]) else "open"
     if status:
         conn.execute(
             "UPDATE sessions SET confirmed_count=?, status=?, updated_at=? WHERE id=? AND status IN ('open', 'full')",
-            (count, status, _now(), session_id),
+            (confirmed_count, status, _now(), session_id),
         )
     else:
         conn.execute(
             "UPDATE sessions SET confirmed_count=?, updated_at=? WHERE id=?",
-            (count, _now(), session_id),
+            (confirmed_count, _now(), session_id),
         )
     conn.commit()
     conn.close()
@@ -288,10 +359,10 @@ def session_acceptance(session: dict | None) -> tuple[bool, str]:
         return False, "현재 공개 예약 가능한 세션이 아닙니다."
     if session.get("status") == "full":
         return False, "이미 마감된 세션입니다."
-    confirmed = int(session.get("confirmed_count") or 0)
+    active = int(session.get("active_booking_count") or session.get("confirmed_count") or 0)
     capacity = int(session.get("capacity_max") or DEFAULT_CAPACITY_MAX)
-    if confirmed >= capacity:
-        return False, "정원이 마감된 세션입니다."
+    if active >= capacity:
+        return False, "신청 정원이 마감된 세션입니다."
     return True, ""
 
 

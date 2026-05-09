@@ -297,7 +297,7 @@ async def public_sessions():
         "ok": True,
         "data": safe_rows,
         "total": len(safe_rows),
-        "workflow": "신청 → 확인 → 입금 안내 → 입금 확인 → 확정",
+        "workflow": "신청 → 운영자 확인 → 자리 확정 안내",
     }
 
 
@@ -370,9 +370,8 @@ async def apply(req: ApplyRequest, request: Request):
 
     booking_id = None
     booking_next_steps = [
-        "운영자가 신청 내용을 확인합니다.",
-        "입금 안내를 받은 뒤 안내 금액을 입금합니다.",
-        "입금 확인 후 예약이 확정됩니다.",
+        "운영자가 신청 내용과 정원을 확인합니다.",
+        "자리 확정 여부와 다음 안내를 개별 전달합니다.",
     ]
     if data.get("session_id") or data.get("desired_outcome") or data.get("preparedness"):
         amount = int(selected_session["price_krw"]) if selected_session else DEFAULT_PRICE
@@ -396,12 +395,12 @@ async def apply(req: ApplyRequest, request: Request):
         "member_id": member_id,
         "booking_id": booking_id,
         "next_steps": booking_next_steps,
-        "payment": {
-            "method": "bank_transfer_manual_confirm",
+        "reservation": {
+            "status": "requested",
+            "message": "신청이 접수되었습니다. 운영자가 인원과 일정을 확인한 뒤 자리 확정 안내를 드립니다.",
             "amount_krw": int(selected_session["price_krw"]) if selected_session else DEFAULT_PRICE,
-            "status": "operator_review_required",
-            "message": "카드 자동결제가 아닌 수동 입금 확인 MVP입니다. 운영자 확인 후 입금 안내가 전달됩니다.",
         } if booking_id else None,
+        "payment": None,
     }
 
 
