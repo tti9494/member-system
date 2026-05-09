@@ -42,7 +42,7 @@ from agents.telegram_notifier import (
 )
 from agents.meta_validator import meta_validate
 from agents.security_checker import check_security
-from agents.encryptor import encrypt_data, decrypt_phone  # noqa: E402
+from agents.encryptor import encrypt_data, decrypt_email, decrypt_phone  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("member-system")
@@ -518,6 +518,30 @@ async def member_detail(member_id: str, _=Depends(require_admin)):
     member.pop("email_encrypted", None)
     member.pop("access_code", None)
     return {"ok": True, "data": member}
+
+
+@app.get("/members/{member_id}/contact")
+async def member_contact(member_id: str, request: Request, _=Depends(require_admin)):
+    member = get_member(member_id)
+    if not member:
+        raise HTTPException(404, detail="신청자를 찾을 수 없습니다.")
+    try:
+        phone = decrypt_phone(member["phone_encrypted"])
+        email = decrypt_email(member["email_encrypted"])
+    except Exception:
+        log.exception("연락처 복호화 실패: %s", member_id)
+        raise HTTPException(500, detail="연락처 복호화에 실패했습니다.")
+    log_action(member_id, "contact_view", "admin_contact_reveal", request.client.host if request.client else None)
+    return {
+        "ok": True,
+        "data": {
+            "id": member["id"],
+            "name": member["name"],
+            "phone": phone,
+            "phone_masked": member["phone_masked"],
+            "email": email,
+        },
+    }
 
 
 @app.get("/stats")

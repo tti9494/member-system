@@ -867,6 +867,30 @@
     margin-bottom: 6px;
   }
 
+  .contact-lines {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .contact-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border: 1px solid rgba(45, 93, 255, 0.22);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  .contact-value {
+    color: var(--ink);
+    font-weight: 850;
+    letter-spacing: 0.01em;
+  }
+
   .code-line {
     display: flex;
     gap: 8px;
@@ -2079,6 +2103,51 @@
     box.classList.add("show");
   }
 
+  function contactLine(label, value) {
+    const row = document.createElement("div");
+    row.className = "contact-line";
+    const text = document.createElement("div");
+    text.innerHTML = `<strong>${escapeHtml(label)}</strong> <span class="contact-value">${escapeHtml(value || "-")}</span>`;
+    const copy = actionButton(`${label} 복사`, "primary", !value, async () => {
+      try {
+        await navigator.clipboard.writeText(value);
+        setStatus(`${label}를 클립보드에 복사했습니다.`, "ok");
+      } catch (_) {
+        window.prompt(`${label}를 선택하세요.`, value);
+      }
+    });
+    row.append(text, copy);
+    return row;
+  }
+
+  function showContactResult(contact) {
+    const box = $("action-result");
+    box.innerHTML = "";
+    const resultTitle = document.createElement("div");
+    resultTitle.className = "result-title";
+    resultTitle.textContent = `${contact.name || "신청자"} 연락처`;
+    const note = document.createElement("div");
+    note.textContent = "관리자 키로 인증된 상태에서만 일시 표시합니다. 목록에는 계속 마스킹됩니다.";
+    const lines = document.createElement("div");
+    lines.className = "contact-lines";
+    lines.append(
+      contactLine("전화번호", contact.phone),
+      contactLine("이메일", contact.email)
+    );
+    box.append(resultTitle, note, lines);
+    box.classList.add("show");
+  }
+
+  async function revealContact(memberId) {
+    try {
+      const data = await api(`/members/${encodeURIComponent(memberId)}/contact`);
+      showContactResult(data.data || {});
+      setStatus("연락처를 불러왔습니다. 필요한 연락 후 화면 노출을 줄이세요.", "ok");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  }
+
   function renderScheduler() {
     const section = document.createElement("section");
     section.className = "info-section wide";
@@ -2327,6 +2396,7 @@
     const actions = document.createElement("div");
     actions.className = "action-row";
     actions.append(
+      actionButton("연락처 보기", "primary", false, () => revealContact(member.id)),
       actionButton("승인 및 코드 발급", "green", member.status !== "pending", () => approveMember(member.id)),
       actionButton("거절", "amber", member.status === "blacklist", () => rejectMember(member.id)),
       actionButton("코드 재발급", "primary", member.status !== "approved", () => regenCode(member.id)),
