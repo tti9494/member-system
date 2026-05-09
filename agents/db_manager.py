@@ -17,6 +17,7 @@ from db import DB_PATH, get_conn
 GAS_URL = os.getenv("GAS_URL", "")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_ADMIN_CHAT_ID = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
+TELEGRAM_NOTIFY_ENABLED = os.getenv("TELEGRAM_NOTIFY_ENABLED", "").lower() in {"1", "true", "yes", "on"}
 
 MACPRO_BACKUP_HOST = os.getenv("MACPRO_BACKUP_HOST", "macpro")
 MACPRO_BACKUP_DIR = os.getenv("MACPRO_BACKUP_DIR", "/Users/sanguk/member-system/backups")
@@ -361,6 +362,7 @@ def get_storage_status(limit: int = 10) -> dict:
         and TELEGRAM_ADMIN_CHAT_ID
         and TELEGRAM_ADMIN_CHAT_ID != "your_chat_id_here"
     )
+    hermes_active = TELEGRAM_NOTIFY_ENABLED and hermes_configured
     conn = get_conn()
     members = conn.execute(
         """
@@ -437,7 +439,10 @@ def get_storage_status(limit: int = 10) -> dict:
         },
         "hermes": {
             "configured": hermes_configured,
-            "mode": "telegram_sendMessage" if hermes_configured else "not_configured",
+            "enabled": TELEGRAM_NOTIFY_ENABLED,
+            "active": hermes_active,
+            "status": "ON" if hermes_active else "OFF",
+            "mode": "telegram_sendMessage" if hermes_active else ("disabled" if hermes_configured else "not_configured"),
         },
         "backup": backup_status,
         "counts": counts,

@@ -1814,7 +1814,7 @@
       <div class="storage-line">열람 endpoint: /admin/storage-snapshot · /admin/storage-snapshot.csv</div>
       <div class="storage-line">DB 크기: ${Number(db.size_bytes || 0).toLocaleString()} bytes</div>
       <div class="storage-line">Sheets: ${escapeHtml(sheets.configured ? "설정됨" : "미설정/비활성")}</div>
-      <div class="storage-line">Hermes/Telegram: ${escapeHtml(hermes.configured ? "설정됨" : "미설정")}</div>
+      <div class="storage-line">Hermes/Telegram: ${escapeHtml(hermes.active ? "ON" : "OFF")} · enabled ${escapeHtml(hermes.enabled ? "ON" : "OFF")} · token/chat_id ${escapeHtml(hermes.configured ? "설정됨" : "미설정")}</div>
       <div class="storage-line">누적: 신청자 ${counts.members ?? 0}명 · 예약 ${counts.bookings ?? 0}건 · 일정 ${counts.sessions ?? 0}개</div>
     `;
 

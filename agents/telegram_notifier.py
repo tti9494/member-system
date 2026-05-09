@@ -1,5 +1,6 @@
 import os
 import httpx
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -7,9 +8,10 @@ load_dotenv(dotenv_path=str(Path.home() / "member-system" / ".env"))
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 ADMIN_CHAT_ID = os.getenv("TELEGRAM_ADMIN_CHAT_ID", "")
+TELEGRAM_NOTIFY_ENABLED = os.getenv("TELEGRAM_NOTIFY_ENABLED", "").lower() in {"1", "true", "yes", "on"}
 SERVICE_NAME = os.getenv("SERVICE_NAME", "AI 모임")
 
-TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+log = logging.getLogger("member-system")
 
 
 def _is_configured() -> bool:
@@ -21,13 +23,39 @@ def _is_configured() -> bool:
     )
 
 
+def _mask_name(value: str | None) -> str:
+    if not value:
+        return "-"
+    text = str(value).strip()
+    if len(text) <= 1:
+        return "*"
+    if len(text) == 2:
+        return f"{text[0]}*"
+    return f"{text[0]}{'*' * (len(text) - 2)}{text[-1]}"
+
+
+def _mask_phone(value: str | None) -> str:
+    if not value:
+        return "-"
+    text = str(value).strip()
+    if "*" in text:
+        return text
+    digits = "".join(ch for ch in text if ch.isdigit())
+    if len(digits) < 4:
+        return "****"
+    return f"***-****-{digits[-4:]}"
+
+
 def _send_status(chat_id: str, text: str) -> str:
+    if not TELEGRAM_NOTIFY_ENABLED:
+        log.info("[Telegram skip] disabled")
+        return "disabled"
     if not _is_configured() or not chat_id:
-        print("[Telegram 미설정] 메시지 미발송")
+        log.info("[Telegram skip] not_configured")
         return "not_configured"
     try:
         resp = httpx.post(
-            f"{TELEGRAM_API}/sendMessage",
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
             json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
             timeout=10,
         )
@@ -42,36 +70,16 @@ def _send(chat_id: str, text: str) -> bool:
 
 
 def notify_admin_new_apply(member: dict, booking: dict | None = None, storage_status: dict | None = None) -> str:
-    plan = member.get("plan_type", "")
-    grade = member.get("participation_grade", "🌱 새싹")
-    reason = str(member.get("reason", ""))
-    booking_lines = ""
-    if booking:
-        booking_lines = (
-            f"\n예약: {booking.get('session_title') or '일정 미선택'}"
-            f"\n시간: {booking.get('session_starts_at') or '-'}"
-            f"\n장소: {booking.get('session_location') or '-'}"
-            f"\n예약ID: {booking.get('id')}"
-        )
-    storage_lines = ""
-    if storage_status:
-        storage_lines = (
-            f"\nDB 저장: {storage_status.get('db', '-')}"
-            f"\nSheets: {storage_status.get('sheets', '-')}"
-            f"\n백업: {storage_status.get('backup', '-')}"
-        )
+    booking_id = booking.get("id") if booking else "-"
+    booking_status = booking.get("status") if booking else "not_requested"
     text = (
-        f"🆕 Hermes 신규 신청 ({plan})\n"
-        f"이름: {member.get('name')}\n"
-        f"연락처: {member.get('phone_masked')}\n"
-        f"나이/성별: {member.get('age')}세 / {member.get('gender')}\n"
-        f"직업: {member.get('job')} | AI레벨: {member.get('ai_level')}\n"
-        f"참여등급: {grade}\n"
-        f"유입: {member.get('referral_source')}\n"
-        f"신청이유: {reason[:50]}{'...' if len(reason) > 50 else ''}\n"
-        f"{booking_lines}"
-        f"{storage_lines}\n"
-        f"[승인: /approve_{member.get('id')}] [거절: /reject_{member.get('id')}]"
+        "Hermes 신규 신청\n"
+        f"이름: {_mask_name(member.get('name'))}\n"
+        f"연락처: {_mask_phone(member.get('phone_masked'))}\n"
+        f"신청ID: {member.get('id')}\n"
+        f"신청상태: {member.get('status', 'pending')}\n"
+        f"예약ID: {booking_id}\n"
+        f"예약상태: {booking_status}"
     )
     return _send_status(ADMIN_CHAT_ID, text)
 

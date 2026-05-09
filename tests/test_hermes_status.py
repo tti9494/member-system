@@ -61,14 +61,27 @@ class HermesStatusTest(unittest.TestCase):
         return member_id
 
     def test_send_status_not_configured_does_not_post(self):
-        with patch.object(telegram_notifier, "BOT_TOKEN", ""), patch.object(
+        with patch.object(telegram_notifier, "TELEGRAM_NOTIFY_ENABLED", True), patch.object(
+            telegram_notifier, "BOT_TOKEN", ""
+        ), patch.object(
             telegram_notifier, "ADMIN_CHAT_ID", ""
         ), patch.object(telegram_notifier.httpx, "post") as post:
             self.assertEqual(telegram_notifier._send_status("", "message"), "not_configured")
             post.assert_not_called()
 
+    def test_send_status_disabled_does_not_post_even_when_configured(self):
+        with patch.object(telegram_notifier, "TELEGRAM_NOTIFY_ENABLED", False), patch.object(
+            telegram_notifier, "BOT_TOKEN", "token"
+        ), patch.object(
+            telegram_notifier, "ADMIN_CHAT_ID", "chat"
+        ), patch.object(telegram_notifier.httpx, "post") as post:
+            self.assertEqual(telegram_notifier._send_status("chat", "message"), "disabled")
+            post.assert_not_called()
+
     def test_send_status_success_and_failure_are_distinct(self):
-        with patch.object(telegram_notifier, "BOT_TOKEN", "token"), patch.object(
+        with patch.object(telegram_notifier, "TELEGRAM_NOTIFY_ENABLED", True), patch.object(
+            telegram_notifier, "BOT_TOKEN", "token"
+        ), patch.object(
             telegram_notifier, "ADMIN_CHAT_ID", "chat"
         ):
             with patch.object(telegram_notifier.httpx, "post", return_value=Mock(status_code=200)):
@@ -76,17 +89,48 @@ class HermesStatusTest(unittest.TestCase):
             with patch.object(telegram_notifier.httpx, "post", return_value=Mock(status_code=500)):
                 self.assertEqual(telegram_notifier._send_status("chat", "message"), "failed")
 
+    def test_new_apply_notification_is_minimal_and_masked(self):
+        member = {
+            "id": "member-1",
+            "name": "홍길동",
+            "phone_masked": "010-****-5678",
+            "status": "pending",
+            "reason": "원문 신청 이유는 알림에 포함되면 안 됩니다",
+        }
+        booking = {"id": "booking-1", "status": "requested"}
+        with patch.object(telegram_notifier, "TELEGRAM_NOTIFY_ENABLED", True), patch.object(
+            telegram_notifier, "BOT_TOKEN", "token"
+        ), patch.object(
+            telegram_notifier, "ADMIN_CHAT_ID", "chat"
+        ), patch.object(telegram_notifier.httpx, "post", return_value=Mock(status_code=200)) as post:
+            self.assertEqual(telegram_notifier.notify_admin_new_apply(member, booking=booking), "ok")
+
+        text = post.call_args.kwargs["json"]["text"]
+        self.assertIn("홍*동", text)
+        self.assertIn("010-****-5678", text)
+        self.assertIn("member-1", text)
+        self.assertIn("pending", text)
+        self.assertIn("booking-1", text)
+        self.assertIn("requested", text)
+        self.assertNotIn("홍길동", text)
+        self.assertNotIn("원문 신청 이유", text)
+
     def test_storage_status_exposes_latest_hermes_log_per_application(self):
         member_id = self._insert_member()
         db_manager.log_action(member_id, "apply", "plan=basic", "127.0.0.1")
         db_manager.log_action(member_id, "hermes_notify", "not_configured", "127.0.0.1")
 
-        with patch.object(db_manager, "TELEGRAM_BOT_TOKEN", ""), patch.object(
+        with patch.object(db_manager, "TELEGRAM_NOTIFY_ENABLED", False), patch.object(
+            db_manager, "TELEGRAM_BOT_TOKEN", ""
+        ), patch.object(
             db_manager, "TELEGRAM_ADMIN_CHAT_ID", ""
         ):
             status = db_manager.get_storage_status(limit=1)
 
         self.assertFalse(status["hermes"]["configured"])
+        self.assertFalse(status["hermes"]["enabled"])
+        self.assertFalse(status["hermes"]["active"])
+        self.assertEqual(status["hermes"]["status"], "OFF")
         self.assertEqual(status["hermes"]["mode"], "not_configured")
         self.assertEqual(status["recent"][0]["id"], member_id)
         self.assertEqual(status["recent"][0]["hermes_status"], "not_configured")
