@@ -245,7 +245,7 @@
 
   .storage-grid {
     display: grid;
-    grid-template-columns: 1.2fr 1fr;
+    grid-template-columns: 1fr 1.15fr 1fr;
     gap: 12px;
   }
 
@@ -737,7 +737,10 @@
       <div class="panel-head">
         <div>
           <div class="panel-title">저장 / Hermes 알림 확인</div>
-          <div class="panel-caption">신청이 DB에 들어갔는지, Sheets 전송과 Hermes 알림이 시도됐는지 확인합니다.</div>
+          <div class="panel-caption">신청이 DB에 들어갔는지, 백업 위치와 Sheets/Hermes 알림이 정상인지 확인합니다.</div>
+        </div>
+        <div class="top-actions">
+          <button class="btn primary" id="backup-now-btn" type="button">DB 백업 지금 실행</button>
         </div>
       </div>
       <div id="storage-status" class="storage-grid">
@@ -1009,25 +1012,67 @@
       not_configured_or_failed: "미설정 또는 실패",
       unknown: "확인 전",
       not_requested: "예약 없음",
+      failed: "실패",
+      skipped: "건너뜀",
     }[value] || value || "-";
+  }
+
+  function backupStatusText(value) {
+    if (!value || value === "unknown") return statusText(value);
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === "object") {
+        return `${Number(parsed.ok_count || 0)} 성공 · ${Number(parsed.failed_count || 0)} 실패`;
+      }
+    } catch (_) {
+      // Keep non-JSON legacy status text as-is.
+    }
+    return statusText(value);
   }
 
   function renderStorageStatus() {
     const data = state.storage || {};
     const db = data.db || {};
     const sheets = data.sheets || {};
+    const backup = data.backup || {};
     const counts = data.counts || {};
     const recent = data.recent || [];
+    const backupTargets = backup.targets || [];
+    const lastRun = backup.last_run || {};
     fields.storageStatus.innerHTML = "";
 
     const summary = document.createElement("div");
     summary.className = "storage-box";
     summary.innerHTML = `
       <div class="storage-title">저장 위치</div>
+      <div class="storage-line">관리자 키: 서버 .env에 저장된 관리자 전용 비밀키입니다. 값은 화면에 표시하지 않습니다.</div>
       <div class="storage-line">DB: ${escapeHtml(db.exists ? "저장 중" : "없음")} · ${escapeHtml(db.path || "-")}</div>
       <div class="storage-line">DB 크기: ${Number(db.size_bytes || 0).toLocaleString()} bytes</div>
       <div class="storage-line">Sheets: ${escapeHtml(sheets.configured ? "설정됨" : "미설정/비활성")}</div>
       <div class="storage-line">누적: 신청자 ${counts.members ?? 0}명 · 예약 ${counts.bookings ?? 0}건 · 일정 ${counts.sessions ?? 0}개</div>
+    `;
+
+    const mirror = document.createElement("div");
+    mirror.className = "storage-box";
+    const targetRows = backupTargets.map((target) => {
+      const latest = target.latest;
+      const latestText = latest
+        ? `${formatDate(latest.modified_at)} · ${Number(latest.size_bytes || 0).toLocaleString()} bytes`
+        : (target.mode === "scp_on_backup" ? "백업 실행 시 scp 전송" : "아직 백업 없음");
+      return `
+        <div class="storage-item">
+          <div class="booking-title">${escapeHtml(target.label || target.name)}</div>
+          <div class="storage-line">${escapeHtml(target.available ? "사용 가능" : "사용 불가")} · ${escapeHtml(target.path || "-")}</div>
+          <div class="storage-line">최근: ${escapeHtml(latestText)}</div>
+        </div>
+      `;
+    }).join("");
+    const lastDetail = lastRun.detail || {};
+    mirror.innerHTML = `
+      <div class="storage-title">백업 / 미러</div>
+      <div class="storage-line">마지막 실행: ${escapeHtml(formatDate(lastRun.created_at))}</div>
+      <div class="storage-line">결과: ${Number(lastDetail.ok_count || 0)} 성공 · ${Number(lastDetail.failed_count || 0)} 실패</div>
+      <div class="storage-list">${targetRows || '<div class="empty-state">백업 대상이 없습니다.</div>'}</div>
     `;
 
     const list = document.createElement("div");
@@ -1045,14 +1090,15 @@
         row.className = "storage-item";
         row.innerHTML = `
           <div class="booking-title">${escapeHtml(item.name || "신청자")} · ${escapeHtml(item.phone_masked || "-")}</div>
-          <div class="storage-line">DB 저장: 성공 · Sheets: ${escapeHtml(statusText(item.sheets_status))} · Hermes: ${escapeHtml(statusText(item.hermes_status))}</div>
+          <div class="storage-line">DB 저장: 성공 · 백업: ${escapeHtml(backupStatusText(item.backup_status))}</div>
+          <div class="storage-line">Sheets: ${escapeHtml(statusText(item.sheets_status))} · Hermes: ${escapeHtml(statusText(item.hermes_status))}</div>
           <div class="storage-line">예약: ${escapeHtml(statusText(item.booking_status))} · ${escapeHtml(formatDate(item.created_at))}</div>
         `;
         recentList.appendChild(row);
       }
     }
     list.append(title, recentList);
-    fields.storageStatus.append(summary, list);
+    fields.storageStatus.append(summary, mirror, list);
   }
 
   function buildQuery() {
@@ -1299,6 +1345,18 @@
     state.bookings = bookings.data || [];
     renderSessions();
     renderBookings();
+  }
+
+  async function runBackupNow() {
+    if (!window.confirm("현재 신청 DB를 로컬/iCloud/OneDrive/Mac Pro 백업 위치에 복사할까요?")) return;
+    try {
+      const data = await api("/admin/backup-now", { method: "POST" });
+      state.storage = (await api("/admin/storage-status")).data || null;
+      renderStorageStatus();
+      setStatus(`DB 백업 실행 완료: ${data.data.ok_count || 0}곳 성공, ${data.data.failed_count || 0}곳 실패`, "ok");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
   }
 
   async function updateSessionStatus(sessionId, status) {
@@ -1583,6 +1641,7 @@
       setStatus(error.message, "error");
     }
   });
+  $("backup-now-btn").addEventListener("click", runBackupNow);
   $("seed-sessions-btn").addEventListener("click", async () => {
     if (!window.confirm("다음 4주 일요일 3타임 일정을 생성할까요? 이미 같은 시간/장소가 있으면 건너뜁니다.")) return;
     try {

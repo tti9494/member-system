@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -23,7 +24,8 @@ from agents.consent_checker import check_consent
 from agents.db_manager import (
     create_member, get_member, list_members, update_status,
     blacklist_member, get_stats, save_to_sheets, log_action,
-    cleanup_expired_codes, get_expiring_soon, get_storage_status, release_expired_locks,
+    backup_database, cleanup_expired_codes, get_expiring_soon, get_storage_status,
+    release_expired_locks,
 )
 from agents.booking_manager import (
     DEFAULT_PRICE, confirm_payment_state, create_booking, create_session, default_payment_guide,
@@ -387,7 +389,19 @@ async def apply(req: ApplyRequest, request: Request):
         refresh_session_counts(data.get("session_id"))
         log_action(member_id, "booking_requested", f"booking_id={booking_id}", client_ip)
 
-    # 12. Hermes/Telegram 알림
+    # 12. DB 백업/미러링 (실패해도 신청 접수는 유지)
+    backup_result = backup_database(reason="apply")
+    backup_summary = {
+        "ok_count": backup_result.get("ok_count", 0),
+        "failed_count": backup_result.get("failed_count", 0),
+        "targets": [
+            {"name": item.get("name"), "status": item.get("status")}
+            for item in backup_result.get("targets", [])
+        ],
+    }
+    log_action(member_id, "db_backup", json.dumps(backup_summary, ensure_ascii=False), client_ip)
+
+    # 13. Hermes/Telegram 알림
     booking = get_booking(booking_id) if booking_id else None
     hermes_ok = notify_admin_new_apply(
         member,
@@ -395,6 +409,7 @@ async def apply(req: ApplyRequest, request: Request):
         storage_status={
             "db": "ok",
             "sheets": "ok" if sheets_ok else "not_configured_or_failed",
+            "backup": f"{backup_result.get('ok_count', 0)} ok / {backup_result.get('failed_count', 0)} failed",
         },
     )
     log_action(member_id, "hermes_notify", "ok" if hermes_ok else "not_configured_or_failed", client_ip)
@@ -513,6 +528,21 @@ async def stats():
 @app.get("/admin/storage-status")
 async def admin_storage_status(_=Depends(require_admin)):
     return {"ok": True, "data": get_storage_status()}
+
+
+@app.post("/admin/backup-now")
+async def admin_backup_now(request: Request, _=Depends(require_admin)):
+    result = backup_database(reason="manual")
+    summary = {
+        "ok_count": result.get("ok_count", 0),
+        "failed_count": result.get("failed_count", 0),
+        "targets": [
+            {"name": item.get("name"), "status": item.get("status")}
+            for item in result.get("targets", [])
+        ],
+    }
+    log_action("system", "db_backup", json.dumps(summary, ensure_ascii=False), request.client.host if request.client else None)
+    return {"ok": result.get("ok_count", 0) > 0, "data": result}
 
 
 @app.get("/admin/sessions")

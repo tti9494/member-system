@@ -45,6 +45,7 @@ def notify_admin_new_apply(member: dict, booking: dict | None = None, storage_st
         storage_lines = (
             f"\nDB 저장: {storage_status.get('db', '-')}"
             f"\nSheets: {storage_status.get('sheets', '-')}"
+            f"\n백업: {storage_status.get('backup', '-')}"
         )
     text = (
         f"🆕 Hermes 신규 신청 ({plan})\n"

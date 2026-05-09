@@ -1,5 +1,7 @@
 import os
 import json
+import sqlite3
+import subprocess
 import uuid
 import httpx
 from datetime import datetime, timezone
@@ -10,9 +12,12 @@ load_dotenv(dotenv_path=str(Path.home() / "member-system" / ".env"))
 
 import sys
 sys.path.insert(0, str(Path.home() / "member-system"))
-from db import get_conn
+from db import DB_PATH, get_conn
 
 GAS_URL = os.getenv("GAS_URL", "")
+
+MACPRO_BACKUP_HOST = os.getenv("MACPRO_BACKUP_HOST", "macpro")
+MACPRO_BACKUP_DIR = os.getenv("MACPRO_BACKUP_DIR", "/Users/sanguk/member-system/backups")
 
 
 def _now() -> str:
@@ -181,6 +186,171 @@ def log_action(member_id: str, action: str, detail: str = None, ip: str = None):
     conn.close()
 
 
+def _backup_targets() -> list[dict]:
+    home = Path.home()
+    return [
+        {
+            "name": "local",
+            "label": "Mac Air local",
+            "path": home / "member-system" / "backups",
+            "available": True,
+        },
+        {
+            "name": "icloud",
+            "label": "iCloud Drive",
+            "path": home / "Library/Mobile Documents/com~apple~CloudDocs/Arsen/member-system/backups",
+            "available": (home / "Library/Mobile Documents/com~apple~CloudDocs").exists(),
+        },
+        {
+            "name": "onedrive",
+            "label": "OneDrive",
+            "path": home / "OneDrive/Arsen/member-system/backups",
+            "available": (home / "OneDrive").exists(),
+        },
+    ]
+
+
+def _latest_backup_info(path: Path) -> dict | None:
+    if not path.exists():
+        return None
+    files = sorted(path.glob("members-*.db"), key=lambda item: item.stat().st_mtime, reverse=True)
+    if not files:
+        return None
+    latest = files[0]
+    stat = latest.stat()
+    return {
+        "path": str(latest),
+        "size_bytes": stat.st_size,
+        "modified_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+    }
+
+
+def _sqlite_backup(dest: Path):
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    source = sqlite3.connect(str(DB_PATH))
+    target = sqlite3.connect(str(dest))
+    try:
+        source.backup(target)
+    finally:
+        target.close()
+        source.close()
+
+
+def _run_quiet(args: list[str], timeout: int = 8) -> tuple[bool, str]:
+    try:
+        completed = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except Exception as exc:
+        return False, exc.__class__.__name__
+    if completed.returncode == 0:
+        return True, "ok"
+    detail = (completed.stderr or completed.stdout or "").strip().splitlines()
+    return False, detail[-1][:160] if detail else f"exit={completed.returncode}"
+
+
+def backup_database(reason: str = "manual") -> dict:
+    """Create encrypted SQLite backups in operator-visible mirror locations."""
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    filename = f"members-{stamp}.db"
+    results = []
+    first_ok_path = None
+
+    for target in _backup_targets():
+        result = {
+            "name": target["name"],
+            "label": target["label"],
+            "path": str(target["path"]),
+            "status": "skipped",
+            "detail": "not_available",
+        }
+        if target["available"]:
+            dest = target["path"] / filename
+            try:
+                _sqlite_backup(dest)
+                result.update({
+                    "status": "ok",
+                    "detail": "encrypted_sqlite_backup",
+                    "file": str(dest),
+                    "size_bytes": dest.stat().st_size,
+                })
+                first_ok_path = first_ok_path or dest
+            except Exception as exc:
+                result.update({"status": "failed", "detail": exc.__class__.__name__})
+        results.append(result)
+
+    remote = {
+        "name": "macpro",
+        "label": "Mac Pro",
+        "path": MACPRO_BACKUP_DIR,
+        "host": MACPRO_BACKUP_HOST,
+        "status": "skipped",
+        "detail": "no_local_backup",
+    }
+    if first_ok_path:
+        ok, detail = _run_quiet([
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=5",
+            MACPRO_BACKUP_HOST,
+            f"mkdir -p {MACPRO_BACKUP_DIR}",
+        ])
+        if ok:
+            ok, detail = _run_quiet([
+                "scp",
+                "-q",
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "ConnectTimeout=5",
+                str(first_ok_path),
+                f"{MACPRO_BACKUP_HOST}:{MACPRO_BACKUP_DIR}/{filename}",
+            ], timeout=12)
+        remote.update({
+            "status": "ok" if ok else "failed",
+            "detail": detail,
+            "file": f"{MACPRO_BACKUP_DIR}/{filename}" if ok else None,
+        })
+    results.append(remote)
+
+    return {
+        "reason": reason,
+        "created_at": _now(),
+        "source": str(DB_PATH),
+        "filename": filename,
+        "ok_count": sum(1 for item in results if item["status"] == "ok"),
+        "failed_count": sum(1 for item in results if item["status"] == "failed"),
+        "targets": results,
+    }
+
+
+def get_backup_status() -> dict:
+    targets = []
+    for target in _backup_targets():
+        targets.append({
+            "name": target["name"],
+            "label": target["label"],
+            "path": str(target["path"]),
+            "available": target["available"],
+            "latest": _latest_backup_info(target["path"]),
+        })
+    targets.append({
+        "name": "macpro",
+        "label": "Mac Pro",
+        "path": MACPRO_BACKUP_DIR,
+        "available": True,
+        "latest": None,
+        "mode": "scp_on_backup",
+    })
+    return {"targets": targets}
+
+
 def get_storage_status(limit: int = 10) -> dict:
     """Return operator-safe persistence status without exposing secrets or raw PII."""
     conn = get_conn()
@@ -201,7 +371,7 @@ def get_storage_status(limit: int = 10) -> dict:
             SELECT action, detail, created_at
             FROM member_logs
             WHERE member_id=?
-              AND action IN ('apply', 'sheets_sync', 'hermes_notify', 'booking_requested')
+              AND action IN ('apply', 'sheets_sync', 'hermes_notify', 'booking_requested', 'db_backup')
             ORDER BY created_at DESC
             """,
             (member["id"],),
@@ -209,12 +379,14 @@ def get_storage_status(limit: int = 10) -> dict:
         sheet_log = next((dict(log) for log in logs if log["action"] == "sheets_sync"), None)
         hermes_log = next((dict(log) for log in logs if log["action"] == "hermes_notify"), None)
         booking_log = next((dict(log) for log in logs if log["action"] == "booking_requested"), None)
+        backup_log = next((dict(log) for log in logs if log["action"] == "db_backup"), None)
         member["db_saved"] = True
         member["sheets_status"] = sheet_log["detail"] if sheet_log else "unknown"
         member["sheets_checked_at"] = sheet_log["created_at"] if sheet_log else None
         member["hermes_status"] = hermes_log["detail"] if hermes_log else "unknown"
         member["hermes_checked_at"] = hermes_log["created_at"] if hermes_log else None
         member["booking_status"] = booking_log["detail"] if booking_log else "not_requested"
+        member["backup_status"] = backup_log["detail"] if backup_log else "unknown"
         recent.append(member)
 
     counts = {
@@ -222,8 +394,28 @@ def get_storage_status(limit: int = 10) -> dict:
         "bookings": conn.execute("SELECT COUNT(*) FROM bookings").fetchone()[0],
         "sessions": conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0],
     }
+    latest_backup_log = conn.execute(
+        """
+        SELECT detail, created_at
+        FROM member_logs
+        WHERE action='db_backup'
+        ORDER BY created_at DESC
+        LIMIT 1
+        """
+    ).fetchone()
     conn.close()
-    db_path = Path.home() / "member-system" / "members.db"
+    db_path = DB_PATH
+    backup_status = get_backup_status()
+    if latest_backup_log:
+        latest_detail = latest_backup_log["detail"]
+        try:
+            latest_detail = json.loads(latest_detail)
+        except Exception:
+            pass
+        backup_status["last_run"] = {
+            "detail": latest_detail,
+            "created_at": latest_backup_log["created_at"],
+        }
     return {
         "db": {
             "path": str(db_path),
@@ -234,6 +426,7 @@ def get_storage_status(limit: int = 10) -> dict:
             "configured": bool(GAS_URL and "YOUR_SCRIPT_ID" not in GAS_URL),
             "mode": "google_sheets_append" if GAS_URL and "YOUR_SCRIPT_ID" not in GAS_URL else "not_configured",
         },
+        "backup": backup_status,
         "counts": counts,
         "recent": recent,
     }
