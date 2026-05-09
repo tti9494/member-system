@@ -46,6 +46,70 @@ from agents.encryptor import encrypt_data, decrypt_email, decrypt_phone  # noqa:
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("member-system")
+SYSTEM_VERSION = "1.1.0-member-v4-foundation"
+
+
+def build_implementation_status() -> dict:
+    """Return an operator-safe V1~V4 implementation map without exposing PII."""
+    health = get_operator_health()
+    storage = get_storage_status()
+    counts = storage.get("counts", {})
+    backup = health.get("backup", {})
+    accepting = health.get("application_system", {}).get("accepting_applications", False)
+    requested = health.get("application_system", {}).get("requested_booking_count", 0)
+    active = health.get("application_system", {}).get("active_booking_count", 0)
+
+    stages = [
+        {
+            "version": "V1",
+            "title": "신청서 접수 / 관리자 확인",
+            "status": "done" if counts.get("members", 0) >= 0 else "check",
+            "summary": "신청 저장, 중복 검사, 관리자 목록, 연락처 확인 감사 로그가 동작합니다.",
+        },
+        {
+            "version": "V2",
+            "title": "강의 일정 / 예약 인원 관리",
+            "status": "done" if counts.get("sessions", 0) >= 0 and counts.get("bookings", 0) >= 0 else "check",
+            "summary": f"일정 {counts.get('sessions', 0)}개, 예약 {counts.get('bookings', 0)}건을 같은 DB에서 관리합니다.",
+        },
+        {
+            "version": "V3",
+            "title": "운영 알림 / 백업 / 내보내기",
+            "status": "partial" if backup.get("last_success") else "check",
+            "summary": f"최근 백업 상태는 {backup.get('status', 'unknown')}이며 JSON/CSV 내보내기를 제공합니다.",
+        },
+        {
+            "version": "V4",
+            "title": "24시간 중앙 운영 / 결제 / 캘린더",
+            "status": "next",
+            "summary": "Mac Pro 또는 클라우드 상시화, 입금 확인, 캘린더 연동은 다음 구현 게이트입니다.",
+        },
+    ]
+    return {
+        "service": "member-system",
+        "version": SYSTEM_VERSION,
+        "current_phase": "V3 운영 확인 + V4 기반 착수",
+        "counts": {
+            "members": counts.get("members", 0),
+            "bookings": counts.get("bookings", 0),
+            "sessions": counts.get("sessions", 0),
+            "requested_bookings": requested,
+            "active_bookings": active,
+        },
+        "accepting_applications": accepting,
+        "db": {
+            "exists": storage.get("db", {}).get("exists", False),
+            "path": storage.get("db", {}).get("path", ""),
+        },
+        "backup": backup,
+        "stages": stages,
+        "next_gates": [
+            "운영 DB를 Mac Pro/클라우드 중 어디에 둘지 결정",
+            "입금 확인을 수동 체크로 둘지, 계좌/PG 연동으로 갈지 결정",
+            "Google Calendar 연동 승인",
+            "외부 공개 도메인과 관리자 접근 정책 확정",
+        ],
+    }
 
 # ── 스케줄 작업 ──────────────────────────────────────
 
@@ -554,6 +618,16 @@ async def stats():
 @app.get("/operator-health")
 async def operator_health():
     return {"ok": True, "data": get_operator_health()}
+
+
+@app.get("/health")
+async def health():
+    return {"ok": True, "service": "member-system", "version": SYSTEM_VERSION, "data": get_operator_health()}
+
+
+@app.get("/admin/implementation-status")
+async def admin_implementation_status(_=Depends(require_admin)):
+    return {"ok": True, "data": build_implementation_status()}
 
 
 @app.get("/admin/storage-status")

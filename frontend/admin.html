@@ -1209,6 +1209,18 @@
       <div class="today-task-list" id="today-task-list"></div>
     </section>
 
+    <section class="panel" aria-label="멤버 시스템 구현 단계">
+      <div class="ops-summary-head">
+        <div>
+          <h2 class="ops-summary-title">멤버 시스템 구현 단계</h2>
+          <div class="ops-summary-caption" id="implementation-caption">V1~V4 진행 상태를 불러옵니다.</div>
+        </div>
+      </div>
+      <div class="ops-summary-grid" id="implementation-status">
+        <div class="empty-state">관리자 키로 연결하면 구현 단계와 다음 게이트를 확인합니다.</div>
+      </div>
+    </section>
+
     <section class="panel ops-summary" aria-label="오늘과 이번주 운영 요약">
       <div class="ops-summary-head">
         <div>
@@ -1380,6 +1392,7 @@
     members: [],
     sessions: [],
     bookings: [],
+    implementation: null,
     detail: null,
     scheduler: null,
     storage: null,
@@ -1404,6 +1417,8 @@
     storageStatus: $("storage-status"),
     todayTaskList: $("today-task-list"),
     todayTasksCaption: $("today-tasks-caption"),
+    implementationStatus: $("implementation-status"),
+    implementationCaption: $("implementation-caption"),
     opsSummaryCaption: $("ops-summary-caption"),
     opsConfirmNeededCard: $("ops-confirm-needed-card"),
     opsConfirmNeededNote: $("ops-confirm-needed-note"),
@@ -1724,6 +1739,35 @@
       `;
       button.addEventListener("click", task.handler);
       fields.todayTaskList.appendChild(button);
+    }
+  }
+
+  function renderImplementationStatus() {
+    const data = state.implementation || {};
+    const stages = data.stages || [];
+    fields.implementationCaption.textContent = data.current_phase
+      ? `${data.current_phase} · 다음 게이트 ${((data.next_gates || []).length)}건`
+      : "구현 단계 정보를 불러오지 못했습니다.";
+    fields.implementationStatus.innerHTML = "";
+    if (!stages.length) {
+      fields.implementationStatus.innerHTML = '<div class="empty-state">구현 단계 데이터 없음</div>';
+      return;
+    }
+    const toneMap = {
+      done: "accent-approved",
+      partial: "accent-pending",
+      next: "accent-expiring",
+      check: "accent-rejected",
+    };
+    for (const stage of stages) {
+      const card = document.createElement("div");
+      card.className = `stat-card ${toneMap[stage.status] || ""}`.trim();
+      card.innerHTML = `
+        <div class="stat-label">${escapeHtml(stage.version)} · ${escapeHtml(stage.status)}</div>
+        <div class="stat-value" style="font-size:18px;line-height:1.25;">${escapeHtml(stage.title)}</div>
+        <div class="stat-note">${escapeHtml(stage.summary)}</div>
+      `;
+      fields.implementationStatus.appendChild(card);
     }
   }
 
@@ -2482,13 +2526,14 @@
     setStatus("데이터를 불러오는 중입니다.");
 
     try {
-      const [stats, members, scheduler, sessions, bookings, storage] = await Promise.all([
+      const [stats, members, scheduler, sessions, bookings, storage, implementation] = await Promise.all([
         api("/stats"),
         api(`/members${buildQuery()}`),
         api("/scheduler/status").catch(() => null),
         api("/admin/sessions").catch(() => ({ data: [] })),
         api("/admin/bookings").catch(() => ({ data: [] })),
         api("/admin/storage-status").catch(() => ({ data: null })),
+        api("/admin/implementation-status").catch(() => ({ data: null })),
       ]);
       updateStats(stats.data || {});
       state.members = members.data || [];
@@ -2496,6 +2541,7 @@
       state.sessions = sessions.data || [];
       state.bookings = bookings.data || [];
       state.storage = storage.data || null;
+      state.implementation = implementation.data || null;
       if (state.selectedId && !state.members.some((member) => member.id === state.selectedId)) {
         state.selectedId = "";
         state.detail = null;
@@ -2503,6 +2549,7 @@
       }
       renderMembers();
       renderApplicationFocus(stats.data || {});
+      renderImplementationStatus();
       updateOperationSummary(stats.data || {});
       renderSessions();
       renderBookings();
