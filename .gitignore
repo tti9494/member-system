@@ -8,3 +8,4 @@ venv/
 
 # Runtime logs
 *.log
+.local_admin_open

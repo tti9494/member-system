@@ -199,9 +199,20 @@ app.mount("/frontend", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend"
 # ── 관리자 인증 ──────────────────────────────────────
 
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "")
+MEMBER_ADMIN_LOCAL_OPEN = os.getenv("MEMBER_ADMIN_LOCAL_OPEN", "0") == "1"
+LOCAL_ADMIN_OPEN_FLAG = Path.home() / "member-system" / ".local_admin_open"
+
+
+def is_local_admin_preview(request: Request) -> bool:
+    if not (MEMBER_ADMIN_LOCAL_OPEN or LOCAL_ADMIN_OPEN_FLAG.exists()):
+        return False
+    client_host = request.client.host if request.client else ""
+    return client_host in {"127.0.0.1", "::1", "localhost"}
 
 
 def require_admin(request: Request):
+    if is_local_admin_preview(request):
+        return
     key = request.headers.get("X-Admin-Key", "")
     if not ADMIN_API_KEY:
         log.error("ADMIN_API_KEY 미설정 — 관리자 엔드포인트 차단")
@@ -622,7 +633,13 @@ async def operator_health():
 
 @app.get("/health")
 async def health():
-    return {"ok": True, "service": "member-system", "version": SYSTEM_VERSION, "data": get_operator_health()}
+    return {
+        "ok": True,
+        "service": "member-system",
+        "version": SYSTEM_VERSION,
+        "local_admin_preview": MEMBER_ADMIN_LOCAL_OPEN or LOCAL_ADMIN_OPEN_FLAG.exists(),
+        "data": get_operator_health(),
+    }
 
 
 @app.get("/admin/implementation-status")
