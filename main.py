@@ -25,7 +25,7 @@ from agents.db_manager import (
     create_member, get_member, list_members, update_status,
     blacklist_member, get_stats, save_to_sheets, log_action,
     backup_database, cleanup_expired_codes, get_expiring_soon, get_storage_status,
-    release_expired_locks,
+    get_operator_health, release_expired_locks,
 )
 from agents.booking_manager import (
     DEFAULT_PRICE, confirm_payment_state, create_booking, create_session, default_payment_guide,
@@ -523,6 +523,11 @@ async def stats():
     data = get_stats()
     data["expiring_7d"] = len(get_expiring_soon(days=7))
     return {"ok": True, "data": data}
+
+
+@app.get("/operator-health")
+async def operator_health():
+    return {"ok": True, "data": get_operator_health()}
 
 
 @app.get("/admin/storage-status")

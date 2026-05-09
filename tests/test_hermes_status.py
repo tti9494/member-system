@@ -92,6 +92,77 @@ class HermesStatusTest(unittest.TestCase):
         self.assertEqual(status["recent"][0]["hermes_status"], "not_configured")
         self.assertIsNotNone(status["recent"][0]["hermes_checked_at"])
 
+    def test_operator_health_contains_only_public_summary(self):
+        member_id = self._insert_member()
+        conn = sqlite3.connect(str(self.db_path))
+        conn.execute(
+            """
+            INSERT INTO sessions (
+                id, title, program_type, audience_level, starts_at, ends_at,
+                timezone, capacity_min, capacity_max, confirmed_count, price_krw,
+                location, status, created_at, updated_at
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                "session-1",
+                "공개 일정",
+                "ai_basic_setup",
+                "all",
+                "2026-05-10T10:00:00+09:00",
+                "2026-05-10T12:00:00+09:00",
+                "Asia/Seoul",
+                4,
+                5,
+                0,
+                50000,
+                "서울",
+                "open",
+                "2026-05-09T00:00:00+00:00",
+                "2026-05-09T00:00:00+00:00",
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO bookings (
+                id, session_id, member_id, applicant_name, phone_masked,
+                status, payment_status, payment_amount_krw, created_at, updated_at
+            ) VALUES (?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                "booking-1",
+                "session-1",
+                member_id,
+                "테스트",
+                "010-****-1234",
+                "requested",
+                "not_sent",
+                50000,
+                "2026-05-09T00:00:00+00:00",
+                "2026-05-09T00:00:00+00:00",
+            ),
+        )
+        conn.commit()
+        conn.close()
+        db_manager.log_action(
+            "system",
+            "db_backup",
+            '{"ok_count": 1, "failed_count": 0, "targets": [{"name": "local", "status": "ok"}]}',
+            "127.0.0.1",
+        )
+
+        status = db_manager.get_operator_health()
+        status_text = str(status)
+
+        self.assertTrue(status["server"]["alive"])
+        self.assertEqual(status["public_sessions"]["count"], 1)
+        self.assertEqual(status["application_system"]["status"], "accepting")
+        self.assertEqual(status["application_system"]["requested_booking_count"], 1)
+        self.assertTrue(status["backup"]["last_success"])
+        self.assertNotIn("테스트", status_text)
+        self.assertNotIn("010-****-1234", status_text)
+        self.assertNotIn("encrypted", status_text)
+        self.assertNotIn("targets", status_text)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -444,6 +444,80 @@ def get_storage_status(limit: int = 10) -> dict:
     }
 
 
+def get_operator_health() -> dict:
+    """Return public, read-only service health without secrets or personal data."""
+    conn = get_conn()
+    public_session_count = conn.execute(
+        "SELECT COUNT(*) FROM sessions WHERE status IN ('open', 'full')"
+    ).fetchone()[0]
+    open_session_count = conn.execute(
+        "SELECT COUNT(*) FROM sessions WHERE status='open'"
+    ).fetchone()[0]
+    requested_booking_count = conn.execute(
+        "SELECT COUNT(*) FROM bookings WHERE status='requested'"
+    ).fetchone()[0]
+    active_booking_count = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM bookings
+        WHERE status NOT IN ('canceled', 'rejected', 'no_show')
+        """
+    ).fetchone()[0]
+    latest_backup_log = conn.execute(
+        """
+        SELECT detail, created_at
+        FROM member_logs
+        WHERE action='db_backup'
+        ORDER BY created_at DESC
+        LIMIT 1
+        """
+    ).fetchone()
+    conn.close()
+
+    backup = {
+        "last_success": False,
+        "status": "unknown",
+        "checked_at": None,
+    }
+    if latest_backup_log:
+        detail = latest_backup_log["detail"]
+        try:
+            detail = json.loads(detail)
+        except Exception:
+            detail = {}
+        ok_count = int(detail.get("ok_count") or 0) if isinstance(detail, dict) else 0
+        failed_count = int(detail.get("failed_count") or 0) if isinstance(detail, dict) else 0
+        if ok_count > 0 and failed_count == 0:
+            status = "ok"
+        elif ok_count > 0:
+            status = "partial"
+        else:
+            status = "failed"
+        backup = {
+            "last_success": ok_count > 0,
+            "status": status,
+            "checked_at": latest_backup_log["created_at"],
+        }
+
+    accepting = open_session_count > 0
+    return {
+        "server": {
+            "alive": True,
+        },
+        "public_sessions": {
+            "count": public_session_count,
+            "open_count": open_session_count,
+        },
+        "application_system": {
+            "status": "accepting" if accepting else "no_open_sessions",
+            "accepting_applications": accepting,
+            "requested_booking_count": requested_booking_count,
+            "active_booking_count": active_booking_count,
+        },
+        "backup": backup,
+    }
+
+
 def cleanup_expired_codes() -> dict:
     """만료된 코드 무효화 (매일 자정 실행)"""
     from datetime import datetime, timezone
