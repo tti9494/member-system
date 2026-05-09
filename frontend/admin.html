@@ -212,6 +212,43 @@
   .status-line.error { color: var(--red-strong); font-weight: 750; }
   .status-line.ok { color: var(--green-strong); font-weight: 750; }
 
+  .operator-flow {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 16px;
+    margin-bottom: 18px;
+  }
+
+  .flow-step {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-soft);
+    padding: 14px;
+  }
+
+  .flow-step-number {
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+  }
+
+  .flow-step-title {
+    margin-top: 6px;
+    font-size: 18px;
+    line-height: 1.3;
+    font-weight: 850;
+  }
+
+  .flow-step-note {
+    margin-top: 6px;
+    color: var(--subtle);
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 700;
+  }
+
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(7, minmax(130px, 1fr));
@@ -878,6 +915,7 @@
     .top-actions { justify-content: flex-start; }
     h1 { font-size: 28px; }
     .auth-panel, .toolbar { grid-template-columns: 1fr; }
+    .operator-flow { grid-template-columns: 1fr; padding: 14px; }
     .today-tasks { padding: 16px; }
     .today-tasks-head { align-items: flex-start; flex-direction: column; }
     .today-task-list { grid-template-columns: 1fr; }
@@ -896,8 +934,8 @@
   <header class="topbar">
     <div>
       <div class="eyebrow">Member System</div>
-      <h1>관리자 콘솔</h1>
-      <p class="subtitle">신청자 검토, 상태 처리, 코드 관리, 자동 작업 상태를 한 화면에서 확인합니다.</p>
+      <h1>운영자 관리 화면</h1>
+      <p class="subtitle">신청 확인, 입금 안내, 자리 확정을 한 화면에서 처리합니다.</p>
     </div>
     <div class="top-actions">
       <a class="btn" href="/frontend/join-basic.html" target="_blank" rel="noopener">Basic 신청서</a>
@@ -909,13 +947,31 @@
     <div class="field">
       <label for="admin-key">관리자 키</label>
       <input id="admin-key" type="password" autocomplete="off" placeholder="관리자 키를 입력하면 운영 데이터를 불러옵니다.">
-      <div class="field-help">관리자 키는 서버 .env의 ADMIN_API_KEY입니다. 보안을 위해 화면과 문서에는 실제 값을 표시하지 않습니다.</div>
+      <div class="field-help">관리자 키는 운영 환경에 등록된 확인 키입니다. 보안을 위해 실제 값은 화면에 표시하지 않습니다.</div>
     </div>
     <button class="btn primary" id="connect-btn" type="button">연결</button>
     <button class="btn" id="clear-key-btn" type="button">키 지우기</button>
   </section>
 
   <div id="status-line" class="status-line">입력한 키는 현재 브라우저 탭의 sessionStorage에만 임시 저장됩니다. 탭을 닫으면 다시 입력해야 합니다.</div>
+
+  <section class="panel operator-flow" aria-label="예약 운영 흐름">
+    <div class="flow-step">
+      <div class="flow-step-number">STEP 1</div>
+      <div class="flow-step-title">신청 확인</div>
+      <div class="flow-step-note">새 신청자와 예약 내용을 확인하고 필요한 연락 정보를 점검합니다.</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-number">STEP 2</div>
+      <div class="flow-step-title">입금 안내</div>
+      <div class="flow-step-note">예약 신청자에게 안내 문구를 전달하고 상태를 입금 대기로 바꿉니다.</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-number">STEP 3</div>
+      <div class="flow-step-title">자리 확정</div>
+      <div class="flow-step-note">입금 확인 후 정원을 확인하고 확정 처리합니다.</div>
+    </div>
+  </section>
 
   <section id="dashboard" class="hidden">
     <section class="panel today-tasks" aria-label="오늘 할 일">
@@ -1511,7 +1567,7 @@
     summary.className = "storage-box";
     summary.innerHTML = `
       <div class="storage-title">저장 위치</div>
-      <div class="storage-line">관리자 키: 서버 .env의 ADMIN_API_KEY입니다. 값은 화면/문서에 표시하지 않습니다.</div>
+      <div class="storage-line">관리자 키: 운영 환경의 확인 키로만 검증합니다. 실제 값은 화면에 표시하지 않습니다.</div>
       <div class="storage-line">DB: ${escapeHtml(db.exists ? "저장 중" : "없음")} · ${escapeHtml(db.path || "-")}</div>
       <div class="storage-line">DB 크기: ${Number(db.size_bytes || 0).toLocaleString()} bytes</div>
       <div class="storage-line">Sheets: ${escapeHtml(sheets.configured ? "설정됨" : "미설정/비활성")}</div>
