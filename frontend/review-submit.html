@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<!-- page-key: arsen-review-submit / name: ARSEN 후기 작성 -->
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>ARSEN 후기 작성</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #090d14;
+        --surface: #101722;
+        --surface-soft: #151f2d;
+        --surface-raised: #1b2635;
+        --text: #eef4ff;
+        --muted: #b8c6d9;
+        --subtle: #94a5bc;
+        --line: #2b394b;
+        --line-strong: #41536a;
+        --accent: #4f83cc;
+        --accent-strong: #78a7e5;
+        --green: #4fc79a;
+        --red: #e58a84;
+        --amber: #e7b866;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.55;
+      }
+
+      a { color: inherit; }
+      .page {
+        width: min(840px, 100%);
+        margin: 0 auto;
+        padding: 2rem 1rem 3rem;
+      }
+
+      .hero,
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 1.35rem;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #121a28 0%, #102a33 58%, #2a2116 100%);
+        margin-bottom: 1rem;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 0 0 0.55rem;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .tag {
+        display: inline-flex;
+        border-radius: 999px;
+        padding: 0.22rem 0.7rem;
+        background: rgba(79, 131, 204, 0.18);
+        color: var(--accent-strong);
+        border: 1px solid rgba(120, 167, 229, 0.3);
+        font-weight: 800;
+        font-size: 0.78rem;
+      }
+
+      h1 {
+        margin: 0 0 0.65rem;
+        font-size: clamp(1.55rem, 3vw, 2.25rem);
+        letter-spacing: 0;
+      }
+
+      p { margin: 0; }
+      .lead { color: var(--muted); max-width: 66ch; }
+
+      .notice {
+        margin-top: 1rem;
+        padding: 0.85rem 1rem;
+        border-radius: 12px;
+        background: var(--surface-soft);
+        border: 1px solid rgba(231, 184, 102, 0.36);
+        color: var(--text);
+        font-weight: 700;
+      }
+
+      form {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 0.35rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 800;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #0e1726;
+        color: var(--text);
+        font: inherit;
+        padding: 0.72rem 0.8rem;
+      }
+
+      input::placeholder,
+      textarea::placeholder {
+        color: var(--subtle);
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        outline: 3px solid rgba(79, 131, 204, 0.24);
+        border-color: var(--accent);
+      }
+
+      textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+
+      .field-help {
+        margin-top: 0.32rem;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      .check {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+        padding: 0.85rem;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface-raised);
+      }
+
+      .check input {
+        width: 18px;
+        height: 18px;
+        margin-top: 0.2rem;
+        flex: 0 0 auto;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+      }
+
+      button,
+      .button {
+        min-height: 46px;
+        border: 0;
+        border-radius: 10px;
+        padding: 0.7rem 1rem;
+        background: var(--accent);
+        color: #ffffff;
+        font: inherit;
+        font-weight: 850;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      button.secondary,
+      .button.secondary {
+        background: var(--surface-raised);
+        color: var(--text);
+        border: 1px solid var(--line);
+      }
+
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .status {
+        min-height: 1.5rem;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .status.ok { color: var(--green); }
+      .status.error { color: var(--red); }
+      .hidden { display: none !important; }
+
+      @media (max-width: 640px) {
+        .page { padding: 1rem; }
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+<link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css">
+<script src="assets/theme-loader.js?v=20260614-modern-bundle"></script>
+</head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <p class="eyebrow"><span class="tag">ARSEN 후기 작성</span><span>승인 후 공개</span></p>
+        <h1>수업 후기를 남겨주세요</h1>
+        <p class="lead">
+          작성하신 내용은 바로 공개되지 않고, 운영자가 개인정보와 표현을 확인한 뒤 ARSEN 후기보드에 공개합니다.
+          실명 대신 공개해도 괜찮은 이름이나 닉네임을 적어주세요.
+        </p>
+        <div class="notice" id="invite-summary">후기 작성 링크를 확인하는 중입니다.</div>
+      </section>
+
+      <section class="panel">
+        <form id="review-form">
+          <div class="grid">
+            <div>
+              <label for="display-name">공개 이름</label>
+              <input id="display-name" autocomplete="name" placeholder="예: 김OO, 닉네임" required />
+              <div class="field-help">홈페이지에 보일 수 있는 이름입니다.</div>
+            </div>
+            <div>
+              <label for="rating">만족도</label>
+              <select id="rating">
+                <option value="5">5점 · 아주 만족</option>
+                <option value="4">4점 · 만족</option>
+                <option value="3">3점 · 보통</option>
+                <option value="2">2점 · 아쉬움</option>
+                <option value="1">1점 · 많이 아쉬움</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label for="class-title">수업명</label>
+              <input id="class-title" placeholder="예: AI 기초 셋팅 및 컨설팅" required />
+            </div>
+            <div>
+              <label for="class-date">수업일</label>
+              <input id="class-date" type="date" />
+            </div>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label for="instructor">강사</label>
+              <select id="instructor"></select>
+            </div>
+            <div>
+              <label for="review-title">후기 제목</label>
+              <input id="review-title" placeholder="예: 막막했던 자동화가 정리된 시간" />
+            </div>
+          </div>
+
+          <div>
+            <label for="summary">짧은 한 줄 후기</label>
+            <input id="summary" maxlength="240" placeholder="홈페이지 카드에 먼저 보일 문장" />
+          </div>
+
+          <div>
+            <label for="body">자세한 후기</label>
+            <textarea id="body" placeholder="무엇이 좋았는지, 실제로 어떤 도움이 됐는지 자유롭게 적어주세요." required></textarea>
+          </div>
+
+          <div>
+            <label for="tags">키워드</label>
+            <input id="tags" placeholder="예: 자동화, 업무정리, AI기초" />
+            <div class="field-help">쉼표로 여러 개를 입력할 수 있습니다.</div>
+          </div>
+
+          <div>
+            <label for="image-urls">사진 URL</label>
+            <textarea id="image-urls" placeholder="사진 링크가 있다면 한 줄에 하나씩 입력해 주세요. 파일 업로드는 추후 연동 예정입니다."></textarea>
+          </div>
+
+          <label class="check" for="consent">
+            <input id="consent" type="checkbox" required />
+            <span>작성한 후기가 운영자 검수 후 ARSEN 홈페이지/후기보드에 공개될 수 있음에 동의합니다. 연락처, 계정 화면, 민감한 개인정보는 적지 않겠습니다.</span>
+          </label>
+
+          <div class="status" id="status" aria-live="polite"></div>
+          <div class="actions">
+            <button id="submit-btn" type="submit">후기 제출</button>
+            <a class="button secondary" href="/frontend/class-stories.html">공개 후기 보기</a>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const token = (params.get("token") || "").trim();
+      const fields = {
+        form: document.getElementById("review-form"),
+        inviteSummary: document.getElementById("invite-summary"),
+        displayName: document.getElementById("display-name"),
+        rating: document.getElementById("rating"),
+        classTitle: document.getElementById("class-title"),
+        classDate: document.getElementById("class-date"),
+        instructor: document.getElementById("instructor"),
+        title: document.getElementById("review-title"),
+        summary: document.getElementById("summary"),
+        body: document.getElementById("body"),
+        tags: document.getElementById("tags"),
+        imageUrls: document.getElementById("image-urls"),
+        consent: document.getElementById("consent"),
+        status: document.getElementById("status"),
+        submit: document.getElementById("submit-btn"),
+      };
+
+      function setStatus(message, tone = "") {
+        fields.status.textContent = message;
+        fields.status.className = `status ${tone}`.trim();
+      }
+
+      function listFromText(value) {
+        return String(value || "")
+          .replace(/\r/g, "\n")
+          .replace(/,/g, "\n")
+          .split("\n")
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+
+      function setFormEnabled(enabled) {
+        fields.form.querySelectorAll("input, select, textarea, button").forEach((node) => {
+          node.disabled = !enabled;
+        });
+      }
+
+      function renderInstructorOptions(instructors, selectedId = "") {
+        fields.instructor.innerHTML = '<option value="">미정 / 기억나지 않음</option>';
+        instructors.forEach((item) => {
+          const option = document.createElement("option");
+          option.value = item.id;
+          option.textContent = `${item.name || "강사"}${item.role ? ` · ${item.role}` : ""}`;
+          fields.instructor.appendChild(option);
+        });
+        fields.instructor.value = selectedId || "";
+      }
+
+      async function loadInvite() {
+        if (!token) {
+          fields.inviteSummary.textContent = "관리자에게 받은 후기 작성 링크로 접속해 주세요.";
+          setStatus("후기 작성 링크가 없어서 제출할 수 없습니다.", "error");
+          setFormEnabled(false);
+          return;
+        }
+        try {
+          const response = await fetch(`/api/review-board/submit/${encodeURIComponent(token)}`, { cache: "no-store" });
+          const payload = await response.json();
+          if (!response.ok || !payload.ok) throw new Error(payload.detail || "후기 작성 링크를 확인하지 못했습니다.");
+          const invite = payload.data.invite || {};
+          const instructors = Array.isArray(payload.data.instructors) ? payload.data.instructors : [];
+          fields.inviteSummary.textContent = invite.class_title
+            ? `${invite.class_title}${invite.class_date ? ` · ${invite.class_date}` : ""} 후기 작성 링크입니다.`
+            : "ARSEN 수업 후기 작성 링크입니다.";
+          fields.classTitle.value = invite.class_title || "";
+          fields.classDate.value = invite.class_date || "";
+          renderInstructorOptions(instructors, invite.instructor_id || "");
+          setFormEnabled(true);
+          setStatus("후기를 작성한 뒤 제출해 주세요.");
+        } catch (error) {
+          fields.inviteSummary.textContent = error.message;
+          setStatus(error.message, "error");
+          setFormEnabled(false);
+        }
+      }
+
+      fields.form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!token) return;
+        fields.submit.disabled = true;
+        setStatus("후기를 접수하는 중입니다.");
+        const payload = {
+          display_name: fields.displayName.value.trim(),
+          rating: Number(fields.rating.value || 5),
+          class_title: fields.classTitle.value.trim(),
+          class_date: fields.classDate.value,
+          instructor_id: fields.instructor.value || null,
+          title: fields.title.value.trim(),
+          summary: fields.summary.value.trim(),
+          body: fields.body.value.trim(),
+          tags: listFromText(fields.tags.value),
+          image_urls: listFromText(fields.imageUrls.value),
+          consent_public_review: fields.consent.checked,
+        };
+        try {
+          const response = await fetch(`/api/review-board/submit/${encodeURIComponent(token)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.detail || "후기 접수에 실패했습니다.");
+          fields.form.reset();
+          setFormEnabled(false);
+          fields.inviteSummary.textContent = "후기가 접수되었습니다.";
+          setStatus(data.message || "후기가 접수되었습니다. 승인 후 공개됩니다.", "ok");
+        } catch (error) {
+          fields.submit.disabled = false;
+          setStatus(error.message, "error");
+        }
+      });
+
+      setFormEnabled(false);
+      loadInvite();
+    </script>
+  </body>
+</html>

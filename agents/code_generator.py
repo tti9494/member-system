@@ -1,7 +1,7 @@
 import os
 import secrets
-import string
 import base64
+import json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from dotenv import load_dotenv
@@ -14,9 +14,17 @@ import sys
 sys.path.insert(0, str(Path.home() / "member-system"))
 from db import get_conn
 
-CODE_EXPIRE_DAYS = int(os.getenv("CODE_EXPIRE_DAYS", "30"))
 CODE_MAX_FAIL = int(os.getenv("CODE_MAX_FAIL", "5"))
 CODE_LOCK_HOURS = int(os.getenv("CODE_LOCK_HOURS", "24"))
+CODE_PREFIX = os.getenv("CODE_PREFIX", "").strip().upper()
+CODE_RANDOM_LENGTH = int(os.getenv("CODE_RANDOM_LENGTH", "8"))
+CODE_ALPHABET = os.getenv("CODE_ALPHABET", "0123456789")
+CODE_LEDGER_PATH = Path(
+    os.getenv(
+        "CODE_LEDGER_PATH",
+        str(Path.home() / "member-system" / "private" / "code_ledger.jsonl"),
+    )
+)
 
 
 def _get_key() -> bytes:
@@ -52,21 +60,143 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _generate_invite_code() -> str:
+    alphabet = CODE_ALPHABET or "0123456789"
+    body = "".join(secrets.choice(alphabet) for _ in range(CODE_RANDOM_LENGTH))
+    return f"{CODE_PREFIX}-{body}" if CODE_PREFIX else body
+
+
+def _canonical_code(code: str) -> str:
+    return "".join(ch for ch in (code or "").upper() if ch.isalnum())
+
+
+def _code_hint(code: str) -> str:
+    canonical = _canonical_code(code)
+    return f"***{canonical[-4:]}" if canonical else ""
+
+
+def _ledger_path() -> Path:
+    return CODE_LEDGER_PATH
+
+
+def _write_ledger(event: dict) -> None:
+    path = _ledger_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        path.parent.chmod(0o700)
+    except OSError:
+        pass
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
+
+
+def _ledger_events(member_id: str) -> list[dict]:
+    path = _ledger_path()
+    if not path.exists():
+        return []
+    events: list[dict] = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if event.get("member_id") == member_id:
+                events.append(event)
+    return events
+
+
+def _latest_ledger_code(member_id: str) -> dict | None:
+    active: dict | None = None
+    for event in _ledger_events(member_id):
+        action = event.get("action")
+        if action == "code_issued" and event.get("encrypted_code"):
+            active = event
+        elif action == "code_revoked":
+            active = None
+    if not active:
+        return None
+    try:
+        code = _decrypt_code(active["encrypted_code"])
+    except Exception:
+        return None
+    return {
+        "code": code,
+        "issued_at": active.get("created_at"),
+        "expires_at": None,
+        "source": "ledger",
+    }
+
+
+def _record_issue(member_id: str, code: str, issued_at: str, encrypted: str) -> None:
+    _write_ledger(
+        {
+            "action": "code_issued",
+            "member_id": member_id,
+            "created_at": issued_at,
+            "encrypted_code": encrypted,
+            "code_hint": _code_hint(code),
+            "expires_at": None,
+            "source": "member-system",
+        }
+    )
+
+
+def _record_revoke(member_id: str, reason: str = "manual") -> None:
+    _write_ledger(
+        {
+            "action": "code_revoked",
+            "member_id": member_id,
+            "created_at": _now().isoformat(),
+            "reason": reason,
+            "source": "member-system",
+        }
+    )
+
+
 def generate_code(member_id: str) -> str:
-    alphabet = string.ascii_uppercase + string.digits
-    code = "".join(secrets.choice(alphabet) for _ in range(8))
+    code = _generate_invite_code()
     encrypted = _encrypt_code(code)
-    expires_at = (_now() + timedelta(days=CODE_EXPIRE_DAYS)).isoformat()
     issued_at = _now().isoformat()
 
     conn = get_conn()
     conn.execute(
         "UPDATE members SET access_code=?, code_expires_at=?, code_issued_at=?, code_fail_count=0, code_locked_until=NULL WHERE id=?",
-        (encrypted, expires_at, issued_at, member_id)
+        (encrypted, None, issued_at, member_id)
     )
     conn.commit()
     conn.close()
+    _record_issue(member_id, code, issued_at, encrypted)
     return code
+
+
+def get_current_code(member_id: str) -> dict:
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT access_code, code_issued_at FROM members WHERE id=?", (member_id,)
+    ).fetchone()
+    conn.close()
+
+    if row and row["access_code"]:
+        return {
+            "ok": True,
+            "code": _decrypt_code(row["access_code"]),
+            "issued_at": row["code_issued_at"],
+            "expires_at": None,
+            "source": "members",
+        }
+
+    ledger = _latest_ledger_code(member_id)
+    if ledger:
+        return {"ok": True, **ledger}
+    return {"ok": False, "error": "발급된 코드가 없습니다."}
 
 
 def check_lock(member_id: str) -> dict:
@@ -111,20 +241,15 @@ def verify_code(input_code: str, member_id: str) -> dict:
         return {"ok": False, "error": f"코드가 잠겨 있습니다. 잠금 해제: {lock.get('until')}"}
 
     conn = get_conn()
-    row = conn.execute(
-        "SELECT access_code, code_expires_at FROM members WHERE id=?", (member_id,)
-    ).fetchone()
+    row = conn.execute("SELECT id FROM members WHERE id=?", (member_id,)).fetchone()
     conn.close()
 
-    if not row or not row["access_code"]:
+    current = get_current_code(member_id) if row else {"ok": False}
+    if not current.get("ok"):
         return {"ok": False, "error": "발급된 코드가 없습니다."}
 
-    expires = datetime.fromisoformat(row["code_expires_at"])
-    if _now() > expires:
-        return {"ok": False, "error": "코드가 만료되었습니다."}
-
-    stored = _decrypt_code(row["access_code"])
-    if secrets.compare_digest(input_code.upper(), stored):
+    stored = current["code"]
+    if secrets.compare_digest(_canonical_code(input_code), _canonical_code(stored)):
         # 성공: fail_count 초기화
         conn = get_conn()
         conn.execute("UPDATE members SET code_fail_count=0, code_locked_until=NULL WHERE id=?", (member_id,))
@@ -145,6 +270,7 @@ def revoke_code(member_id: str):
     )
     conn.commit()
     conn.close()
+    _record_revoke(member_id)
 
 
 def regenerate_code(member_id: str) -> str:

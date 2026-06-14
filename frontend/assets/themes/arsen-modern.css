@@ -1,0 +1,2984 @@
+/* Member System Theme Sync v0.1.1
+   Shared ARSEN public theme layer for application, reservation, review, and admin pages. */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: light;
+
+  --arsen-bg: #ffffff;
+  --arsen-surface: #f7f8fb;
+  --arsen-card: #ffffff;
+  --arsen-card-soft: #f3f5f8;
+  --arsen-line: #e5e7eb;
+  --arsen-line-strong: #cfd5df;
+  --arsen-text: #0a0a0a;
+  --arsen-muted: #475467;
+  --arsen-subtle: #667085;
+  --arsen-ink: #0f172a;
+  --arsen-primary: #0a0a0a;
+  --arsen-primary-hover: #1f2937;
+  --arsen-blue: #355f92;
+  --arsen-green: #087451;
+  --arsen-green-soft: #e7f8ef;
+  --arsen-amber: #b66b05;
+  --arsen-amber-soft: #fff3d8;
+  --arsen-red: #b42318;
+  --arsen-red-soft: #fde8e6;
+  --arsen-radius-sm: 6px;
+  --arsen-radius-md: 10px;
+  --arsen-radius-lg: 16px;
+  --arsen-radius-pill: 999px;
+  --arsen-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+
+  --primary: var(--arsen-primary);
+  --primary-hover: var(--arsen-primary-hover);
+  --primary-strong: var(--arsen-primary-hover);
+  --primary-soft: #eef1f5;
+  --accent: var(--arsen-primary);
+  --accent-strong: var(--arsen-primary-hover);
+  --accent-2: var(--arsen-amber);
+  --bg: var(--arsen-surface);
+  --paper: var(--arsen-surface);
+  --card: var(--arsen-card);
+  --white: #ffffff;
+  --surface: var(--arsen-card);
+  --surface-soft: var(--arsen-card-soft);
+  --surface-raised: #ffffff;
+  --surface-2: var(--arsen-card-soft);
+  --surface-3: #ffffff;
+  --panel: var(--arsen-card);
+  --panel-strong: var(--arsen-card-soft);
+  --border: var(--arsen-line);
+  --border-strong: var(--arsen-line-strong);
+  --line: var(--arsen-line);
+  --line-strong: var(--arsen-line-strong);
+  --ink: var(--arsen-text);
+  --text: var(--arsen-text);
+  --text-main: var(--arsen-text);
+  --text-sub: var(--arsen-muted);
+  --text-muted: var(--arsen-subtle);
+  --muted: var(--arsen-muted);
+  --subtle: var(--arsen-subtle);
+  --blue: var(--arsen-blue);
+  --blue-soft: #eef3f8;
+  --green: var(--arsen-green);
+  --green-strong: var(--arsen-green);
+  --green-soft: var(--arsen-green-soft);
+  --amber: var(--arsen-amber);
+  --amber-strong: var(--arsen-amber);
+  --amber-soft: var(--arsen-amber-soft);
+  --red: var(--arsen-red);
+  --red-strong: var(--arsen-red);
+  --red-soft: var(--arsen-red-soft);
+  --error: var(--arsen-red);
+  --error-soft: var(--arsen-red-soft);
+  --success: var(--arsen-green);
+  --success-soft: var(--arsen-green-soft);
+  --chip: #f2f4f7;
+  --shadow: var(--arsen-shadow);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  line-break: strict;
+}
+
+body {
+  color-scheme: light !important;
+  --primary: var(--arsen-primary) !important;
+  --primary-hover: var(--arsen-primary-hover) !important;
+  --primary-strong: var(--arsen-primary-hover) !important;
+  --primary-soft: #eef1f5 !important;
+  --accent: var(--arsen-primary) !important;
+  --accent-strong: var(--arsen-primary-hover) !important;
+  --accent-2: var(--arsen-amber) !important;
+  --bg: var(--arsen-surface) !important;
+  --paper: var(--arsen-surface) !important;
+  --card: var(--arsen-card) !important;
+  --white: #ffffff !important;
+  --surface: var(--arsen-card) !important;
+  --surface-soft: var(--arsen-card-soft) !important;
+  --surface-raised: #ffffff !important;
+  --surface-2: var(--arsen-card-soft) !important;
+  --surface-3: #ffffff !important;
+  --panel: var(--arsen-card) !important;
+  --panel-strong: var(--arsen-card-soft) !important;
+  --border: var(--arsen-line) !important;
+  --border-strong: var(--arsen-line-strong) !important;
+  --line: var(--arsen-line) !important;
+  --line-strong: var(--arsen-line-strong) !important;
+  --ink: var(--arsen-text) !important;
+  --text: var(--arsen-text) !important;
+  --text-main: var(--arsen-text) !important;
+  --text-sub: var(--arsen-muted) !important;
+  --text-muted: var(--arsen-subtle) !important;
+  --muted: var(--arsen-muted) !important;
+  --subtle: var(--arsen-subtle) !important;
+  --blue: var(--arsen-blue) !important;
+  --blue-soft: #eef3f8 !important;
+  --green: var(--arsen-green) !important;
+  --green-strong: var(--arsen-green) !important;
+  --green-soft: var(--arsen-green-soft) !important;
+  --amber: #7a4300 !important;
+  --amber-strong: #7a4300 !important;
+  --amber-soft: var(--arsen-amber-soft) !important;
+  --red: var(--arsen-red) !important;
+  --red-strong: var(--arsen-red) !important;
+  --red-soft: var(--arsen-red-soft) !important;
+  --error: var(--arsen-red) !important;
+  --error-soft: var(--arsen-red-soft) !important;
+  --success: var(--arsen-green) !important;
+  --success-soft: var(--arsen-green-soft) !important;
+  --chip: #f2f4f7 !important;
+  --shadow: var(--arsen-shadow) !important;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(53, 95, 146, 0.08), transparent 24rem),
+    linear-gradient(180deg, #ffffff 0%, var(--arsen-surface) 40%, #ffffff 100%) !important;
+  color: var(--arsen-text) !important;
+  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif !important;
+  letter-spacing: 0 !important;
+  line-break: strict;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+li,
+dt,
+dd,
+a,
+button,
+label,
+th,
+td,
+.btn,
+.chip,
+.badge,
+.pill,
+.tag,
+.tab,
+.nav-pill,
+.section-label,
+.member-cell,
+.detail-label,
+.booking-meta,
+.review-board-helper,
+.review-board-row,
+.member-group-row,
+.session-booking-row {
+  line-break: strict;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.headline,
+.hero-title,
+.panel-title,
+.section-title,
+.page-title,
+.modal-title {
+  text-wrap: balance;
+}
+
+p,
+li,
+dd,
+.lead,
+.subtitle,
+.muted,
+.hint,
+.helper,
+.empty,
+.empty-state,
+.program-summary,
+.review-board-helper,
+.booking-meta {
+  text-wrap: pretty;
+}
+
+button,
+.btn,
+.nav-pill,
+.chip,
+.badge,
+.pill,
+.tag,
+.booking-tab {
+  white-space: nowrap;
+}
+
+body.admin-locked {
+  background:
+    radial-gradient(circle at 80% 0%, rgba(53, 95, 146, 0.14), transparent 26rem),
+    var(--arsen-surface) !important;
+}
+
+main,
+.container,
+.page {
+  position: relative;
+}
+
+h1, h2, h3 {
+  color: var(--arsen-text) !important;
+  letter-spacing: 0 !important;
+}
+
+p,
+li,
+.subtitle,
+.lead,
+.meta,
+.hint,
+.top-note,
+.muted,
+.empty,
+.empty-state,
+.helper,
+.review-board-helper,
+.field-help,
+.program-summary,
+.program-item span,
+.step-label,
+.grade-count,
+.booking-meta,
+.detail-label,
+.payment-account-caption {
+  color: var(--arsen-muted) !important;
+}
+
+.hero,
+.program-brief,
+.card,
+.panel,
+.ops-card,
+.auth-panel,
+.preview-panel,
+.summary-card,
+.stat-card,
+.booking-panel,
+.booking-item,
+.booking-card,
+.booking-filter-summary,
+.session-booking-group,
+.review-board-panel,
+.review-board-row,
+.payment-account-panel,
+.success-msg,
+.notice,
+.consent-box,
+.privacy-full,
+.table-wrap {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid var(--arsen-line) !important;
+  border-radius: var(--arsen-radius-lg) !important;
+  box-shadow: var(--arsen-shadow) !important;
+}
+
+.hero {
+  background:
+    radial-gradient(circle at 85% 8%, rgba(80, 128, 190, 0.18), transparent 18rem),
+    linear-gradient(112deg, rgba(13, 22, 32, 0.84), rgba(24, 47, 74, 0.88) 48%, rgba(16, 26, 58, 0.94)) !important;
+  color: #ffffff !important;
+  overflow: hidden;
+}
+
+.hero h1,
+.hero h2,
+.hero h3,
+.hero .lead,
+.hero .eyebrow,
+.hero p {
+  color: #ffffff !important;
+}
+
+.program-item,
+.program-pill,
+.ops-card,
+.grade-badge,
+.checkbox-grid label,
+.radio-group label,
+.choice,
+.option-card,
+.status-line,
+.summary,
+.metric,
+.rank-chip,
+.detail-grid > *,
+.badge,
+.tag,
+.chip,
+.review-board-summary,
+.local-preview-banner,
+.booking-guide,
+.payment-guide-preview {
+  background: var(--arsen-card-soft) !important;
+  border-color: var(--arsen-line) !important;
+  color: var(--arsen-text) !important;
+}
+
+.program-kicker,
+.section-title,
+.eyebrow,
+.tag,
+.chip,
+.state-label,
+.booking-guide-label,
+.operator-footer a,
+.privacy-link,
+.full-link a,
+.step-label span,
+.grade-text {
+  color: var(--arsen-blue) !important;
+}
+
+.required {
+  color: var(--arsen-red) !important;
+}
+
+.optional,
+.char-count {
+  color: var(--arsen-muted) !important;
+}
+
+input,
+select,
+textarea {
+  background: #ffffff !important;
+  border: 1.5px solid var(--arsen-line-strong) !important;
+  border-radius: var(--arsen-radius-md) !important;
+  color: var(--arsen-text) !important;
+  box-shadow: none !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: 18px !important;
+  height: 18px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+  display: inline-block !important;
+  border: 1.5px solid var(--arsen-line-strong) !important;
+  border-radius: 4px !important;
+  background: #ffffff !important;
+  color: var(--arsen-primary) !important;
+  box-shadow: none !important;
+  accent-color: var(--arsen-primary);
+  vertical-align: middle;
+}
+
+input[type="radio"] {
+  border-radius: 50% !important;
+}
+
+.remember-key,
+.consent-box label,
+.checkbox-grid label,
+.radio-group label {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  color: var(--arsen-text) !important;
+}
+
+.remember-key {
+  width: fit-content;
+  margin-top: 12px !important;
+  line-height: 1.35;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--arsen-subtle) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--arsen-primary) !important;
+  box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.08) !important;
+  outline: none !important;
+}
+
+label {
+  color: var(--arsen-text) !important;
+}
+
+button,
+.btn,
+.button,
+.button-link,
+.success-action,
+.nav-links a {
+  border-radius: var(--arsen-radius-pill) !important;
+  border: 1px solid var(--arsen-primary) !important;
+  background: var(--arsen-primary) !important;
+  color: #ffffff !important;
+  font-weight: 850 !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+button:hover,
+.btn:hover,
+.button:hover,
+.button-link:hover,
+.success-action:hover,
+.nav-links a:hover {
+  background: var(--arsen-primary-hover) !important;
+  border-color: var(--arsen-primary-hover) !important;
+  opacity: 1 !important;
+  transform: translateY(-1px);
+}
+
+button:disabled,
+.btn:disabled {
+  background: #e3e7ed !important;
+  border-color: #cfd5df !important;
+  color: #1f2937 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+button.ops-card,
+.ops-card.actionable {
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  border-radius: 12px !important;
+  background: var(--arsen-amber-soft) !important;
+  border-color: rgba(122, 67, 0, 0.28) !important;
+  color: var(--arsen-text) !important;
+  text-align: left !important;
+}
+
+button.ops-card:hover,
+.ops-card.actionable:hover {
+  background: #ffedbd !important;
+  border-color: #7a4300 !important;
+  transform: translateY(-1px);
+}
+
+button.secondary,
+.btn.secondary,
+.button.secondary,
+.button-link.secondary,
+.success-action,
+.success-action:not(.primary),
+.btn-outline,
+.operator-footer a,
+#clear-key-btn,
+#refresh-btn,
+#copy-key-btn,
+#copy-message-btn {
+  background: #ffffff !important;
+  border-color: var(--arsen-line-strong) !important;
+  color: var(--arsen-text) !important;
+}
+
+button.green,
+.btn.green,
+.badge.public,
+.badge.active,
+.badge.license_issued,
+.badge.paid,
+.notice.ok,
+.status.ok {
+  background: var(--arsen-green) !important;
+  border-color: var(--arsen-green) !important;
+  color: #ffffff !important;
+}
+
+button.warn,
+.btn.amber,
+.btn.warn,
+.badge.draft,
+.badge.expired,
+.badge.payment_pending {
+  background: var(--arsen-amber-soft) !important;
+  border-color: rgba(182, 107, 5, 0.24) !important;
+  color: #7a4300 !important;
+}
+
+button.danger,
+.btn.red,
+.btn.danger,
+.badge.revoked,
+.badge.canceled,
+.badge.refunded,
+.notice.error,
+.status.error,
+.error-list {
+  background: var(--arsen-red-soft) !important;
+  border-color: rgba(180, 35, 24, 0.24) !important;
+  color: var(--arsen-red) !important;
+}
+
+.admin-tabs,
+.booking-tabs,
+.tabs,
+.filter-tabs {
+  background: #ffffff !important;
+  border: 1px solid var(--arsen-line) !important;
+  border-radius: var(--arsen-radius-pill) !important;
+  box-shadow: var(--arsen-shadow) !important;
+}
+
+.admin-tab,
+.booking-tab,
+.tab {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--arsen-muted) !important;
+  box-shadow: none !important;
+}
+
+.admin-tab.active,
+.booking-tab.active,
+.tab.active {
+  background: var(--arsen-primary) !important;
+  color: #ffffff !important;
+}
+
+table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background: #ffffff !important;
+  color: var(--arsen-text) !important;
+}
+
+th {
+  background: #f3f5f8 !important;
+  color: var(--arsen-muted) !important;
+  border-color: var(--arsen-line) !important;
+}
+
+td {
+  color: var(--arsen-text) !important;
+  border-color: var(--arsen-line) !important;
+}
+
+.booking-title,
+.detail-value,
+.metric,
+.metric-label,
+.metric-value,
+.ops-card-label,
+.ops-card-value,
+.ops-card-note,
+.rank-chip,
+.booking-card.confirmed,
+.booking-card.pending,
+.review-board-row,
+.review-board-table,
+.review-board-row-head,
+.payment-account-title,
+.session-booking-group-title,
+.session-booking-row,
+.member-name,
+.member-info,
+.list-item,
+.summary strong,
+.panel strong,
+.card strong,
+.program-result,
+.success-msg p,
+.privacy-full p,
+.privacy-full li,
+.privacy-full td {
+  color: var(--arsen-text) !important;
+}
+
+.ops-card-note {
+  color: var(--arsen-muted) !important;
+}
+
+.data-source-badge.production,
+.data-source-badge.local {
+  background: var(--arsen-green) !important;
+  border-color: var(--arsen-green) !important;
+  color: #ffffff !important;
+}
+
+.data-source-badge.local {
+  background: #7a4300 !important;
+  border-color: #7a4300 !important;
+}
+
+/* Authenticated admin product layout */
+body.admin-unlocked {
+  background:
+    radial-gradient(circle at 96% 2%, rgba(53, 95, 146, 0.1), transparent 24rem),
+    linear-gradient(180deg, #ffffff 0%, #f7f8fb 28%, #f3f5f8 100%) !important;
+}
+
+body.admin-unlocked .page {
+  width: min(1760px, calc(100% - 32px));
+  max-width: 1760px !important;
+  padding: 18px 0 48px !important;
+}
+
+body.admin-unlocked .topbar {
+  display: grid !important;
+  grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.4fr);
+  align-items: center !important;
+  gap: 18px !important;
+  margin-bottom: 14px !important;
+  padding: 18px 20px !important;
+  border: 1px solid var(--arsen-line) !important;
+  border-radius: 22px !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: var(--arsen-shadow) !important;
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+}
+
+body.admin-unlocked .topbar > div:first-child {
+  min-width: 0;
+}
+
+body.admin-unlocked .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--arsen-blue) !important;
+}
+
+body.admin-unlocked h1#admin-page-title {
+  margin-top: 6px !important;
+  font-size: clamp(26px, 2.3vw, 38px) !important;
+  line-height: 1.08 !important;
+}
+
+body.admin-unlocked .topbar .top-actions {
+  justify-content: flex-end !important;
+  gap: 8px !important;
+}
+
+body.admin-unlocked .topbar .btn {
+  min-height: 38px !important;
+  padding: 9px 13px !important;
+  font-size: 13px !important;
+  white-space: nowrap;
+}
+
+body.admin-unlocked #status-line {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 0 !important;
+  margin: 0 0 14px auto !important;
+  padding: 8px 12px !important;
+  border-radius: var(--arsen-radius-pill) !important;
+  border: 1px solid var(--arsen-line) !important;
+  background: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04) !important;
+  color: var(--arsen-muted) !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+}
+
+body.admin-unlocked #local-preview-banner {
+  margin-bottom: 14px;
+}
+
+body.admin-unlocked #dashboard:not(.hidden) {
+  display: grid !important;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+body.admin-unlocked .admin-tabs {
+  position: sticky !important;
+  top: 16px !important;
+  z-index: 8 !important;
+  grid-column: 1;
+  display: grid !important;
+  gap: 6px !important;
+  align-self: start;
+  min-height: calc(100vh - 32px);
+  padding: 10px !important;
+  margin: 0 !important;
+  border-radius: 22px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid var(--arsen-line) !important;
+  box-shadow: var(--arsen-shadow) !important;
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+}
+
+body.admin-unlocked .admin-tabs::before {
+  content: "운영 메뉴";
+  display: block;
+  padding: 10px 12px 6px;
+  color: var(--arsen-subtle);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+body.admin-unlocked .admin-tab {
+  width: 100%;
+  min-height: 46px !important;
+  justify-content: flex-start !important;
+  border-radius: 14px !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--arsen-muted) !important;
+  padding: 0 14px !important;
+  text-align: left !important;
+  box-shadow: none !important;
+}
+
+body.admin-unlocked .admin-tab:hover {
+  background: #f3f5f8 !important;
+  color: var(--arsen-text) !important;
+  transform: none !important;
+}
+
+body.admin-unlocked .admin-tab.active {
+  background: var(--arsen-primary) !important;
+  color: #ffffff !important;
+}
+
+body.admin-unlocked .admin-tab-panel {
+  grid-column: 2;
+  min-width: 0;
+}
+
+body.admin-unlocked .admin-tab-panel.active {
+  display: block !important;
+}
+
+body.admin-unlocked .admin-tab-panel.active > .panel,
+body.admin-unlocked .admin-tab-panel.active > .stats-grid,
+body.admin-unlocked .admin-tab-panel.active > .layout {
+  animation: adminPanelIn 0.18s ease-out;
+}
+
+@keyframes adminPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+body.admin-unlocked .panel,
+body.admin-unlocked .stat-card,
+body.admin-unlocked .ops-card,
+body.admin-unlocked .application-metric,
+body.admin-unlocked .application-storage,
+body.admin-unlocked .recent-applications,
+body.admin-unlocked .storage-box,
+body.admin-unlocked .flow-step {
+  border-radius: 18px !important;
+}
+
+body.admin-unlocked .panel {
+  overflow: hidden;
+}
+
+body.admin-unlocked .panel-head,
+body.admin-unlocked .booking-head,
+body.admin-unlocked .payment-account-head,
+body.admin-unlocked .ops-summary-head,
+body.admin-unlocked .today-tasks-head,
+body.admin-unlocked .application-focus-head {
+  padding: 18px 20px !important;
+  border-bottom: 1px solid var(--arsen-line);
+  margin: -20px -20px 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+}
+
+body.admin-unlocked .panel-title,
+body.admin-unlocked .payment-account-title,
+body.admin-unlocked .booking-title,
+body.admin-unlocked .ops-summary-title,
+body.admin-unlocked .today-tasks-title,
+body.admin-unlocked .application-focus-title {
+  font-size: clamp(20px, 1.8vw, 28px) !important;
+  line-height: 1.16 !important;
+  font-weight: 900 !important;
+}
+
+body.admin-unlocked .panel-caption,
+body.admin-unlocked .payment-account-caption,
+body.admin-unlocked .ops-summary-caption,
+body.admin-unlocked .today-tasks-caption,
+body.admin-unlocked .application-focus-caption {
+  margin-top: 6px;
+  color: var(--arsen-muted) !important;
+}
+
+body.admin-unlocked #today-panel {
+  display: none;
+}
+
+body.admin-unlocked #today-panel.active {
+  display: grid !important;
+  gap: 16px;
+}
+
+body.admin-unlocked .application-focus,
+body.admin-unlocked .today-tasks,
+body.admin-unlocked .ops-summary {
+  margin-bottom: 0 !important;
+}
+
+body.admin-unlocked .application-focus-grid {
+  grid-template-columns: minmax(280px, 0.9fr) minmax(280px, 1fr) minmax(360px, 1.15fr) !important;
+}
+
+body.admin-unlocked .application-metrics {
+  grid-template-columns: 1fr !important;
+}
+
+body.admin-unlocked .today-task-list {
+  grid-template-columns: repeat(4, minmax(160px, 1fr)) !important;
+}
+
+body.admin-unlocked .today-task {
+  min-height: 116px !important;
+  padding: 16px !important;
+}
+
+body.admin-unlocked .ops-summary-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+}
+
+body.admin-unlocked .stats-grid {
+  grid-template-columns: repeat(7, minmax(110px, 1fr)) !important;
+  margin-bottom: 14px !important;
+}
+
+body.admin-unlocked .stat-card {
+  min-height: 106px;
+  background: #ffffff !important;
+}
+
+body.admin-unlocked .toolbar {
+  grid-template-columns: minmax(260px, 1fr) 170px 170px auto !important;
+  align-items: end;
+  border-radius: 18px !important;
+}
+
+body.admin-unlocked #members-panel .layout {
+  display: grid !important;
+  grid-template-columns: minmax(420px, 0.92fr) minmax(520px, 1.08fr) !important;
+  gap: 16px !important;
+}
+
+body.admin-unlocked .member-list {
+  max-height: calc(100vh - 315px) !important;
+  min-height: 520px !important;
+  overflow: auto;
+}
+
+body.admin-unlocked .detail-panel {
+  position: sticky;
+  top: 16px;
+}
+
+body.admin-unlocked .detail-body {
+  min-height: 520px;
+}
+
+body.admin-unlocked .member-group-toolbar {
+  grid-template-columns: minmax(300px, 1fr) 180px 180px auto !important;
+}
+
+body.admin-unlocked .review-board-summary {
+  grid-template-columns: repeat(4, minmax(160px, 1fr)) !important;
+}
+
+body.admin-unlocked .booking-panel {
+  padding: 20px !important;
+}
+
+body.admin-unlocked .payment-account-panel {
+  margin: 16px 0 !important;
+  padding: 18px !important;
+}
+
+body.admin-unlocked .operator-template-row,
+body.admin-unlocked .session-form {
+  align-items: end;
+}
+
+body.admin-unlocked .booking-tabs {
+  width: fit-content;
+  max-width: 100%;
+  margin: 16px 0 !important;
+}
+
+body.admin-unlocked .booking-panels {
+  display: grid;
+  gap: 14px;
+}
+
+body.admin-unlocked .booking-tab-panel.active {
+  display: block !important;
+}
+
+body.admin-unlocked .session-time-card,
+body.admin-unlocked .booking-item,
+body.admin-unlocked .session-booking-row,
+body.admin-unlocked .review-board-row,
+body.admin-unlocked .member-group-row,
+body.admin-unlocked .member-card {
+  border-radius: 14px !important;
+}
+
+body.admin-unlocked details {
+  margin-top: 16px;
+  border: 1px solid var(--arsen-line);
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 0 16px 16px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+body.admin-unlocked details > summary {
+  display: flex;
+  align-items: center;
+  min-height: 54px;
+  color: var(--arsen-text) !important;
+}
+
+body.admin-unlocked .contact-modal-card {
+  border-radius: 22px !important;
+}
+
+@media (max-width: 1180px) {
+  body.admin-unlocked .page {
+    width: min(100% - 24px, 1180px);
+  }
+
+  body.admin-unlocked .topbar {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.admin-unlocked .topbar .top-actions {
+    justify-content: flex-start !important;
+  }
+
+  body.admin-unlocked #dashboard:not(.hidden) {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.admin-unlocked .admin-tabs {
+    position: static !important;
+    grid-column: 1 !important;
+    min-height: 0 !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  body.admin-unlocked .admin-tabs::before {
+    grid-column: 1 / -1;
+  }
+
+  body.admin-unlocked .admin-tab-panel {
+    grid-column: 1 !important;
+  }
+
+  body.admin-unlocked .application-focus-grid,
+  body.admin-unlocked #members-panel .layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.admin-unlocked .application-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.admin-unlocked .detail-panel {
+    position: static !important;
+  }
+
+  body.admin-unlocked .member-list,
+  body.admin-unlocked .detail-body {
+    min-height: 360px !important;
+    max-height: none !important;
+  }
+
+  body.admin-unlocked .today-task-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.admin-unlocked .ops-summary-grid,
+  body.admin-unlocked .stats-grid,
+  body.admin-unlocked .review-board-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  body.admin-unlocked .page {
+    width: min(100% - 20px, 760px);
+    padding-bottom: 32px !important;
+  }
+
+  body.admin-unlocked .topbar {
+    padding: 16px !important;
+    border-radius: 18px !important;
+  }
+
+  body.admin-unlocked .topbar .top-actions,
+  body.admin-unlocked .member-selection-actions {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  body.admin-unlocked .topbar .btn,
+  body.admin-unlocked .top-actions .btn {
+    width: 100%;
+  }
+
+  body.admin-unlocked #status-line {
+    width: 100%;
+    margin-left: 0 !important;
+  }
+
+  body.admin-unlocked .admin-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-radius: 18px !important;
+  }
+
+  body.admin-unlocked .admin-tab {
+    min-height: 42px !important;
+    padding: 0 10px !important;
+    font-size: 13px !important;
+  }
+
+  body.admin-unlocked .panel-head,
+  body.admin-unlocked .booking-head,
+  body.admin-unlocked .payment-account-head,
+  body.admin-unlocked .ops-summary-head,
+  body.admin-unlocked .today-tasks-head,
+  body.admin-unlocked .application-focus-head {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    margin: -16px -16px 16px;
+    padding: 16px !important;
+  }
+
+  body.admin-unlocked .toolbar,
+  body.admin-unlocked .member-group-toolbar,
+  body.admin-unlocked .operator-template-row,
+  body.admin-unlocked .session-form {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.admin-unlocked .application-metrics,
+  body.admin-unlocked .today-task-list,
+  body.admin-unlocked .ops-summary-grid,
+  body.admin-unlocked .stats-grid,
+  body.admin-unlocked .review-board-summary {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.admin-unlocked .booking-tabs {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: 1fr;
+  }
+}
+
+tr:hover td,
+.review-board-row:not(.review-board-row-head):hover,
+.booking-item:hover {
+  background: #fafafa !important;
+}
+
+/* Member System Admin Professional v0.3
+   Polished operations console layer matched to the ARSEN public site. */
+body.admin-unlocked {
+  --admin-bg: #f7f8fb;
+  --admin-card: #ffffff;
+  --admin-soft: #f3f5f8;
+  --admin-line: #e5e7eb;
+  --admin-line-strong: #d0d5dd;
+  --admin-ink: #0a0a0a;
+  --admin-muted: #667085;
+  --admin-subtle: #98a2b3;
+  --admin-blue: #355f92;
+  --admin-green: #0f8f62;
+  background:
+    linear-gradient(180deg, #ffffff 0%, var(--admin-bg) 34%, #eef1f5 100%) !important;
+}
+
+body.admin-unlocked .page {
+  width: min(1680px, calc(100% - 40px)) !important;
+  padding-top: 20px !important;
+}
+
+body.admin-unlocked .topbar {
+  grid-template-columns: minmax(360px, 0.9fr) minmax(420px, 1.1fr) !important;
+  gap: 24px !important;
+  padding: 18px 22px !important;
+  border-radius: 20px !important;
+  border-color: rgba(229, 231, 235, 0.92) !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08) !important;
+}
+
+body.admin-unlocked .topbar > div:first-child {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: center;
+}
+
+body.admin-unlocked .topbar > div:first-child::before {
+  content: "AI";
+  grid-row: 1 / 4;
+  width: 44px;
+  height: 44px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #ffffff;
+  background:
+    linear-gradient(135deg, rgba(53, 95, 146, 0.96), rgba(15, 143, 98, 0.88)),
+    #0f172a;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.16);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+body.admin-unlocked .topbar > div:first-child > * {
+  grid-column: 2;
+}
+
+body.admin-unlocked .eyebrow {
+  margin: 0 0 4px !important;
+  color: var(--admin-subtle) !important;
+  font-size: 12px !important;
+  letter-spacing: 0.12em !important;
+}
+
+body.admin-unlocked h1#admin-page-title {
+  margin: 0 !important;
+  font-size: clamp(28px, 2.3vw, 36px) !important;
+  letter-spacing: 0 !important;
+}
+
+body.admin-unlocked .subtitle {
+  max-width: 760px;
+  margin-top: 6px !important;
+  color: var(--admin-muted) !important;
+  font-size: 14px !important;
+  line-height: 1.45 !important;
+}
+
+body.admin-unlocked .data-source-badge {
+  min-height: 24px;
+  margin-left: 4px !important;
+  padding: 3px 8px !important;
+  border-radius: 8px !important;
+  font-size: 11px !important;
+  letter-spacing: 0 !important;
+  box-shadow: none !important;
+}
+
+body.admin-unlocked .data-source-badge.production {
+  background: #ecfdf3 !important;
+  border-color: #abefc6 !important;
+  color: #067647 !important;
+}
+
+body.admin-unlocked .data-source-badge.local {
+  background: #fff6df !important;
+  border-color: #f8db8f !important;
+  color: #7a4300 !important;
+}
+
+body.admin-unlocked .topbar .top-actions {
+  align-content: center;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+}
+
+body.admin-unlocked .btn {
+  min-height: 40px !important;
+  padding: 0 15px !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  box-shadow: none !important;
+}
+
+body.admin-unlocked .btn:not(.primary):not(.green):not(.red):not(.danger):not(.amber):not(.warn) {
+  background: #ffffff !important;
+  border-color: var(--admin-line-strong) !important;
+  color: #111827 !important;
+}
+
+body.admin-unlocked .btn:not(.primary):not(.green):not(.red):not(.danger):not(.amber):not(.warn):hover {
+  background: #f9fafb !important;
+  border-color: #98a2b3 !important;
+  color: #0a0a0a !important;
+  transform: translateY(-1px);
+}
+
+body.admin-unlocked .btn.primary,
+body.admin-unlocked #admin-lock-btn {
+  background: #0a0a0a !important;
+  border-color: #0a0a0a !important;
+  color: #ffffff !important;
+}
+
+body.admin-unlocked .btn.green {
+  background: var(--admin-green) !important;
+  border-color: var(--admin-green) !important;
+  color: #ffffff !important;
+}
+
+body.admin-unlocked #status-line {
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked .local-preview-banner {
+  gap: 10px !important;
+  padding: 12px 14px !important;
+  border-radius: 14px !important;
+  border-color: #f8db8f !important;
+  background: #fff9e8 !important;
+  color: #7a4300 !important;
+  box-shadow: 0 8px 22px rgba(122, 67, 0, 0.06) !important;
+}
+
+body.admin-unlocked #dashboard:not(.hidden) {
+  grid-template-columns: 232px minmax(0, 1fr) !important;
+  gap: 18px !important;
+}
+
+body.admin-unlocked .admin-tabs {
+  min-height: auto !important;
+  padding: 12px !important;
+  border-radius: 20px !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08) !important;
+}
+
+body.admin-unlocked .admin-tabs::before {
+  padding: 8px 10px 10px !important;
+  color: var(--admin-subtle) !important;
+  font-size: 11px !important;
+}
+
+body.admin-unlocked .admin-tab {
+  min-height: 44px !important;
+  border-radius: 12px !important;
+  color: var(--admin-muted) !important;
+  font-size: 14px !important;
+  font-weight: 850 !important;
+}
+
+body.admin-unlocked .admin-tab.active {
+  background: #0a0a0a !important;
+  color: #ffffff !important;
+}
+
+body.admin-unlocked .panel,
+body.admin-unlocked .stat-card,
+body.admin-unlocked .ops-card,
+body.admin-unlocked .application-metric,
+body.admin-unlocked .application-storage,
+body.admin-unlocked .recent-applications,
+body.admin-unlocked .storage-box,
+body.admin-unlocked .payment-account-panel,
+body.admin-unlocked details {
+  border-color: var(--admin-line) !important;
+  border-radius: 16px !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02) !important;
+}
+
+body.admin-unlocked .panel-head,
+body.admin-unlocked .booking-head,
+body.admin-unlocked .payment-account-head,
+body.admin-unlocked .ops-summary-head,
+body.admin-unlocked .today-tasks-head,
+body.admin-unlocked .application-focus-head {
+  background: #ffffff !important;
+  border-bottom-color: var(--admin-line) !important;
+}
+
+body.admin-unlocked .panel-title,
+body.admin-unlocked .payment-account-title,
+body.admin-unlocked .booking-title,
+body.admin-unlocked .ops-summary-title,
+body.admin-unlocked .today-tasks-title,
+body.admin-unlocked .application-focus-title {
+  color: var(--admin-ink) !important;
+  font-size: clamp(20px, 1.45vw, 26px) !important;
+  letter-spacing: 0 !important;
+}
+
+body.admin-unlocked .panel-caption,
+body.admin-unlocked .payment-account-caption,
+body.admin-unlocked .ops-summary-caption,
+body.admin-unlocked .today-tasks-caption,
+body.admin-unlocked .application-focus-caption {
+  color: var(--admin-muted) !important;
+  font-size: 13px !important;
+}
+
+body.admin-unlocked .application-metric,
+body.admin-unlocked .application-storage,
+body.admin-unlocked .recent-applications,
+body.admin-unlocked .today-task,
+body.admin-unlocked button.today-task,
+body.admin-unlocked .ops-card,
+body.admin-unlocked .stat-card {
+  background: var(--admin-soft) !important;
+  border: 1px solid var(--admin-line) !important;
+}
+
+body.admin-unlocked .application-metric-value,
+body.admin-unlocked .application-storage-main,
+body.admin-unlocked .ops-card-value,
+body.admin-unlocked .stat-value,
+body.admin-unlocked .today-task-count {
+  color: #0a0a0a !important;
+  letter-spacing: 0 !important;
+}
+
+body.admin-unlocked .application-metric-label,
+body.admin-unlocked .application-storage-label,
+body.admin-unlocked .recent-applications-label,
+body.admin-unlocked .ops-card-label,
+body.admin-unlocked .stat-label,
+body.admin-unlocked .today-task-kind {
+  color: var(--admin-muted) !important;
+  letter-spacing: 0.02em !important;
+}
+
+body.admin-unlocked .stats-grid,
+body.admin-unlocked .ops-summary-grid {
+  gap: 10px !important;
+}
+
+body.admin-unlocked .toolbar {
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+body.admin-unlocked input,
+body.admin-unlocked select,
+body.admin-unlocked textarea {
+  min-height: 46px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--admin-line-strong) !important;
+  background: #ffffff !important;
+  color: #101828 !important;
+  font-size: 14px !important;
+}
+
+body.admin-unlocked input[type="checkbox"],
+body.admin-unlocked input[type="radio"] {
+  width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  padding: 0 !important;
+  border-radius: 5px !important;
+  accent-color: #0a0a0a !important;
+}
+
+body.admin-unlocked .member-card,
+body.admin-unlocked .member-group-row,
+body.admin-unlocked .review-board-row,
+body.admin-unlocked .booking-item,
+body.admin-unlocked .session-day,
+body.admin-unlocked .session-time-card,
+body.admin-unlocked .session-booking-row {
+  background: #ffffff !important;
+  border: 1px solid var(--admin-line) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+body.admin-unlocked .member-card:hover,
+body.admin-unlocked .member-group-row:not(.member-group-row-head):hover,
+body.admin-unlocked .review-board-row:not(.review-board-row-head):hover,
+body.admin-unlocked .booking-item:hover,
+body.admin-unlocked .session-time-card:hover,
+body.admin-unlocked .session-day:hover {
+  border-color: #d0d5dd !important;
+  background: #fcfcfd !important;
+}
+
+body.admin-unlocked .member-card.active,
+body.admin-unlocked .member-group-row.active,
+body.admin-unlocked .session-day.active,
+body.admin-unlocked .session-time-card.selected {
+  border-color: #0a0a0a !important;
+  box-shadow: 0 0 0 2px rgba(10, 10, 10, 0.08) !important;
+}
+
+body.admin-unlocked .pill,
+body.admin-unlocked .badge,
+body.admin-unlocked .rank-chip,
+body.admin-unlocked .session-status-pill,
+body.admin-unlocked .session-count-chip,
+body.admin-unlocked .legend-chip,
+body.admin-unlocked .tag,
+body.admin-unlocked .chip {
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  letter-spacing: 0 !important;
+}
+
+body.admin-unlocked .rank-chip,
+body.admin-unlocked .session-count-chip {
+  background: #f9fafb !important;
+  border-color: var(--admin-line) !important;
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked .rank-chip.strong,
+body.admin-unlocked .session-count-chip.confirmed,
+body.admin-unlocked .pill.approved,
+body.admin-unlocked .pill.plan-basic {
+  background: #ecfdf3 !important;
+  border-color: #abefc6 !important;
+  color: #067647 !important;
+}
+
+body.admin-unlocked .rank-chip.waiting,
+body.admin-unlocked .session-count-chip.pending,
+body.admin-unlocked .pill.pending,
+body.admin-unlocked .pill.rejected {
+  background: #fff6df !important;
+  border-color: #f8db8f !important;
+  color: #7a4300 !important;
+}
+
+body.admin-unlocked .pill.plan-free,
+body.admin-unlocked .pill.plan-full {
+  background: #eef3f8 !important;
+  border-color: #c9d8eb !important;
+  color: var(--admin-blue) !important;
+}
+
+body.admin-unlocked .legend-dot {
+  width: 9px !important;
+  height: 9px !important;
+  border-radius: 3px !important;
+}
+
+body.admin-unlocked .booking-tabs {
+  padding: 4px !important;
+  border-radius: 999px !important;
+  background: #f3f5f8 !important;
+  box-shadow: none !important;
+}
+
+body.admin-unlocked .booking-tab {
+  min-height: 38px !important;
+  border-radius: 999px !important;
+}
+
+body.admin-unlocked .booking-tab.active {
+  background: #0a0a0a !important;
+  color: #ffffff !important;
+}
+
+body.admin-unlocked .session-day-detail,
+body.admin-unlocked .contact-line,
+body.admin-unlocked .payment-guide-preview,
+body.admin-unlocked .booking-guide {
+  background: #f9fafb !important;
+  border-color: var(--admin-line) !important;
+  color: #101828 !important;
+}
+
+body.admin-unlocked .contact-modal-card {
+  background: #ffffff !important;
+  border-color: var(--admin-line) !important;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.22) !important;
+}
+
+body.admin-unlocked .flow-step {
+  background: #ffffff !important;
+  border-radius: 14px !important;
+}
+
+body.admin-unlocked .flow-step-number {
+  color: var(--admin-blue) !important;
+}
+
+@media (max-width: 1180px) {
+  body.admin-unlocked .topbar {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.admin-unlocked .topbar .top-actions {
+    justify-content: flex-start !important;
+  }
+}
+
+@media (max-width: 760px) {
+  body.admin-unlocked .page {
+    width: min(100% - 20px, 760px) !important;
+  }
+
+  body.admin-unlocked .topbar > div:first-child {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  body.admin-unlocked .topbar > div:first-child::before {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  body.admin-unlocked .topbar .top-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.admin-unlocked .btn {
+    min-height: 42px !important;
+    padding: 0 12px !important;
+  }
+}
+
+.mono,
+code,
+pre {
+  color: var(--arsen-ink) !important;
+  background: #f3f5f8 !important;
+  border-color: var(--arsen-line) !important;
+}
+
+.nav {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+.yoonbot-hero,
+body:has(.hero-inner) .hero {
+  border-radius: 0 !important;
+}
+
+.thumb {
+  background:
+    linear-gradient(135deg, rgba(53, 95, 146, 0.24), rgba(15, 143, 98, 0.18)),
+    #f3f5f8 !important;
+}
+
+.progress-bar .step-dot,
+.step-dot {
+  background: #ffffff !important;
+  border-color: var(--arsen-line-strong) !important;
+  color: var(--arsen-muted) !important;
+}
+
+.step-dot.active,
+.step-dot.done {
+  background: var(--arsen-primary) !important;
+  border-color: var(--arsen-primary) !important;
+  color: #ffffff !important;
+}
+
+.step-line,
+.grade-badge .grade-bar-wrap {
+  background: var(--arsen-line) !important;
+}
+
+.step-line.done,
+.grade-bar {
+  background: var(--arsen-primary) !important;
+}
+
+.operator-footer {
+  color: var(--arsen-muted) !important;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+@media (max-width: 760px) {
+  body {
+    background: var(--arsen-surface) !important;
+  }
+
+  .hero,
+  .program-brief,
+  .card,
+  .panel {
+    border-radius: 14px !important;
+  }
+
+  .admin-tabs,
+  .booking-tabs,
+  .tabs,
+  .filter-tabs {
+    border-radius: 14px !important;
+  }
+}
+
+/* Member System Admin Dark Console v0.4
+   Slightly dark, sale-ready operations console. Scoped to authenticated admin only. */
+body.admin-unlocked {
+  color-scheme: dark !important;
+  --admin-bg: #08111d;
+  --admin-bg-2: #0b1522;
+  --admin-card: #101b2a;
+  --admin-card-2: #142033;
+  --admin-soft: #17243a;
+  --admin-line: rgba(148, 163, 184, 0.18);
+  --admin-line-strong: rgba(203, 213, 225, 0.28);
+  --admin-ink: #f8fafc;
+  --admin-text: #e5edf7;
+  --admin-muted: #a7b4c8;
+  --admin-subtle: #728096;
+  --admin-blue: #7fb0f0;
+  --admin-green: #42d49a;
+  --admin-amber: #f0b958;
+  --admin-red: #ff8a80;
+  --admin-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  background:
+    linear-gradient(180deg, #0a1220 0%, var(--admin-bg) 34%, #0b1522 100%) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-unlocked .page {
+  width: min(1680px, calc(100% - 40px)) !important;
+}
+
+body.admin-unlocked .topbar,
+body.admin-unlocked .admin-tabs,
+body.admin-unlocked .panel,
+body.admin-unlocked .auth-panel,
+body.admin-unlocked .stat-card,
+body.admin-unlocked .ops-card,
+body.admin-unlocked .application-metric,
+body.admin-unlocked .application-storage,
+body.admin-unlocked .recent-applications,
+body.admin-unlocked .storage-box,
+body.admin-unlocked .payment-account-panel,
+body.admin-unlocked .success-msg,
+body.admin-unlocked .notice,
+body.admin-unlocked .table-wrap,
+body.admin-unlocked details {
+  background: rgba(16, 27, 42, 0.92) !important;
+  border-color: var(--admin-line) !important;
+  box-shadow: var(--admin-shadow) !important;
+}
+
+body.admin-unlocked .topbar,
+body.admin-unlocked .admin-tabs {
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+}
+
+body.admin-unlocked .topbar {
+  border-radius: 22px !important;
+  background:
+    linear-gradient(135deg, rgba(20, 32, 51, 0.96), rgba(10, 18, 32, 0.94)) !important;
+}
+
+body.admin-unlocked .topbar > div:first-child::before {
+  background:
+    linear-gradient(135deg, rgba(127, 176, 240, 0.96), rgba(66, 212, 154, 0.88)),
+    #0f172a !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 14px 30px rgba(66, 212, 154, 0.14) !important;
+}
+
+body.admin-unlocked .eyebrow,
+body.admin-unlocked .section-label,
+body.admin-unlocked .program-kicker {
+  color: var(--admin-subtle) !important;
+}
+
+body.admin-unlocked h1,
+body.admin-unlocked h2,
+body.admin-unlocked h3,
+body.admin-unlocked #admin-page-title,
+body.admin-unlocked .headline,
+body.admin-unlocked .panel-title,
+body.admin-unlocked .payment-account-title,
+body.admin-unlocked .booking-title,
+body.admin-unlocked .ops-summary-title,
+body.admin-unlocked .today-tasks-title,
+body.admin-unlocked .application-focus-title,
+body.admin-unlocked .detail-name,
+body.admin-unlocked .session-day-title,
+body.admin-unlocked .contact-modal-title,
+body.admin-unlocked .storage-title {
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked p,
+body.admin-unlocked li,
+body.admin-unlocked .subtitle,
+body.admin-unlocked .field-help,
+body.admin-unlocked .panel-caption,
+body.admin-unlocked .payment-account-caption,
+body.admin-unlocked .ops-summary-caption,
+body.admin-unlocked .today-tasks-caption,
+body.admin-unlocked .application-focus-caption,
+body.admin-unlocked .booking-meta,
+body.admin-unlocked .detail-label,
+body.admin-unlocked .ops-card-note,
+body.admin-unlocked .empty-state,
+body.admin-unlocked .session-day-sub,
+body.admin-unlocked .session-day-meta,
+body.admin-unlocked .storage-line,
+body.admin-unlocked .review-board-helper {
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked .panel-head,
+body.admin-unlocked .booking-head,
+body.admin-unlocked .payment-account-head,
+body.admin-unlocked .ops-summary-head,
+body.admin-unlocked .today-tasks-head,
+body.admin-unlocked .application-focus-head,
+body.admin-unlocked .contact-modal-head {
+  background: linear-gradient(180deg, rgba(20, 32, 51, 0.98), rgba(16, 27, 42, 0.94)) !important;
+  border-bottom-color: var(--admin-line) !important;
+}
+
+body.admin-unlocked .data-source-badge.production {
+  background: rgba(66, 212, 154, 0.14) !important;
+  border-color: rgba(66, 212, 154, 0.42) !important;
+  color: #b9f8dc !important;
+}
+
+body.admin-unlocked .data-source-badge.local {
+  background: rgba(240, 185, 88, 0.14) !important;
+  border-color: rgba(240, 185, 88, 0.48) !important;
+  color: #ffe4a6 !important;
+}
+
+body.admin-unlocked #status-line {
+  background: rgba(16, 27, 42, 0.84) !important;
+  border-color: var(--admin-line) !important;
+  color: var(--admin-muted) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18) !important;
+}
+
+body.admin-unlocked .local-preview-banner {
+  background: rgba(240, 185, 88, 0.12) !important;
+  border-color: rgba(240, 185, 88, 0.42) !important;
+  color: #ffe4a6 !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.admin-unlocked .local-preview-banner strong,
+body.admin-unlocked .local-preview-banner span {
+  color: #ffe4a6 !important;
+}
+
+body.admin-unlocked .admin-tabs {
+  background: rgba(12, 21, 34, 0.94) !important;
+}
+
+body.admin-unlocked .admin-tab {
+  background: rgba(255, 255, 255, 0.035) !important;
+  border: 1px solid rgba(148, 163, 184, 0.12) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-unlocked .admin-tab:hover {
+  background: rgba(255, 255, 255, 0.055) !important;
+  border-color: var(--admin-line) !important;
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked .admin-tab.active {
+  background:
+    linear-gradient(135deg, rgba(127, 176, 240, 0.22), rgba(66, 212, 154, 0.16)) !important;
+  border-color: rgba(127, 176, 240, 0.46) !important;
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked .btn {
+  border-color: var(--admin-line-strong) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked .btn:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(226, 232, 240, 0.42) !important;
+}
+
+body.admin-unlocked .btn:not(.primary):not(.green):not(.red):not(.danger):not(.amber):not(.warn) {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: var(--admin-line-strong) !important;
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked .btn:not(.primary):not(.green):not(.red):not(.danger):not(.amber):not(.warn):hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(226, 232, 240, 0.42) !important;
+  color: #ffffff !important;
+}
+
+body.admin-unlocked .btn.primary,
+body.admin-unlocked #admin-lock-btn {
+  background:
+    linear-gradient(135deg, rgba(127, 176, 240, 0.24), rgba(66, 212, 154, 0.18)) !important;
+  border-color: rgba(127, 176, 240, 0.46) !important;
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked #admin-lock-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: var(--admin-line-strong) !important;
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked .btn.green {
+  background: #1ca971 !important;
+  border-color: #1ca971 !important;
+  color: #ffffff !important;
+}
+
+body.admin-unlocked .btn.red,
+body.admin-unlocked .btn.danger,
+body.admin-unlocked button.danger {
+  background: rgba(255, 138, 128, 0.14) !important;
+  border-color: rgba(255, 138, 128, 0.38) !important;
+  color: #ffc4bd !important;
+}
+
+body.admin-unlocked .btn.amber,
+body.admin-unlocked .btn.warn {
+  background: rgba(240, 185, 88, 0.14) !important;
+  border-color: rgba(240, 185, 88, 0.4) !important;
+  color: #ffe4a6 !important;
+}
+
+body.admin-unlocked .btn.muted,
+body.admin-unlocked #clear-key-btn,
+body.admin-unlocked #refresh-btn {
+  background: rgba(255, 255, 255, 0.055) !important;
+  border-color: var(--admin-line) !important;
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked input,
+body.admin-unlocked select,
+body.admin-unlocked textarea {
+  background: rgba(8, 17, 29, 0.92) !important;
+  border-color: var(--admin-line-strong) !important;
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked input::placeholder,
+body.admin-unlocked textarea::placeholder {
+  color: rgba(167, 180, 200, 0.72) !important;
+}
+
+body.admin-unlocked input:focus,
+body.admin-unlocked select:focus,
+body.admin-unlocked textarea:focus {
+  border-color: rgba(127, 176, 240, 0.72) !important;
+  box-shadow: 0 0 0 3px rgba(127, 176, 240, 0.16) !important;
+}
+
+body.admin-unlocked .application-metric,
+body.admin-unlocked .application-storage,
+body.admin-unlocked .recent-applications,
+body.admin-unlocked .today-task,
+body.admin-unlocked .ops-card,
+body.admin-unlocked .stat-card,
+body.admin-unlocked .toolbar,
+body.admin-unlocked .member-group-toolbar,
+body.admin-unlocked .member-card,
+body.admin-unlocked .member-row,
+body.admin-unlocked .member-group-row,
+body.admin-unlocked .review-board-row,
+body.admin-unlocked .review-board-summary,
+body.admin-unlocked .review-board-summary > *,
+body.admin-unlocked .booking-panels,
+body.admin-unlocked .booking-item,
+body.admin-unlocked .session-time,
+body.admin-unlocked .session-booking-group-title,
+body.admin-unlocked .session-day,
+body.admin-unlocked .session-time-card,
+body.admin-unlocked .session-booking-row,
+body.admin-unlocked .recent-application,
+body.admin-unlocked .storage-item,
+body.admin-unlocked .delivery-log-item,
+body.admin-unlocked .operator-export-kv,
+body.admin-unlocked .detail-grid > *,
+body.admin-unlocked .summary,
+body.admin-unlocked .metric,
+body.admin-unlocked .list-item,
+body.admin-unlocked .booking-card,
+body.admin-unlocked .session-booking-group,
+body.admin-unlocked .booking-filter-summary,
+body.admin-unlocked .session-day-detail,
+body.admin-unlocked .contact-line,
+body.admin-unlocked .payment-guide-preview,
+body.admin-unlocked .booking-guide,
+body.admin-unlocked .action-row,
+body.admin-unlocked .operator-template-summary,
+body.admin-unlocked .flow-step,
+body.admin-unlocked .info-section,
+body.admin-unlocked .section-heading,
+body.admin-unlocked .scheduler-item,
+body.admin-unlocked details {
+  background: rgba(20, 32, 51, 0.82) !important;
+  border-color: var(--admin-line) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-unlocked details > summary {
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked label,
+body.admin-unlocked .field label {
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked .member-cell,
+body.admin-unlocked .member-row,
+body.admin-unlocked .review-board-summary strong,
+body.admin-unlocked .booking-panels *,
+body.admin-unlocked .session-time,
+body.admin-unlocked .session-booking-group-title,
+body.admin-unlocked .flow-step *,
+body.admin-unlocked .info-section *,
+body.admin-unlocked .section-heading,
+body.admin-unlocked .scheduler-item {
+  color: var(--admin-text) !important;
+}
+
+body.admin-unlocked .member-cell.strong {
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked .review-board-helper strong,
+body.admin-unlocked .review-board-list strong {
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked .member-cell.muted,
+body.admin-unlocked .member-row-head .member-cell {
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked .member-group-panel,
+body.admin-unlocked .security-panel,
+body.admin-unlocked .storage-panel {
+  overflow: visible !important;
+}
+
+body.admin-unlocked .application-metric-value,
+body.admin-unlocked .application-storage-main,
+body.admin-unlocked .ops-card-value,
+body.admin-unlocked .stat-value,
+body.admin-unlocked .today-task-count,
+body.admin-unlocked .detail-value,
+body.admin-unlocked .contact-value,
+body.admin-unlocked .member-name,
+body.admin-unlocked .recent-application-name,
+body.admin-unlocked .session-booking-name,
+body.admin-unlocked .delivery-log-action,
+body.admin-unlocked .operator-export-value,
+body.admin-unlocked .storage-title,
+body.admin-unlocked .review-board-row,
+body.admin-unlocked .member-group-row,
+body.admin-unlocked .booking-title {
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked .recent-application-meta,
+body.admin-unlocked .recent-application-time,
+body.admin-unlocked .session-booking-meta,
+body.admin-unlocked .delivery-log-time,
+body.admin-unlocked .delivery-log-detail,
+body.admin-unlocked .operator-export-label {
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked .application-storage-line,
+body.admin-unlocked .today-task-note,
+body.admin-unlocked .application-metric-note {
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked .today-tasks {
+  border-left: 1px solid var(--admin-line) !important;
+}
+
+body.admin-unlocked .today-tasks-head {
+  margin: 0 0 14px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+body.admin-unlocked .today-task,
+body.admin-unlocked button.today-task {
+  display: grid !important;
+  align-content: start !important;
+  min-height: 116px !important;
+  padding: 16px !important;
+  border-radius: 16px !important;
+  background: rgba(20, 32, 51, 0.82) !important;
+  border: 1px solid var(--admin-line) !important;
+  color: var(--admin-text) !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+
+body.admin-unlocked .today-task.warning,
+body.admin-unlocked button.today-task.warning {
+  background: rgba(240, 185, 88, 0.13) !important;
+  border-color: rgba(240, 185, 88, 0.4) !important;
+}
+
+body.admin-unlocked .today-task.urgent,
+body.admin-unlocked button.today-task.urgent {
+  background: rgba(255, 138, 128, 0.13) !important;
+  border-color: rgba(255, 138, 128, 0.38) !important;
+}
+
+body.admin-unlocked .today-task.ok,
+body.admin-unlocked button.today-task.ok {
+  background: rgba(66, 212, 154, 0.12) !important;
+  border-color: rgba(66, 212, 154, 0.38) !important;
+  cursor: default !important;
+}
+
+body.admin-unlocked .today-task-kind {
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked .today-task-count {
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked .application-metric-label,
+body.admin-unlocked .application-storage-label,
+body.admin-unlocked .recent-applications-label,
+body.admin-unlocked .ops-card-label,
+body.admin-unlocked .stat-label,
+body.admin-unlocked .today-task-kind {
+  color: var(--admin-subtle) !important;
+}
+
+body.admin-unlocked .member-card:hover,
+body.admin-unlocked .member-row:not(.member-row-head):hover,
+body.admin-unlocked .member-group-row:not(.member-group-row-head):hover,
+body.admin-unlocked .review-board-row:not(.review-board-row-head):hover,
+body.admin-unlocked .booking-item:hover,
+body.admin-unlocked .session-time-card:hover,
+body.admin-unlocked .session-day:hover,
+body.admin-unlocked .recent-application:hover,
+body.admin-unlocked .recent-application:focus-visible,
+body.admin-unlocked tr:hover td {
+  background: rgba(24, 39, 62, 0.98) !important;
+  border-color: rgba(203, 213, 225, 0.3) !important;
+}
+
+body.admin-unlocked .member-card.active,
+body.admin-unlocked .member-group-row.active,
+body.admin-unlocked .session-day.active,
+body.admin-unlocked .session-time-card.selected {
+  border-color: rgba(248, 250, 252, 0.8) !important;
+  box-shadow: 0 0 0 2px rgba(248, 250, 252, 0.12) !important;
+}
+
+body.admin-unlocked .pill,
+body.admin-unlocked .badge,
+body.admin-unlocked .rank-chip,
+body.admin-unlocked .session-status-pill,
+body.admin-unlocked .session-count-chip,
+body.admin-unlocked .legend-chip,
+body.admin-unlocked .tag,
+body.admin-unlocked .chip {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: var(--admin-line) !important;
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked .pill.approved,
+body.admin-unlocked .pill.plan-basic,
+body.admin-unlocked .rank-chip.strong,
+body.admin-unlocked .session-count-chip.confirmed,
+body.admin-unlocked .session-status-pill.open,
+body.admin-unlocked .session-status-pill.full,
+body.admin-unlocked .badge.public,
+body.admin-unlocked .badge.active,
+body.admin-unlocked .badge.license_issued,
+body.admin-unlocked .badge.paid {
+  background: rgba(66, 212, 154, 0.14) !important;
+  border-color: rgba(66, 212, 154, 0.42) !important;
+  color: #b9f8dc !important;
+}
+
+body.admin-unlocked .pill.pending,
+body.admin-unlocked .pill.rejected,
+body.admin-unlocked .rank-chip.waiting,
+body.admin-unlocked .rank-chip.waitlist,
+body.admin-unlocked .session-count-chip.pending,
+body.admin-unlocked .badge.draft,
+body.admin-unlocked .badge.expired,
+body.admin-unlocked .badge.payment_pending {
+  background: rgba(240, 185, 88, 0.14) !important;
+  border-color: rgba(240, 185, 88, 0.42) !important;
+  color: #ffe4a6 !important;
+}
+
+body.admin-unlocked .pill.blacklist,
+body.admin-unlocked .pill.erased,
+body.admin-unlocked .badge.revoked,
+body.admin-unlocked .badge.canceled,
+body.admin-unlocked .badge.refunded {
+  background: rgba(255, 138, 128, 0.14) !important;
+  border-color: rgba(255, 138, 128, 0.38) !important;
+  color: #ffc4bd !important;
+}
+
+body.admin-unlocked .pill.plan-free,
+body.admin-unlocked .pill.plan-full {
+  background: rgba(127, 176, 240, 0.14) !important;
+  border-color: rgba(127, 176, 240, 0.42) !important;
+  color: #cfe4ff !important;
+}
+
+body.admin-unlocked .booking-tabs {
+  background: rgba(8, 17, 29, 0.78) !important;
+  border-color: var(--admin-line) !important;
+}
+
+body.admin-unlocked .member-table,
+body.admin-unlocked .member-group-table,
+body.admin-unlocked .review-board-table {
+  background: transparent !important;
+  color: var(--admin-text) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+body.admin-unlocked .member-list,
+body.admin-unlocked .member-group-list,
+body.admin-unlocked .review-board-list {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+body.admin-unlocked .member-row,
+body.admin-unlocked .member-group-row,
+body.admin-unlocked .review-board-row {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+body.admin-unlocked .member-row {
+  grid-template-columns:
+    32px
+    minmax(78px, 0.72fr)
+    minmax(92px, 0.82fr)
+    minmax(88px, 0.66fr)
+    minmax(72px, 0.54fr)
+    minmax(110px, 0.92fr)
+    minmax(130px, 1fr)
+    minmax(70px, 0.52fr) !important;
+}
+
+body.admin-unlocked #members-panel .member-row {
+  gap: 6px !important;
+  grid-template-columns:
+    24px
+    52px
+    minmax(60px, 0.85fr)
+    minmax(64px, 0.8fr)
+    minmax(48px, 0.64fr)
+    minmax(52px, 0.68fr)
+    minmax(70px, 1fr)
+    76px !important;
+}
+
+body.admin-unlocked .member-group-row {
+  grid-template-columns:
+    44px
+    minmax(88px, 0.78fr)
+    minmax(78px, 0.68fr)
+    minmax(64px, 0.54fr)
+    minmax(58px, 0.5fr)
+    minmax(72px, 0.56fr)
+    minmax(94px, 0.76fr)
+    minmax(80px, 0.64fr)
+    minmax(68px, 0.54fr)
+    minmax(86px, 0.68fr)
+    minmax(140px, 1fr) !important;
+}
+
+body.admin-unlocked .review-board-row {
+  grid-template-columns:
+    42px
+    minmax(108px, 0.9fr)
+    minmax(110px, 0.9fr)
+    minmax(68px, 0.54fr)
+    minmax(80px, 0.6fr)
+    minmax(60px, 0.5fr)
+    minmax(60px, 0.5fr)
+    minmax(60px, 0.5fr)
+    minmax(72px, 0.55fr)
+    minmax(120px, 1fr) !important;
+}
+
+body.admin-unlocked .member-row > *,
+body.admin-unlocked .member-group-row > *,
+body.admin-unlocked .review-board-row > * {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+body.admin-unlocked #members-panel .member-row > * {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+body.admin-unlocked .member-actions,
+body.admin-unlocked .review-board-actions {
+  min-width: 0 !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+}
+
+body.admin-unlocked #members-panel .member-actions .btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  padding-inline: 6px !important;
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+}
+
+body.admin-unlocked .booking-tab {
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked .booking-tab.active {
+  background:
+    linear-gradient(135deg, rgba(127, 176, 240, 0.22), rgba(66, 212, 154, 0.16)) !important;
+  border-color: rgba(127, 176, 240, 0.46) !important;
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked .review-board-row-head,
+body.admin-unlocked .member-row-head,
+body.admin-unlocked .member-group-row-head,
+body.admin-unlocked table,
+body.admin-unlocked th,
+body.admin-unlocked .booking-tab-panel h2 {
+  background: rgba(8, 17, 29, 0.78) !important;
+  color: var(--admin-muted) !important;
+  border-color: var(--admin-line) !important;
+}
+
+body.admin-unlocked td {
+  color: var(--admin-text) !important;
+  border-color: var(--admin-line) !important;
+}
+
+body.admin-unlocked .contact-modal {
+  background: rgba(3, 7, 18, 0.72) !important;
+}
+
+body.admin-unlocked .contact-modal-card {
+  background: #101b2a !important;
+  border-color: var(--admin-line-strong) !important;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.44) !important;
+}
+
+body.admin-unlocked code,
+body.admin-unlocked pre,
+body.admin-unlocked .mono {
+  background: rgba(8, 17, 29, 0.9) !important;
+  border-color: var(--admin-line) !important;
+  color: #cfe4ff !important;
+}
+
+body.admin-unlocked ::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.34);
+}
+
+body.admin-unlocked ::-webkit-scrollbar-thumb:hover {
+  background: rgba(203, 213, 225, 0.48);
+}
+
+@media (max-width: 760px) {
+  body.admin-unlocked {
+    background: #08111d !important;
+  }
+
+  body.admin-unlocked .topbar .top-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.admin-unlocked .panel-head,
+  body.admin-unlocked .booking-head,
+  body.admin-unlocked .payment-account-head,
+  body.admin-unlocked .ops-summary-head,
+  body.admin-unlocked .today-tasks-head,
+  body.admin-unlocked .application-focus-head {
+    margin: 0 0 14px !important;
+    padding: 14px !important;
+    border-radius: 14px !important;
+  }
+
+  body.admin-unlocked .member-table,
+  body.admin-unlocked .member-group-table,
+  body.admin-unlocked .review-board-table {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  body.admin-unlocked .member-row-head,
+  body.admin-unlocked .member-group-row-head,
+  body.admin-unlocked .review-board-row-head {
+    display: none !important;
+  }
+
+  body.admin-unlocked .member-row,
+  body.admin-unlocked .member-group-row,
+  body.admin-unlocked .review-board-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    padding: 12px !important;
+    border: 1px solid var(--admin-line) !important;
+    border-radius: 14px !important;
+    margin-bottom: 10px !important;
+  }
+
+  body.admin-unlocked #members-panel .member-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  body.admin-unlocked #members-panel .member-row > * {
+    overflow: visible !important;
+    overflow-wrap: break-word !important;
+    word-break: keep-all !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+  }
+
+  body.admin-unlocked .member-cell,
+  body.admin-unlocked .member-cell.clip,
+  body.admin-unlocked .member-group-row > *,
+  body.admin-unlocked .review-board-row > * {
+    min-width: 0 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    overflow-wrap: break-word !important;
+    word-break: keep-all !important;
+  }
+
+  body.admin-unlocked .member-actions,
+  body.admin-unlocked .review-board-actions {
+    justify-content: flex-start !important;
+  }
+
+  body.admin-unlocked .booking-panels {
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body.admin-unlocked .booking-tab-panel,
+  body.admin-unlocked .session-time-list,
+  body.admin-unlocked .session-time-card,
+  body.admin-unlocked .session-booking-row {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  body.admin-unlocked .session-time-list {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body.admin-unlocked .session-time-top,
+  body.admin-unlocked .session-time-card > .booking-actions,
+  body.admin-unlocked .session-booking-row .booking-actions {
+    flex-wrap: wrap !important;
+  }
+
+  body.admin-unlocked .member-list,
+  body.admin-unlocked .member-group-list,
+  body.admin-unlocked .review-board-list {
+    overflow-x: hidden !important;
+  }
+}
+
+/* Final UI polish: page-specific copy/contrast/button corrections. */
+body.review-board-page .hero-meta,
+body.review-board-page .hero-meta span,
+body.review-board-page .hero-meta strong {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+body.review-board-page .hero-meta strong {
+  color: #ffffff !important;
+}
+
+body.review-board-page .hero .eyebrow {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 0 0 14px !important;
+}
+
+body.review-board-page .hero .tag {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  border-radius: 6px !important;
+  color: #ffffff !important;
+  line-height: 1.2 !important;
+  padding: 4px 9px !important;
+}
+
+body.review-board-page .hero .eyebrow span:not(.tag) {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+body.yoonbot-page .nav > div:first-child,
+body.yoonbot-page h1 {
+  letter-spacing: 0.03em !important;
+  text-transform: uppercase;
+}
+
+body.yoonbot-page .btn,
+body.yoonbot-page .button,
+body.yoonbot-page .nav-links a {
+  border-radius: 8px !important;
+}
+
+body.review-board-page .button {
+  border-radius: 8px !important;
+}
+
+body.admin-unlocked .btn,
+body.admin-unlocked button.btn,
+body.admin-unlocked .top-actions .btn,
+body.admin-unlocked .member-actions .btn,
+body.admin-unlocked .review-board-actions .btn,
+body.admin-unlocked .booking-actions .btn {
+  border-radius: 8px !important;
+}
+
+body.admin-unlocked .admin-tab,
+body.admin-unlocked .booking-tab {
+  border-radius: 10px !important;
+}
+
+body.admin-unlocked button.today-task,
+body.admin-unlocked button.ops-card,
+body.admin-unlocked .ops-card.actionable {
+  border-radius: 10px !important;
+}
+
+body.admin-unlocked #review-board-panel .panel-head {
+  display: grid !important;
+  grid-template-columns: minmax(260px, 1fr) minmax(360px, auto) !important;
+  gap: 40px !important;
+  align-items: start !important;
+  margin: 0 0 18px !important;
+  padding: 22px 20px !important;
+  border-radius: 16px 16px 0 0 !important;
+  background: linear-gradient(180deg, rgba(20, 32, 51, 0.98), rgba(16, 27, 42, 0.94)) !important;
+  border-bottom: 1px solid var(--admin-line) !important;
+}
+
+body.admin-unlocked #review-board-panel .panel-head > div:first-child {
+  min-width: 0 !important;
+  padding-right: 10px !important;
+}
+
+body.admin-unlocked #review-board-panel .panel-title {
+  margin: 0 0 8px !important;
+  line-height: 1.18 !important;
+}
+
+body.admin-unlocked #review-board-panel .panel-caption {
+  margin: 0 !important;
+  max-width: 560px !important;
+}
+
+body.admin-unlocked #review-board-panel .top-actions {
+  align-items: flex-start !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  max-width: 650px !important;
+  min-width: 0 !important;
+}
+
+body.admin-unlocked #member-groups-panel .panel-head {
+  margin: 0 0 18px !important;
+  padding: 22px 20px !important;
+  border-radius: 16px 16px 0 0 !important;
+  background: linear-gradient(180deg, rgba(20, 32, 51, 0.98), rgba(16, 27, 42, 0.94)) !important;
+  border-bottom: 1px solid var(--admin-line) !important;
+}
+
+body.admin-unlocked #member-groups-panel .panel-title {
+  margin: 0 0 8px !important;
+  line-height: 1.18 !important;
+}
+
+body.admin-unlocked #member-groups-panel .panel-caption {
+  margin: 0 !important;
+}
+
+@media (max-width: 980px) {
+  body.admin-unlocked #review-board-panel .panel-head {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  body.admin-unlocked #review-board-panel .top-actions {
+    justify-content: flex-start !important;
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 760px) {
+  body.admin-unlocked #dashboard:not(.hidden) {
+    display: block !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body.admin-unlocked .admin-tabs {
+    position: relative !important;
+    top: auto !important;
+    grid-column: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 0 16px !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.admin-unlocked .admin-tabs::before {
+    grid-column: 1 / -1 !important;
+  }
+
+  body.admin-unlocked .admin-tab-panel {
+    grid-column: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  body.admin-unlocked .admin-tab-panel > .panel,
+  body.admin-unlocked #member-groups-panel .panel-head,
+  body.admin-unlocked #member-groups-panel .member-group-toolbar,
+  body.admin-unlocked #member-groups-panel .member-group-table,
+  body.admin-unlocked #member-groups-panel .member-group-row {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+body.ops-tool-page {
+  color-scheme: dark !important;
+  --bg: #090d14 !important;
+  --surface: #101722 !important;
+  --surface-soft: #151f2d !important;
+  --surface-raised: #1b2635 !important;
+  --border: #2b394b !important;
+  --border-strong: #41536a !important;
+  --text: #eef4ff !important;
+  --muted: #b8c6d9 !important;
+  --subtle: #94a5bc !important;
+  --primary: #4f83cc !important;
+  --primary-strong: #78a7e5 !important;
+  --primary-soft: #132b4c !important;
+  --green: #24966f !important;
+  --green-strong: #4fc79a !important;
+  --green-soft: #102f27 !important;
+  --amber: #c68a35 !important;
+  --amber-strong: #e7b866 !important;
+  --amber-soft: #342817 !important;
+  --red: #c75b53 !important;
+  --red-strong: #e58a84 !important;
+  --red-soft: #351d1d !important;
+  --shadow: 0 16px 38px rgba(0, 0, 0, 0.34) !important;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(79, 131, 204, 0.13), transparent 25rem),
+    linear-gradient(180deg, #090d14 0%, #0b121e 48%, #090d14 100%) !important;
+  color: var(--text) !important;
+}
+
+body.ops-tool-page h1,
+body.ops-tool-page h2,
+body.ops-tool-page h3,
+body.ops-tool-page strong,
+body.ops-tool-page th,
+body.ops-tool-page td,
+body.ops-tool-page label {
+  color: var(--text) !important;
+}
+
+body.ops-tool-page p,
+body.ops-tool-page .muted,
+body.ops-tool-page .status-line,
+body.ops-tool-page .empty {
+  color: var(--muted) !important;
+}
+
+body.ops-tool-page .panel,
+body.ops-tool-page .table-wrap,
+body.ops-tool-page .banner,
+body.ops-tool-page .key-box,
+body.ops-tool-page table {
+  background: rgba(16, 23, 34, 0.94) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+body.ops-tool-page th {
+  background: #151f2d !important;
+  color: var(--subtle) !important;
+}
+
+body.ops-tool-page td {
+  border-color: var(--border) !important;
+}
+
+body.ops-tool-page input,
+body.ops-tool-page select,
+body.ops-tool-page textarea {
+  background: #0e1726 !important;
+  border-color: var(--border) !important;
+  border-radius: 6px !important;
+  color: var(--text) !important;
+}
+
+body.ops-tool-page input:focus,
+body.ops-tool-page select:focus,
+body.ops-tool-page textarea:focus {
+  border-color: var(--primary-strong) !important;
+  box-shadow: 0 0 0 3px rgba(79, 131, 204, 0.22) !important;
+}
+
+body.ops-tool-page button,
+body.ops-tool-page .button-link {
+  min-height: 38px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--border-strong) !important;
+  background: var(--surface-raised) !important;
+  color: var(--text) !important;
+  padding: 9px 12px !important;
+  line-height: 1.25 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+body.ops-tool-page button:hover,
+body.ops-tool-page .button-link:hover {
+  background: #223149 !important;
+  border-color: var(--primary-strong) !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+body.ops-tool-page button.primary {
+  background: var(--primary) !important;
+  border-color: var(--primary-strong) !important;
+  color: #ffffff !important;
+}
+
+body.ops-tool-page button.green {
+  background: var(--green-soft) !important;
+  border-color: var(--green) !important;
+  color: var(--green-strong) !important;
+}
+
+body.ops-tool-page button.warn {
+  background: var(--amber-soft) !important;
+  border-color: var(--amber) !important;
+  color: var(--amber-strong) !important;
+}
+
+body.ops-tool-page button.danger {
+  background: var(--red-soft) !important;
+  border-color: var(--red) !important;
+  color: var(--red-strong) !important;
+}
+
+body.ops-tool-page #refresh-btn,
+body.ops-tool-page #clear-key-btn,
+body.ops-tool-page #copy-key-btn,
+body.ops-tool-page #copy-message-btn,
+body.ops-tool-page td button,
+body.ops-tool-page .small-actions button {
+  border-radius: 4px !important;
+}
+
+body.ops-tool-page .badge {
+  border-radius: 4px !important;
+}
+
+/* Admin full-tab audit polish: keep every operator panel header inside its card
+   and force generated detail surfaces onto the dark console palette. */
+body.admin-unlocked .panel {
+  overflow: hidden !important;
+}
+
+body.admin-unlocked .panel-head,
+body.admin-unlocked .booking-head,
+body.admin-unlocked .payment-account-head,
+body.admin-unlocked .ops-summary-head,
+body.admin-unlocked .today-tasks-head,
+body.admin-unlocked .application-focus-head,
+body.admin-unlocked .contact-modal-head {
+  margin: 0 0 18px !important;
+  padding: 22px 20px !important;
+  border-radius: 16px 16px 0 0 !important;
+  background: linear-gradient(180deg, rgba(20, 32, 51, 0.98), rgba(16, 27, 42, 0.94)) !important;
+  border-bottom: 1px solid var(--admin-line) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-unlocked .panel-title,
+body.admin-unlocked .payment-account-title,
+body.admin-unlocked .booking-head h2,
+body.admin-unlocked .ops-summary-title,
+body.admin-unlocked .today-tasks-title,
+body.admin-unlocked .application-focus-title,
+body.admin-unlocked .contact-modal-title {
+  margin: 0 0 8px !important;
+  color: var(--admin-ink) !important;
+  line-height: 1.18 !important;
+}
+
+body.admin-unlocked .panel-caption,
+body.admin-unlocked .payment-account-caption,
+body.admin-unlocked .ops-summary-caption,
+body.admin-unlocked .today-tasks-caption,
+body.admin-unlocked .application-focus-caption {
+  margin: 0 !important;
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked #members-panel .list-panel,
+body.admin-unlocked #members-panel .detail-panel,
+body.admin-unlocked #schedule-panel .booking-panel,
+body.admin-unlocked #system-panel .system-panel,
+body.admin-unlocked #today-panel > .panel {
+  background: rgba(16, 27, 42, 0.92) !important;
+  border-color: var(--admin-line) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-unlocked .detail-panel,
+body.admin-unlocked .detail-body {
+  background: rgba(16, 27, 42, 0.92) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-unlocked .detail-empty {
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked .detail-top,
+body.admin-unlocked .action-row,
+body.admin-unlocked .result-box,
+body.admin-unlocked .detail-section,
+body.admin-unlocked .info-section,
+body.admin-unlocked .info-fields,
+body.admin-unlocked .kv,
+body.admin-unlocked .kv dt,
+body.admin-unlocked .kv dd,
+body.admin-unlocked .section-heading,
+body.admin-unlocked .delivery-log-list,
+body.admin-unlocked .delivery-log-item,
+body.admin-unlocked .contact-lines,
+body.admin-unlocked .contact-line {
+  background: rgba(20, 32, 51, 0.86) !important;
+  border-color: var(--admin-line) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-unlocked .section-heading {
+  border-bottom: 1px solid var(--admin-line) !important;
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked .kv dt,
+body.admin-unlocked .detail-id,
+body.admin-unlocked .delivery-log-time,
+body.admin-unlocked .delivery-log-detail,
+body.admin-unlocked .detail-section p {
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked .kv dd,
+body.admin-unlocked .detail-name,
+body.admin-unlocked .delivery-log-action,
+body.admin-unlocked .contact-value,
+body.admin-unlocked .detail-section h3 {
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked .btn:disabled,
+body.admin-unlocked button:disabled,
+body.admin-unlocked .btn[disabled],
+body.admin-unlocked .btn:disabled:not(.primary):not(.green):not(.red):not(.danger):not(.amber):not(.warn),
+body.admin-unlocked .btn[disabled]:not(.primary):not(.green):not(.red):not(.danger):not(.amber):not(.warn) {
+  background: #18273e !important;
+  border-color: #31445d !important;
+  color: #d6e2f1 !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+body.admin-unlocked .toolbar,
+body.admin-unlocked .member-group-toolbar,
+body.admin-unlocked .operator-template-row,
+body.admin-unlocked .session-form,
+body.admin-unlocked .booking-tabs,
+body.admin-unlocked .booking-panels {
+  background: rgba(16, 27, 42, 0.84) !important;
+  border-color: var(--admin-line) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-unlocked #review-board-panel .review-board-list {
+  display: grid !important;
+  gap: 14px !important;
+  margin-top: 18px !important;
+  padding: 18px !important;
+  border-top: 1px solid var(--admin-line) !important;
+  border-radius: 0 0 16px 16px !important;
+  background: rgba(8, 17, 29, 0.34) !important;
+  overflow: auto !important;
+}
+
+body.admin-unlocked #review-board-panel .review-board-list > .review-board-helper {
+  display: grid !important;
+  gap: 10px !important;
+  margin: 0 !important;
+  padding: 16px !important;
+  border: 1px solid var(--admin-line) !important;
+  border-radius: 14px !important;
+  background: rgba(20, 32, 51, 0.86) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-unlocked #review-board-panel .review-board-list > .review-board-helper + .review-board-helper {
+  margin-top: 0 !important;
+}
+
+body.admin-unlocked #review-board-panel .review-board-list > .review-board-helper strong {
+  color: var(--admin-ink) !important;
+  line-height: 1.25 !important;
+}
+
+body.admin-unlocked #review-board-panel .review-board-list > .review-board-helper .muted {
+  margin-top: 0 !important;
+  color: var(--admin-muted) !important;
+  line-height: 1.5 !important;
+}
+
+body.admin-unlocked #review-board-panel .review-board-list > .review-board-helper .review-board-actions {
+  gap: 10px !important;
+  margin-top: 2px !important;
+  padding-top: 8px !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
+body.admin-unlocked #review-board-panel .review-board-list .legend-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-height: 34px !important;
+  max-width: 100% !important;
+  padding: 7px 10px !important;
+  white-space: normal !important;
+  overflow-wrap: break-word !important;
+  word-break: keep-all !important;
+}
+
+body.admin-unlocked #review-board-panel .review-board-table,
+body.admin-unlocked #review-board-panel .empty-state {
+  margin-top: 2px !important;
+}
+
+@media (max-width: 760px) {
+  body.admin-unlocked .panel-head,
+  body.admin-unlocked .booking-head,
+  body.admin-unlocked .payment-account-head,
+  body.admin-unlocked .ops-summary-head,
+  body.admin-unlocked .today-tasks-head,
+  body.admin-unlocked .application-focus-head,
+  body.admin-unlocked .contact-modal-head {
+    margin: 0 0 14px !important;
+    padding: 16px !important;
+    border-radius: 14px 14px 0 0 !important;
+  }
+
+  body.admin-unlocked #review-board-panel .review-board-list {
+    gap: 12px !important;
+    margin-top: 14px !important;
+    padding: 14px !important;
+  }
+
+  body.admin-unlocked #review-board-panel .review-board-list > .review-board-helper {
+    padding: 14px !important;
+  }
+}

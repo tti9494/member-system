@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YOONBOT 카카오톡 자동 프로그램</title>
+  <link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css">
+  <script src="assets/theme-loader.js?v=20260614-modern-bundle"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #101722;
+      --muted: #516070;
+      --line: #d8e0ea;
+      --paper: #f7f9fc;
+      --white: #ffffff;
+      --blue: #2463eb;
+      --blue-soft: #e8f0ff;
+      --green: #0f8f62;
+      --green-soft: #e7f8ef;
+      --amber: #b66b05;
+      --amber-soft: #fff3d8;
+      --red: #b42318;
+      --shadow: 0 18px 52px rgba(22, 34, 51, 0.16);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.58;
+      letter-spacing: 0;
+    }
+    a { color: inherit; }
+    .hero {
+      min-height: 86vh;
+      display: grid;
+      align-items: end;
+      position: relative;
+      background:
+        linear-gradient(90deg, rgba(247, 249, 252, 0.96) 0%, rgba(247, 249, 252, 0.84) 36%, rgba(247, 249, 252, 0.25) 64%, rgba(247, 249, 252, 0.08) 100%),
+        url("/frontend/assets/yoonbot-hero.png") center / cover no-repeat;
+    }
+    .nav {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 22px clamp(18px, 5vw, 58px);
+      font-weight: 850;
+    }
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+      font-size: 14px;
+      color: #243245;
+    }
+    .nav-links a {
+      padding: 9px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(216, 224, 234, 0.86);
+    }
+    .hero-inner {
+      width: min(1180px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 118px 0 72px;
+    }
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--blue);
+      font-weight: 900;
+      font-size: 14px;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0;
+      max-width: 680px;
+      font-size: clamp(48px, 8vw, 92px);
+      line-height: 0.96;
+      letter-spacing: 0;
+    }
+    .lead {
+      max-width: 620px;
+      margin: 22px 0 0;
+      font-size: 21px;
+      color: #263446;
+      font-weight: 650;
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 28px;
+    }
+    .btn {
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 16px;
+      background: var(--white);
+      color: var(--ink);
+      text-decoration: none;
+      font: inherit;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .btn.primary {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+    .btn.green {
+      background: var(--green);
+      color: #fff;
+      border-color: var(--green);
+    }
+    main {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 36px 0 64px;
+    }
+    section { margin-top: 28px; }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 30px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+    p { margin: 0; color: var(--muted); }
+    .band {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 18px;
+      align-items: start;
+    }
+    .feature-grid, .plan-grid, .faq-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .feature, .plan, .faq, .order-box, .notice {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      box-shadow: 0 10px 28px rgba(22, 34, 51, 0.07);
+    }
+    .feature strong, .faq strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 17px;
+    }
+    .plan {
+      position: relative;
+      cursor: pointer;
+    }
+    .plan input {
+      position: absolute;
+      inset: 16px 16px auto auto;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--blue);
+    }
+    .plan.selected {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(36, 99, 235, 0.14), 0 10px 28px rgba(22, 34, 51, 0.07);
+    }
+    .price {
+      margin-top: 10px;
+      font-size: 28px;
+      font-weight: 900;
+    }
+    .tag {
+      display: inline-flex;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .tag.green { background: var(--green-soft); color: var(--green); }
+    .tag.amber { background: var(--amber-soft); color: var(--amber); }
+    label {
+      display: block;
+      margin: 12px 0 6px;
+      font-size: 13px;
+      color: #334155;
+      font-weight: 850;
+    }
+    input, textarea {
+      width: 100%;
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      padding: 11px 12px;
+      font: inherit;
+      background: #fff;
+      color: var(--ink);
+    }
+    textarea {
+      min-height: 88px;
+      resize: vertical;
+    }
+    input:focus, textarea:focus {
+      border-color: var(--blue);
+      outline: 3px solid rgba(36, 99, 235, 0.14);
+    }
+    .check {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      margin-top: 12px;
+      color: #334155;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .check input {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      accent-color: var(--blue);
+      flex: 0 0 auto;
+    }
+    .order-result {
+      margin-top: 12px;
+      padding: 13px;
+      border-radius: 8px;
+      background: var(--green-soft);
+      border: 1px solid #a9e6c7;
+      color: #075238;
+      white-space: pre-wrap;
+      font-weight: 750;
+    }
+    .order-result.error {
+      background: #fff0ef;
+      border-color: #ffccc7;
+      color: var(--red);
+    }
+    .steps {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .step {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+    .step span {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-weight: 900;
+    }
+    .notice {
+      background: #fffdf7;
+      border-color: #f5d38b;
+    }
+    .notice strong {
+      display: block;
+      color: var(--amber);
+      margin-bottom: 8px;
+    }
+    footer {
+      margin-top: 34px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    @media (max-width: 920px) {
+      .hero { min-height: 78vh; background-position: 58% center; }
+      .band, .feature-grid, .plan-grid, .faq-grid { grid-template-columns: 1fr; }
+      .nav { align-items: flex-start; }
+      .nav-links { gap: 6px; }
+      .nav-links a { padding: 8px 9px; }
+      .lead { font-size: 18px; }
+    }
+  </style>
+</head>
+<body class="yoonbot-page">
+  <header class="hero">
+    <nav class="nav">
+      <div>YOONBOT</div>
+      <div class="nav-links">
+        <a href="#plans">요금제</a>
+        <a href="#order">구매 신청</a>
+      </div>
+    </nav>
+    <div class="hero-inner">
+      <p class="eyebrow">카카오톡 자동 프로그램</p>
+      <h1>YOONBOT</h1>
+      <p class="lead">카카오톡 반복 업무를 자동으로 처리하고, 서버 라이선스로 안전하게 운영하는 Windows 자동화 프로그램입니다.</p>
+      <div class="hero-actions">
+        <a class="btn primary" href="#order">구매 신청</a>
+        <a class="btn" href="#flow">발급 방식 보기</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>카카오톡 반복 업무를 줄입니다</h2>
+      <div class="feature-grid">
+        <div class="feature"><strong>카카오톡 자동 실행</strong><p>정해진 작업 순서를 실행하고 성공/실패 상태를 확인할 수 있는 운영형 자동화에 맞춥니다.</p></div>
+        <div class="feature"><strong>서버 라이선스 인증</strong><p>라이선스 키와 PC 기기값을 서버에서 확인해 무단 공유와 중복 사용을 줄입니다.</p></div>
+        <div class="feature"><strong>관리자 발급 이력</strong><p>결제 확인, 라이선스 발급, 기기 초기화, 회수 내역을 관리자 페이지에서 관리합니다.</p></div>
+      </div>
+    </section>
+
+    <section id="plans">
+      <h2>요금제</h2>
+      <p>초기 MVP는 수동 계좌이체와 관리자 결제 확인 방식으로 운영합니다. 실제 PG 자동 결제는 별도 공지 후 연결됩니다.</p>
+      <div class="plan-grid" id="plan-grid" style="margin-top:14px;">
+        <label class="plan selected">
+          <input type="radio" name="plan" value="monthly" checked>
+          <span class="tag">추천</span>
+          <h3>Monthly</h3>
+          <p>1개월 라이선스</p>
+          <div class="price">99,000원</div>
+        </label>
+        <label class="plan">
+          <input type="radio" name="plan" value="yearly">
+          <span class="tag green">장기 운영</span>
+          <h3>Yearly</h3>
+          <p>12개월 라이선스</p>
+          <div class="price">990,000원</div>
+        </label>
+        <label class="plan">
+          <input type="radio" name="plan" value="trial">
+          <span class="tag amber">검토용</span>
+          <h3>Trial</h3>
+          <p>운영자 승인 후 7일 테스트</p>
+          <div class="price">0원</div>
+        </label>
+      </div>
+    </section>
+
+    <section class="band" id="order">
+      <div>
+        <h2>구매 신청</h2>
+        <p>신청이 접수되면 운영자가 결제 안내를 확인한 뒤 라이선스를 발급합니다. 라이선스 키는 발급 순간 한 번만 표시되며, 고객에게 직접 안내합니다.</p>
+        <div class="steps" id="flow">
+          <div class="step"><span>1</span><p>구매 신청을 남기고 결제 안내를 확인합니다.</p></div>
+          <div class="step"><span>2</span><p>관리자가 입금 또는 결제 상태를 확인합니다.</p></div>
+          <div class="step"><span>3</span><p>확인된 주문에 라이선스를 발급하고 Windows YOONBOT에 입력합니다.</p></div>
+          <div class="step"><span>4</span><p>처음 등록한 PC 기준으로 activate/verify가 진행됩니다.</p></div>
+        </div>
+      </div>
+
+      <form class="order-box" id="order-form">
+        <label for="buyer-name">이름</label>
+        <input id="buyer-name" name="buyer_name" autocomplete="name" required>
+        <label for="buyer-email">이메일</label>
+        <input id="buyer-email" name="buyer_email" type="email" autocomplete="email" placeholder="license@example.com">
+        <label for="buyer-phone">전화번호</label>
+        <input id="buyer-phone" name="buyer_phone" inputmode="tel" autocomplete="tel" placeholder="010-0000-0000">
+        <label for="customer-message">요청 메모</label>
+        <textarea id="customer-message" name="customer_message" placeholder="사용 목적, 필요한 시작일, 문의사항"></textarea>
+        <label class="check">
+          <input id="consent-privacy" type="checkbox" required>
+          <span>구매 신청 처리와 라이선스 발급을 위한 개인정보 수집에 동의합니다.</span>
+        </label>
+        <label class="check">
+          <input id="consent-terms" type="checkbox" required>
+          <span>수동 결제 확인 후 라이선스가 발급되는 MVP 운영 방식에 동의합니다.</span>
+        </label>
+        <button class="btn green" type="submit" style="width:100%; margin-top:14px;">신청 접수</button>
+        <div id="order-result" class="order-result" hidden></div>
+      </form>
+    </section>
+
+    <section>
+      <div class="notice">
+        <strong>환불, 취소, 기기 변경</strong>
+        <p>라이선스 발급 전 취소는 운영자 확인 후 처리합니다. 발급 후 환불은 사용 상태와 기간을 확인해 별도 안내합니다. PC 교체가 필요한 경우 관리자 기기 초기화 후 새 PC에서 다시 인증합니다.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>FAQ</h2>
+      <div class="faq-grid">
+        <div class="faq"><strong>자동 결제인가요?</strong><p>현재는 수동 결제 확인 방식입니다. PG 연동 전까지 운영자가 결제 확인 후 라이선스를 발급합니다.</p></div>
+        <div class="faq"><strong>키를 여러 PC에서 쓸 수 있나요?</strong><p>기본 라이선스는 1대 PC 기준입니다. 다른 PC에서 사용하려면 기기 초기화가 필요합니다.</p></div>
+        <div class="faq"><strong>라이선스 서버 주소는 무엇인가요?</strong><p>Windows YOONBOT 운영 설정의 <code>LICENSE_API_URL</code>은 <code>https://apply.arsen-ai.com</code>입니다.</p></div>
+      </div>
+    </section>
+
+    <footer>
+      YOONBOT 카카오톡 자동 프로그램 MVP. 실제 카카오톡 자동 발송은 운영자 승인 전 실행하지 않습니다.
+    </footer>
+  </main>
+
+  <script>
+    const resultEl = document.getElementById("order-result");
+
+    function selectedPlan() {
+      return document.querySelector("input[name='plan']:checked")?.value || "monthly";
+    }
+
+    function setResult(message, isError = false) {
+      resultEl.hidden = false;
+      resultEl.textContent = message;
+      resultEl.classList.toggle("error", isError);
+    }
+
+    document.querySelectorAll(".plan").forEach((plan) => {
+      plan.addEventListener("click", () => {
+        document.querySelectorAll(".plan").forEach((item) => item.classList.remove("selected"));
+        plan.classList.add("selected");
+        plan.querySelector("input").checked = true;
+      });
+    });
+
+    document.getElementById("order-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setResult("신청을 접수하는 중입니다...");
+      const body = {
+        product_code: "yoonbot",
+        plan_code: selectedPlan(),
+        buyer_name: document.getElementById("buyer-name").value.trim(),
+        buyer_email: document.getElementById("buyer-email").value.trim(),
+        buyer_phone: document.getElementById("buyer-phone").value.trim(),
+        customer_message: document.getElementById("customer-message").value.trim(),
+        consent_privacy: document.getElementById("consent-privacy").checked,
+        consent_terms: document.getElementById("consent-terms").checked,
+      };
+      try {
+        const response = await fetch("/api/yoonbot/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.detail || "신청 접수에 실패했습니다.");
+        const order = payload.data;
+        setResult([
+          "신청이 접수되었습니다.",
+          `주문번호: ${order.id}`,
+          `결제 메모: ${order.payment_ref}`,
+          `플랜: ${order.plan_code}`,
+          `금액: ${Number(order.amount_krw).toLocaleString("ko-KR")}원`,
+          "관리자가 확인 후 결제 안내와 라이선스 발급을 진행합니다.",
+        ].join("\n"));
+        event.target.reset();
+      } catch (error) {
+        setResult(error.message, true);
+      }
+    });
+  </script>
+</body>
+</html>

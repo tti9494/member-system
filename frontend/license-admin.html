@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YOONBOT 라이선스 관리</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090d14;
+      --surface: #101722;
+      --surface-soft: #151f2d;
+      --surface-raised: #1b2635;
+      --border: #2b394b;
+      --border-strong: #41536a;
+      --text: #eef4ff;
+      --muted: #b8c6d9;
+      --subtle: #94a5bc;
+      --primary: #4f83cc;
+      --primary-strong: #78a7e5;
+      --primary-soft: #132b4c;
+      --green: #24966f;
+      --green-strong: #4fc79a;
+      --green-soft: #102f27;
+      --amber: #c68a35;
+      --amber-strong: #e7b866;
+      --amber-soft: #342817;
+      --red: #c75b53;
+      --red-strong: #e58a84;
+      --red-soft: #351d1d;
+      --shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    main {
+      width: min(1480px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 48px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    h1 { margin: 0 0 8px; font-size: 32px; line-height: 1.15; letter-spacing: -0.01em; }
+    p { margin: 0; line-height: 1.6; color: var(--muted); }
+    a { color: var(--primary-strong); }
+    .top-grid {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 16px;
+    }
+    .issue-grid {
+      display: grid;
+      grid-template-columns: minmax(260px, 1.1fr) minmax(220px, 0.9fr) minmax(220px, 0.9fr);
+      gap: 10px;
+      align-items: start;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+    .panel + .panel { margin-top: 14px; }
+    .top-grid .panel + .panel { margin-top: 0; }
+    h2 { margin: 0 0 12px; font-size: 18px; letter-spacing: 0; }
+    label {
+      display: block;
+      margin: 12px 0 6px;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--muted);
+    }
+    input, select, textarea {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 11px;
+      font: inherit;
+      color: var(--text);
+      background: #0e1726;
+    }
+    textarea { min-height: 76px; resize: vertical; }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary-strong);
+      outline: 3px solid rgba(79, 131, 204, 0.22);
+      outline-offset: 1px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    button, .button-link {
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      background: var(--surface-raised);
+      color: var(--text);
+      padding: 10px 12px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    button:hover, .button-link:hover { opacity: 0.88; }
+    button.primary { background: var(--primary); color: #05111f; border-color: var(--primary-strong); }
+    button.danger { color: var(--red-strong); border-color: var(--red); background: var(--red-soft); }
+    button.warn { color: var(--amber-strong); border-color: var(--amber); background: var(--amber-soft); }
+    .status-line {
+      min-height: 22px;
+      margin: 0 0 14px;
+      color: var(--subtle);
+      font-weight: 700;
+    }
+    .banner {
+      margin: 12px 0 0;
+      padding: 12px;
+      border-radius: 10px;
+      background: var(--primary-soft);
+      border: 1px solid var(--border-strong);
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .banner.success {
+      background: var(--green-soft);
+      border-color: var(--green);
+      color: var(--green-strong);
+    }
+    .banner.error {
+      background: var(--red-soft);
+      border-color: var(--red);
+      color: var(--red-strong);
+      white-space: pre-wrap;
+    }
+    .key-box {
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px dashed var(--primary-strong);
+      border-radius: 10px;
+      background: var(--surface-soft);
+    }
+    .key-box code {
+      display: block;
+      margin-top: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 16px;
+      overflow-wrap: anywhere;
+      color: var(--primary-strong);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: var(--surface);
+    }
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--subtle);
+      font-size: 12px;
+      text-transform: uppercase;
+      background: var(--surface-soft);
+    }
+    .badge {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 800;
+      background: var(--surface-raised);
+      color: var(--muted);
+    }
+    .badge.active { background: var(--green-soft); color: var(--green-strong); }
+    .badge.unused { background: var(--primary-soft); color: var(--primary-strong); }
+    .badge.revoked { background: var(--red-soft); color: var(--red-strong); }
+    .badge.expired { background: var(--amber-soft); color: var(--amber-strong); }
+    .muted { color: var(--subtle); font-size: 13px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .list-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .list-toolbar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      align-items: end;
+      min-width: min(100%, 1120px);
+    }
+    .list-toolbar label { margin-top: 0; }
+    .list-toolbar button { align-self: end; }
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      max-width: 100%;
+    }
+    .license-table {
+      min-width: 1180px;
+      table-layout: auto;
+    }
+    .license-table th,
+    .license-table td {
+      white-space: nowrap;
+    }
+    .license-table th:nth-child(9),
+    .license-table td:nth-child(9) {
+      min-width: 250px;
+    }
+    .empty { padding: 28px; text-align: center; color: var(--subtle); }
+    .small-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .small-actions button { padding: 7px 8px; font-size: 12px; }
+    @media (max-width: 900px) {
+      main { width: min(100% - 20px, 1180px); }
+      header, .top-grid, .issue-grid { grid-template-columns: 1fr; display: grid; }
+      .row { grid-template-columns: 1fr; }
+      .list-toolbar { grid-template-columns: 1fr; width: 100%; }
+    }
+  </style>
+<link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css">
+<script src="assets/theme-loader.js?v=20260614-modern-bundle"></script>
+</head>
+<body class="ops-tool-page license-admin-page">
+<main>
+  <header>
+    <div>
+      <h1>YOONBOT 라이선스 관리</h1>
+      <p>유료 배포용 라이선스 키를 발급하고 Windows 앱의 활성화 상태를 확인합니다. 결제 확인은 MVP 단계에서 수동으로 처리합니다.</p>
+    </div>
+    <div class="actions" style="margin-top:0;">
+      <a class="button-link" href="/frontend/payment-admin.html">결제/주문 관리</a>
+      <a class="button-link" href="/frontend/admin.html">ARSEN 관리자</a>
+    </div>
+  </header>
+
+  <div id="status" class="status-line">관리자 비밀번호를 입력한 뒤 라이선스 목록을 불러오세요.</div>
+
+  <div class="top-grid">
+    <section class="panel">
+      <h2>관리자 연결</h2>
+      <label for="admin-key">관리자 비밀번호</label>
+      <input id="admin-key" type="password" autocomplete="off" placeholder="X-Admin-Key">
+      <label>
+        <input id="remember-key" type="checkbox" style="width:auto; margin-right:6px;">
+        이 브라우저에 기억
+      </label>
+      <div class="actions">
+        <button class="primary" id="load-btn" type="button">목록 불러오기</button>
+        <button id="clear-key-btn" type="button">비밀번호 지우기</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>라이선스 발급</h2>
+      <div class="issue-grid">
+        <div>
+          <label for="member-search">회원 검색</label>
+          <input id="member-search" type="search" autocomplete="off" placeholder="이름, 전화번호, 회원번호">
+          <label for="member-id">연결할 회원</label>
+          <select id="member-id">
+            <option value="">회원 연결 안 함</option>
+          </select>
+          <div class="muted" id="member-select-help" style="margin-top:6px;">목록 불러오기 후 회원을 선택할 수 있습니다.</div>
+        </div>
+        <div>
+          <label for="plan-code">플랜</label>
+          <select id="plan-code">
+            <option value="basic">basic</option>
+            <option value="pro">pro</option>
+            <option value="team">team</option>
+            <option value="trial">trial</option>
+          </select>
+          <label for="max-devices">허용 기기 수</label>
+          <input id="max-devices" type="number" min="1" value="1">
+        </div>
+        <div>
+          <label for="expires-at">만료일</label>
+          <input id="expires-at" type="datetime-local">
+          <label for="app-min-version">최소 앱 버전</label>
+          <input id="app-min-version" type="text" placeholder="예: 1.0.0">
+        </div>
+      </div>
+      <label for="note">운영 메모</label>
+      <textarea id="note" placeholder="결제 확인, 고객명, 판매 채널 등 운영용 메모"></textarea>
+      <div class="actions">
+        <button class="primary" id="create-btn" type="button">라이선스 발급</button>
+      </div>
+      <div id="created-key" class="key-box" hidden>
+        <strong>발급된 키는 지금 한 번만 표시됩니다.</strong>
+        <code id="created-key-text"></code>
+        <div class="actions">
+          <button id="copy-key-btn" type="button">키 복사</button>
+        </div>
+      </div>
+      <div class="banner">
+        Windows YOONBOT은 <span class="mono">/api/license/activate</span>에서 최초 등록하고,
+        응답의 <span class="mono">activation_token</span>을 저장한 뒤,
+        이후 <span class="mono">/api/license/verify</span>를 Bearer 토큰으로 호출하도록 연결하면 됩니다.
+      </div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="list-header">
+      <h2>발급 목록</h2>
+      <div class="list-toolbar">
+        <div>
+          <label for="status-filter">상태 필터</label>
+          <select id="status-filter">
+            <option value="">전체</option>
+            <option value="unused">미사용</option>
+            <option value="active">활성</option>
+            <option value="expired">만료</option>
+            <option value="revoked">회수</option>
+          </select>
+        </div>
+        <div>
+          <label for="member-filter">회원 필터</label>
+          <select id="member-filter">
+            <option value="">전체 회원</option>
+          </select>
+        </div>
+        <div>
+          <label for="license-search">목록 검색</label>
+          <input id="license-search" type="search" autocomplete="off" placeholder="회원명, 전화, 키, 플랜">
+        </div>
+        <div>
+          <label for="date-from">발급 시작일</label>
+          <input id="date-from" type="date">
+        </div>
+        <div>
+          <label for="date-to">발급 종료일</label>
+          <input id="date-to" type="date">
+        </div>
+        <div>
+          <label for="sort-filter">정렬</label>
+          <select id="sort-filter">
+            <option value="created_desc">최근 발급순</option>
+            <option value="created_asc">오래된 발급순</option>
+            <option value="expires_asc">만료 임박순</option>
+            <option value="expires_desc">만료 먼 순</option>
+            <option value="verified_desc">최근 검증순</option>
+            <option value="status_asc">상태순</option>
+            <option value="plan_asc">플랜순</option>
+            <option value="member_asc">회원 번호순</option>
+          </select>
+        </div>
+        <button id="refresh-btn" type="button">새로고침</button>
+      </div>
+    </div>
+    <div id="summary" class="banner">요약 정보가 여기에 표시됩니다.</div>
+    <div id="error" class="banner error" hidden></div>
+    <div class="table-wrap" style="margin-top:14px;">
+      <table class="license-table">
+        <thead>
+          <tr>
+            <th>상태</th>
+            <th>키 힌트</th>
+            <th>플랜</th>
+            <th>회원</th>
+            <th>만료</th>
+            <th>기기</th>
+            <th>최근 검증</th>
+            <th>개발 키</th>
+            <th>작업</th>
+          </tr>
+        </thead>
+        <tbody id="license-body">
+          <tr><td colspan="9" class="empty">아직 불러온 라이선스가 없습니다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const state = {
+    adminKey: "",
+    licenses: [],
+    members: [],
+    lastCreatedKey: "",
+  };
+
+  const statusLabels = {
+    unused: "미사용",
+    active: "활성",
+    expired: "만료",
+    revoked: "회수",
+  };
+
+  const planLabels = {
+    free: "무료",
+    full: "유료",
+    basic: "기본",
+  };
+
+  function setStatus(message, type = "info") {
+    const el = $("status");
+    el.textContent = message;
+    el.style.color = type === "error"
+      ? "var(--red-strong)"
+      : type === "success"
+        ? "var(--green-strong)"
+        : "var(--subtle)";
+  }
+
+  function setError(message) {
+    const el = $("error");
+    el.hidden = !message;
+    el.textContent = message || "";
+  }
+
+  function adminHeaders() {
+    const key = $("admin-key").value.trim();
+    state.adminKey = key;
+    return {
+      "Content-Type": "application/json",
+      "X-Admin-Key": key,
+    };
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function normalizedText(value) {
+    return String(value || "").toLowerCase().replace(/\s+/g, "");
+  }
+
+  function activeMembers() {
+    return state.members.filter((member) => member.status !== "erased");
+  }
+
+  function memberById(memberId) {
+    return state.members.find((member) => member.id === memberId) || null;
+  }
+
+  function memberNumber(memberId) {
+    const index = activeMembers().findIndex((member) => member.id === memberId);
+    return index >= 0 ? String(index + 1).padStart(3, "0") : "";
+  }
+
+  function licenseCountForMember(memberId) {
+    return state.licenses.filter((item) => item.member_id === memberId && item.status !== "revoked").length;
+  }
+
+  function issueLabel(memberId) {
+    const count = licenseCountForMember(memberId);
+    return count ? `발급함 ${count}` : "발급 안 함";
+  }
+
+  function memberSearchBlob(member) {
+    return normalizedText([
+      memberNumber(member.id),
+      member.name,
+      member.phone_masked,
+      member.plan_type,
+      member.id,
+      issueLabel(member.id),
+    ].join(" "));
+  }
+
+  function visibleMembers() {
+    const query = normalizedText($("member-search").value);
+    const members = activeMembers();
+    if (!query) return members;
+    return members.filter((member) => memberSearchBlob(member).includes(query));
+  }
+
+  function memberLabel(member) {
+    const number = memberNumber(member.id);
+    const name = member.name || "이름 없음";
+    const plan = planLabels[member.plan_type] || member.plan_type || "플랜 없음";
+    const phone = member.phone_masked || "";
+    return `${number ? `${number}. ` : ""}${name} · ${plan}${phone ? ` · ${phone}` : ""} · ${issueLabel(member.id)}`;
+  }
+
+  async function requestJson(path, options = {}) {
+    setError("");
+    const response = await fetch(path, {
+      ...options,
+      headers: {
+        ...adminHeaders(),
+        ...(options.headers || {}),
+      },
+    });
+    const text = await response.text();
+    let payload = {};
+    try {
+      payload = text ? JSON.parse(text) : {};
+    } catch (err) {
+      throw new Error(`JSON 응답 파싱 실패: ${text.slice(0, 300)}`);
+    }
+    if (!response.ok) {
+      throw new Error(payload.detail || payload.message || `HTTP ${response.status}`);
+    }
+    return payload;
+  }
+
+  function localDate(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString("ko-KR", { hour12: false });
+  }
+
+  function badge(status) {
+    return `<span class="badge ${status || ""}">${statusLabels[status] || status || "알 수 없음"}</span>`;
+  }
+
+  function dateValue(value) {
+    const date = new Date(value || "");
+    return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+  }
+
+  function sortedLicenses() {
+    const items = filteredLicenses();
+    const mode = $("sort-filter").value;
+    const text = (value) => String(value || "").toLowerCase();
+    items.sort((a, b) => {
+      if (mode === "created_asc") return dateValue(a.created_at) - dateValue(b.created_at);
+      if (mode === "expires_asc") return dateValue(a.expires_at) - dateValue(b.expires_at);
+      if (mode === "expires_desc") return dateValue(b.expires_at) - dateValue(a.expires_at);
+      if (mode === "verified_desc") return dateValue(b.last_verified_at) - dateValue(a.last_verified_at);
+      if (mode === "status_asc") return text(a.status).localeCompare(text(b.status), "ko");
+      if (mode === "plan_asc") return text(a.plan_code).localeCompare(text(b.plan_code), "ko");
+      if (mode === "member_asc") return (memberNumber(a.member_id) || "999999").localeCompare(memberNumber(b.member_id) || "999999", "ko");
+      return dateValue(b.created_at) - dateValue(a.created_at);
+    });
+    return items;
+  }
+
+  function licenseSearchBlob(item) {
+    const member = memberById(item.member_id);
+    return normalizedText([
+      item.license_key_hint,
+      item.dev_license_key,
+      item.plan_code,
+      item.status,
+      statusLabels[item.status],
+      item.member_id,
+      memberNumber(item.member_id),
+      member?.name,
+      member?.phone_masked,
+      member?.plan_type,
+      issueLabel(item.member_id),
+    ].join(" "));
+  }
+
+  function dateRangeValue(value, endOfDay = false) {
+    if (!value) return null;
+    const date = new Date(`${value}T${endOfDay ? "23:59:59" : "00:00:00"}`);
+    return Number.isNaN(date.getTime()) ? null : date.getTime();
+  }
+
+  function filteredLicenses() {
+    const status = $("status-filter").value;
+    const memberId = $("member-filter").value.trim();
+    const query = normalizedText($("license-search").value);
+    const from = dateRangeValue($("date-from").value);
+    const to = dateRangeValue($("date-to").value, true);
+    return state.licenses.filter((item) => {
+      if (status && item.status !== status) return false;
+      if (memberId && item.member_id !== memberId) return false;
+      const created = dateValue(item.created_at);
+      if (from !== null && created < from) return false;
+      if (to !== null && created > to) return false;
+      if (query && !licenseSearchBlob(item).includes(query)) return false;
+      return true;
+    });
+  }
+
+  function renderMemberOptions() {
+    const createSelect = $("member-id");
+    const filterSelect = $("member-filter");
+    const previousCreate = createSelect.value;
+    const previousFilter = filterSelect.value;
+    const allActiveMembers = activeMembers();
+    const members = visibleMembers();
+    const erasedCount = state.members.length - allActiveMembers.length;
+
+    createSelect.replaceChildren(new Option("회원 연결 안 함", ""));
+    filterSelect.replaceChildren(new Option("전체 회원", ""));
+
+    members.forEach((member) => {
+      createSelect.appendChild(new Option(memberLabel(member), member.id));
+      filterSelect.appendChild(new Option(memberLabel(member), member.id));
+    });
+
+    createSelect.value = members.some((member) => member.id === previousCreate) ? previousCreate : "";
+    filterSelect.value = members.some((member) => member.id === previousFilter) ? previousFilter : "";
+    $("member-select-help").textContent = allActiveMembers.length
+      ? `삭제 제외 회원 ${allActiveMembers.length}명 중 ${members.length}명을 표시합니다.${erasedCount ? ` 삭제된 회원 ${erasedCount}명은 숨겼습니다.` : ""}`
+      : "회원 목록이 비어 있습니다. 필요하면 회원 연결 없이 발급할 수 있습니다.";
+  }
+
+  function renderSummary(summary) {
+    if (!summary) {
+      $("summary").textContent = "요약 정보가 없습니다.";
+      return;
+    }
+    $("summary").innerHTML = `
+      전체 <strong>${summary.total || 0}</strong>개 ·
+      미사용 <strong>${summary.unused || 0}</strong>개 ·
+      활성 <strong>${summary.active || 0}</strong>개 ·
+      만료 <strong>${summary.expired || 0}</strong>개 ·
+      회수 <strong>${summary.revoked || 0}</strong>개
+    `;
+  }
+
+  function renderLicenses() {
+    const body = $("license-body");
+    const items = sortedLicenses();
+    if (!items.length) {
+      body.innerHTML = `<tr><td colspan="9" class="empty">조건에 맞는 라이선스가 없습니다.</td></tr>`;
+      return;
+    }
+    body.innerHTML = items.map((item) => `
+      <tr>
+        <td>${badge(item.status)}</td>
+        <td class="mono">${escapeHtml(item.license_key_hint)}</td>
+        <td>${escapeHtml(item.plan_code)}</td>
+        <td>${memberCell(item.member_id)}</td>
+        <td>${localDate(item.expires_at)}</td>
+        <td>${item.bound_device ? "등록됨" : "미등록"}</td>
+        <td>${localDate(item.last_verified_at)}</td>
+        <td class="mono">
+          ${item.dev_license_key
+            ? `<code>${escapeHtml(item.dev_license_key)}</code> <button data-action="copy-dev-key" data-key="${escapeHtml(item.dev_license_key)}" type="button">복사</button>`
+            : '<span class="muted">보관 없음</span>'}
+        </td>
+        <td>
+          <div class="small-actions">
+            <button class="warn" data-action="reset" data-id="${item.id}" type="button">기기 초기화</button>
+            <button data-action="extend" data-id="${item.id}" type="button">연장</button>
+            <button class="danger" data-action="revoke" data-id="${item.id}" type="button">회수</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  function memberCell(memberId) {
+    if (!memberId) return '<span class="muted">회원 연결 없음</span>';
+    const member = memberById(memberId);
+    if (!member) return `<span class="mono">ID ${escapeHtml(String(memberId).slice(-8))}</span>`;
+    if (member.status === "erased") return `<span class="muted">삭제된 회원 · ID ${escapeHtml(String(memberId).slice(-8))}</span>`;
+    const number = memberNumber(memberId);
+    const phone = member.phone_masked ? ` · ${escapeHtml(member.phone_masked)}` : "";
+    return `<strong>${escapeHtml(number ? `${number}. ${member.name || "이름 없음"}` : member.name || "이름 없음")}</strong>${phone}<div class="muted mono">${escapeHtml(memberId)}</div>`;
+  }
+
+  function selectedExpiresIso() {
+    const value = $("expires-at").value;
+    if (!value) return null;
+    return new Date(value).toISOString();
+  }
+
+  async function loadMembers() {
+    const payload = await requestJson("/members");
+    state.members = payload.data || [];
+    renderMemberOptions();
+  }
+
+  async function loadLicenses() {
+    try {
+      if ($("remember-key").checked) {
+        localStorage.setItem("yoonbot_license_admin_key", $("admin-key").value);
+      }
+      const params = new URLSearchParams();
+      const path = `/admin/licenses${params.toString() ? `?${params.toString()}` : ""}`;
+      setStatus("라이선스 목록을 불러오는 중입니다...");
+      const payload = await requestJson(path);
+      state.licenses = payload.data || [];
+      renderSummary(payload.summary);
+      renderMemberOptions();
+      renderLicenses();
+      setStatus(`전체 ${state.licenses.length}개 중 조건에 맞는 ${sortedLicenses().length}개를 표시합니다.`, "success");
+    } catch (err) {
+      setError(err.message);
+      setStatus("라이선스 목록을 불러오지 못했습니다.", "error");
+    }
+  }
+
+  async function loadDashboardData() {
+    try {
+      if ($("remember-key").checked) {
+        localStorage.setItem("yoonbot_license_admin_key", $("admin-key").value);
+      }
+      setStatus("회원과 라이선스 정보를 불러오는 중입니다...");
+      await loadMembers();
+      await loadLicenses();
+    } catch (err) {
+      setError(err.message);
+      setStatus("관리 정보를 불러오지 못했습니다.", "error");
+    }
+  }
+
+  async function createLicense() {
+    try {
+      const body = {
+        member_id: $("member-id").value.trim() || null,
+        plan_code: $("plan-code").value,
+        expires_at: selectedExpiresIso(),
+        max_devices: Number($("max-devices").value || 1),
+        app_min_version: $("app-min-version").value.trim() || null,
+        note: $("note").value.trim() || null,
+      };
+      setStatus("라이선스를 발급하는 중입니다...");
+      const payload = await requestJson("/admin/licenses", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      state.lastCreatedKey = payload.license_key;
+      $("created-key-text").textContent = payload.license_key;
+      $("created-key").hidden = false;
+      setStatus("라이선스를 발급했습니다. 키는 지금 화면에서만 확인할 수 있습니다.", "success");
+      await loadLicenses();
+    } catch (err) {
+      setError(err.message);
+      setStatus("라이선스 발급에 실패했습니다.", "error");
+    }
+  }
+
+  async function revokeLicense(id) {
+    const reason = window.prompt("회수 사유를 입력하세요.", "manual");
+    if (reason === null) return;
+    await requestJson(`/admin/licenses/${id}/revoke`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+    await loadLicenses();
+  }
+
+  async function resetDevice(id) {
+    if (!window.confirm("이 라이선스의 등록 기기를 초기화할까요? 기존 인증 토큰은 회수됩니다.")) return;
+    await requestJson(`/admin/licenses/${id}/reset-device`, {
+      method: "POST",
+      body: JSON.stringify({ reason: "admin_reset" }),
+    });
+    await loadLicenses();
+  }
+
+  async function extendLicense(id) {
+    const value = window.prompt("새 만료일을 입력하세요. 예: 2027-06-12T23:59:59+09:00");
+    if (!value) return;
+    await requestJson(`/admin/licenses/${id}/extend`, {
+      method: "POST",
+      body: JSON.stringify({ expires_at: value }),
+    });
+    await loadLicenses();
+  }
+
+  document.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    try {
+      const id = button.dataset.id;
+      if (button.dataset.action === "revoke") await revokeLicense(id);
+      if (button.dataset.action === "reset") await resetDevice(id);
+      if (button.dataset.action === "extend") await extendLicense(id);
+      if (button.dataset.action === "copy-dev-key") {
+        await navigator.clipboard.writeText(button.dataset.key || "");
+        setStatus("개발용 라이선스 키를 복사했습니다.", "success");
+        return;
+      }
+      setStatus("작업을 반영했습니다.", "success");
+    } catch (err) {
+      setError(err.message);
+      setStatus("작업 처리에 실패했습니다.", "error");
+    }
+  });
+
+  $("load-btn").addEventListener("click", loadDashboardData);
+  $("refresh-btn").addEventListener("click", loadLicenses);
+  $("status-filter").addEventListener("change", () => { renderLicenses(); setStatus(`조건에 맞는 ${sortedLicenses().length}개를 표시합니다.`, "success"); });
+  $("member-filter").addEventListener("change", () => { renderLicenses(); setStatus(`조건에 맞는 ${sortedLicenses().length}개를 표시합니다.`, "success"); });
+  $("license-search").addEventListener("input", () => { renderLicenses(); setStatus(`조건에 맞는 ${sortedLicenses().length}개를 표시합니다.`, "success"); });
+  $("date-from").addEventListener("change", () => { renderLicenses(); setStatus(`조건에 맞는 ${sortedLicenses().length}개를 표시합니다.`, "success"); });
+  $("date-to").addEventListener("change", () => { renderLicenses(); setStatus(`조건에 맞는 ${sortedLicenses().length}개를 표시합니다.`, "success"); });
+  $("member-search").addEventListener("input", renderMemberOptions);
+  $("sort-filter").addEventListener("change", renderLicenses);
+  $("create-btn").addEventListener("click", createLicense);
+  $("clear-key-btn").addEventListener("click", () => {
+    localStorage.removeItem("yoonbot_license_admin_key");
+    $("admin-key").value = "";
+    setStatus("저장된 관리자 비밀번호를 지웠습니다.");
+  });
+  $("copy-key-btn").addEventListener("click", async () => {
+    if (!state.lastCreatedKey) return;
+    await navigator.clipboard.writeText(state.lastCreatedKey);
+    setStatus("라이선스 키를 복사했습니다.", "success");
+  });
+
+  const savedKey = localStorage.getItem("yoonbot_license_admin_key");
+  if (savedKey) {
+    $("admin-key").value = savedKey;
+    $("remember-key").checked = true;
+  }
+</script>
+</body>
+</html>

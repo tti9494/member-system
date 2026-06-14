@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>수업 대시보드로 이동 중</title>
+  <meta http-equiv="refresh" content="0; url=https://arsen-ai.com/education.html">
+  <style>
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      background: #0d1014;
+      color: #f1f4f7;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    }
+    a { color: #8aa9ff; }
+  </style>
+<link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css">
+<script src="assets/theme-loader.js?v=20260614-modern-bundle"></script>
+</head>
+<body>
+  <main>
+    <p>수업 대시보드는 하나의 주소로 통일했습니다.</p>
+    <p><a id="target" href="https://arsen-ai.com/education.html">https://arsen-ai.com/education.html</a></p>
+  </main>
+  <script>
+    const target = 'https://arsen-ai.com/education.html' + location.search + location.hash;
+    document.getElementById('target').href = target;
+    document.getElementById('target').textContent = target;
+    location.replace(target);
+  </script>
+</body>
+</html>

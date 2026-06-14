@@ -1,4 +1,6 @@
 .env
+.DS_Store
+**/.DS_Store
 *.db
 __pycache__/
 **/__pycache__/
@@ -9,3 +11,21 @@ venv/
 # Runtime logs
 *.log
 .local_admin_open
+backups/
+private/
+cloudflare/dist/
+cloudflare/node_modules/
+cloudflare/.wrangler/
+cloudflare/wrangler.toml
+cloudflare/.data/
+cloudflare/.secrets.local
+
+# Local verification and safety backups
+frontend/verification/
+frontend/*-before-*.html
+frontend/*-before-*.css
+frontend/assets/*-before-*.css
+main-before-*.py
+cloudflare/src/*-before-*.js
+cloudflare/scripts/*-before-*.mjs
+tests/*-before-*.py

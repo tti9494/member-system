@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<!-- page-key: arsen-review-board / name: ARSEN 후기보드 -->
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>ARSEN 후기보드</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #090d14;
+        --surface: #101722;
+        --surface-2: #151f2d;
+        --surface-3: #1b2635;
+        --text-main: #eef4ff;
+        --text-sub: #b8c6d9;
+        --text-muted: #94a5bc;
+        --accent: #78a7e5;
+        --accent-2: #e7b866;
+        --line: #2b394b;
+        --line-strong: #41536a;
+        --badge-draft: #e7b866;
+        --badge-public: #4fc79a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI",
+          sans-serif;
+        background: var(--bg);
+        color: var(--text-main);
+        line-height: 1.5;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .container {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 2rem 1rem 3.5rem;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #121a28 0%, #102a33 58%, #2a2116 100%);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 1.8rem;
+        margin-bottom: 1.25rem;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+        color: var(--text-sub);
+        margin-bottom: 0.6rem;
+      }
+
+      .tag {
+        background: rgba(79, 131, 204, 0.18);
+        border: 1px solid rgba(120, 167, 229, 0.3);
+        color: var(--accent);
+        border-radius: 999px;
+        padding: 0.2rem 0.7rem;
+        font-size: 0.75rem;
+      }
+
+      h1 {
+        margin: 0 0 0.75rem;
+        font-size: clamp(1.4rem, 2vw + 1rem, 2rem);
+      }
+
+      .lead {
+        margin: 0;
+        max-width: 70ch;
+        color: var(--text-sub);
+      }
+
+      .hero-meta {
+        margin-top: 1.2rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        color: var(--text-sub);
+        font-size: 0.95rem;
+      }
+
+      .cta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        margin-top: 1.25rem;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        border-radius: 10px;
+        padding: 0.6rem 0.95rem;
+        font-weight: 700;
+        font-size: 0.95rem;
+      }
+
+      .button.primary {
+        background: #4f83cc;
+        color: #ffffff;
+      }
+
+      .button.secondary {
+        border: 1px solid var(--line);
+        color: var(--text-main);
+        background: var(--surface-3);
+      }
+
+      .filters {
+        margin-bottom: 1rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+
+      .search {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .field-group {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0.75rem;
+      }
+
+      .field-group label {
+        display: block;
+        color: var(--text-sub);
+        font-size: 0.82rem;
+        margin-bottom: 0.35rem;
+      }
+
+      input,
+      select {
+        width: 100%;
+        background: #0e1726;
+        color: var(--text-main);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.65rem;
+        font-size: 0.95rem;
+      }
+
+      input::placeholder {
+        color: var(--text-muted);
+      }
+
+      input:focus,
+      select:focus {
+        outline: 3px solid rgba(79, 131, 204, 0.24);
+        border-color: #4f83cc;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1rem;
+      }
+
+      .section-block {
+        margin-bottom: 1rem;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.7rem;
+        margin-bottom: 0.8rem;
+      }
+
+      .section-title h2 {
+        margin: 0;
+        font-size: 1.2rem;
+      }
+
+      .section-title p {
+        margin: 0;
+        color: var(--text-sub);
+        font-size: 0.9rem;
+      }
+
+      .grid-4 {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .workflow-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+
+      .workflow-step {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1rem;
+      }
+
+      .workflow-step strong {
+        display: block;
+        margin-bottom: 0.35rem;
+      }
+
+      .instructors,
+      .sessions {
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .instructors {
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      }
+
+      .session-card {
+        display: grid;
+        gap: 0.7rem;
+      }
+
+      .badges {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+      }
+
+      .badge {
+        font-size: 0.74rem;
+        border-radius: 999px;
+        padding: 0.23rem 0.62rem;
+        border: 1px solid transparent;
+      }
+
+      .badge.draft {
+        color: #221604;
+        background: var(--badge-draft);
+        border-color: #c68a35;
+      }
+
+      .badge.public {
+        color: #062217;
+        background: var(--badge-public);
+        border-color: #24966f;
+      }
+
+      .thumb {
+        height: 130px;
+        border-radius: 10px;
+        background:
+          repeating-linear-gradient(120deg, rgba(255, 255, 255, 0.08) 0 8px, transparent 8px 16px),
+          linear-gradient(120deg, #123044, #2a2116);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .thumb::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 50% 35%, rgba(120, 167, 229, 0.18), transparent 60%);
+      }
+
+      .meta {
+        margin: 0;
+        color: var(--text-sub);
+        font-size: 0.9rem;
+      }
+
+      .actions {
+        margin-top: 0.55rem;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+      }
+
+      .actions a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.88rem;
+      }
+
+      .empty-state {
+        color: var(--text-sub);
+        padding: 2rem;
+        border: 1px dashed var(--line);
+        text-align: center;
+        border-radius: 12px;
+      }
+
+      .small {
+        font-size: 0.82rem;
+        color: var(--text-sub);
+      }
+
+      .footer-note {
+        margin-top: 1.2rem;
+        color: var(--text-sub);
+        font-size: 0.86rem;
+      }
+
+      @media (max-width: 900px) {
+        .filters {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .grid-4 {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .workflow-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 560px) {
+        .container {
+          padding: 1rem;
+        }
+
+        .filters {
+          grid-template-columns: 1fr;
+        }
+
+        .grid-4 {
+          grid-template-columns: 1fr;
+        }
+
+        .workflow-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+<link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css">
+<script src="assets/theme-loader.js?v=20260614-modern-bundle"></script>
+</head>
+  <body class="review-board-page">
+    <main class="container">
+      <section class="hero">
+        <p class="eyebrow"><span class="tag">ARSEN 후기보드</span><span>·</span><span>수업 후기 / 결과물 아카이브</span></p>
+        <h1>수업 후기와 결과물을 모아보는 후기보드</h1>
+        <p class="lead">
+          ARSEN 수업을 들은 분들이 남긴 후기와 실습 결과를 모아보는 공개 페이지입니다.
+          작성된 후기는 운영자가 개인정보를 확인하고 승인한 뒤에만 이곳에 노출됩니다.
+        </p>
+        <div class="hero-meta">
+          <span>총 강사: <strong id="totalInstructors">0</strong>명</span>
+          <span>총 후기/기록: <strong id="totalSessions">0</strong>개</span>
+          <span>공개 기준: 작성 → 운영자 검수 → 승인 후 공개</span>
+        </div>
+        <div class="cta-row">
+          <a class="button primary" href="/frontend/join-free.html">무료 클래스 신청</a>
+          <a class="button secondary" href="/frontend/review-submit.html">후기 작성 링크 열기</a>
+          <a class="button secondary" href="/frontend/join-basic.html">Basic 신청</a>
+          <a class="button secondary" href="/frontend/join-full.html">Full 신청</a>
+        </div>
+      </section>
+
+      <section class="filters">
+        <div class="field-group search">
+          <label for="search">클래스 검색</label>
+          <input id="search" type="search" placeholder="예: 데이터, AI, 디자인" />
+        </div>
+        <div class="field-group">
+          <label for="instructorFilter">강사</label>
+          <select id="instructorFilter"></select>
+        </div>
+        <div class="field-group">
+          <label for="statusFilter">공개 상태</label>
+          <select id="statusFilter"></select>
+        </div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-title">
+          <h2>운영 흐름</h2>
+          <p class="small">후기와 사진은 초안으로 모으고, 공개는 승인 후 진행</p>
+        </div>
+        <div class="workflow-grid">
+          <article class="workflow-step">
+            <strong>1. 후기 접수</strong>
+            <p class="meta">운영자가 보낸 후기 작성 링크로 수강생이 직접 후기를 남깁니다.</p>
+          </article>
+          <article class="workflow-step">
+            <strong>2. 개인정보 확인</strong>
+            <p class="meta">얼굴, 이름, 연락처, 계정 화면, 토큰이 보이면 공개 전에 가립니다.</p>
+          </article>
+          <article class="workflow-step">
+            <strong>3. 강사/일정별 정리</strong>
+            <p class="meta">강사, 일정, 주제, 공개 상태로 필터링해 사람이 많아져도 관리합니다.</p>
+          </article>
+          <article class="workflow-step">
+            <strong>4. 승인 후 공개</strong>
+            <p class="meta">관리자가 문구를 확인한 카드만 이 공개 후기보드에 노출합니다.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-title">
+          <h2>추천 후기</h2>
+          <p class="small">운영자가 우선순위로 고정한 후기와 결과물</p>
+        </div>
+        <div id="featured" class="grid-4"></div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-title">
+          <h2>강사 카드</h2>
+          <p class="small">강사 기반으로 수업 후기와 공개 상태를 분류</p>
+        </div>
+        <div id="instructorCards" class="instructors"></div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-title">
+          <h2>후기 / 수업 기록 목록</h2>
+          <p class="small">검색/필터 조건에 따라 실시간 갱신</p>
+        </div>
+        <div id="sessionList" class="sessions"></div>
+      </section>
+
+      <p class="footer-note">
+        이 페이지에는 승인된 공개 후기만 표시됩니다. 후기 작성은 운영자가 보낸 전용 링크에서 진행됩니다.
+      </p>
+    </main>
+
+    <template id="instructorCardTpl">
+      <article class="card">
+        <div class="thumb" aria-hidden="true"></div>
+        <h3>강사명</h3>
+        <p class="meta">분야: </p>
+        <p class="meta">담당 클래스: </p>
+        <p class="badges"></p>
+        <div class="actions">
+          <a href="/frontend/join-basic.html">클래스 보러가기</a>
+        </div>
+      </article>
+    </template>
+
+    <template id="sessionCardTpl">
+      <article class="card session-card">
+        <div class="thumb" aria-hidden="true"></div>
+        <div>
+          <div class="badges"></div>
+          <h3>세션 제목</h3>
+          <p class="meta">강사: </p>
+          <p class="meta">기간: </p>
+          <p class="meta">카테고리: </p>
+          <p class="meta">학습 포인트: </p>
+        </div>
+        <div class="actions">
+          <a href="/frontend/join-basic.html">지원 페이지 이동</a>
+          <a href="/frontend/education.html">상세 설명 보기</a>
+        </div>
+      </article>
+    </template>
+
+    <template id="featuredCardTpl">
+      <article class="card">
+        <div class="thumb" aria-hidden="true"></div>
+        <h3>추천 클래스</h3>
+        <p class="meta">설명: </p>
+        <p class="badges"></p>
+      </article>
+    </template>
+
+    <script>
+      const demoInstructors = [
+        {
+          id: "i1",
+          name: "이름 공개형 강사 A",
+          field: "데이터 분석",
+          classes: ["데이터 기초 3주차", "Python 실습 스튜디오"],
+          status: ["public", "draft"],
+          handle: "@arsen_a",
+        },
+        {
+          id: "i2",
+          name: "이름 공개형 강사 B",
+          field: "AI 기반 콘텐츠 제작",
+          classes: ["AI 기획 입문", "LLM 실무 미니랩"],
+          status: ["public"],
+          handle: "@arsen_b",
+        },
+        {
+          id: "i3",
+          name: "이름 공개형 강사 C",
+          field: "브랜딩",
+          classes: ["브랜드 스토리", "콘텐츠 톤 앤 매너"],
+          status: ["draft"],
+          handle: "@arsen_c",
+        },
+        {
+          id: "i4",
+          name: "이름 공개형 강사 D",
+          field: "프로젝트 운영",
+          classes: ["실무형 팀 운영", "기획 회고 워크숍"],
+          status: ["public"],
+          handle: "@arsen_d",
+        },
+      ];
+
+      const demoSessions = [
+        {
+          id: "s1",
+          title: "클래스 아카이브 입문반",
+          instructorId: "i1",
+          level: "초급",
+          period: "2026-05-01 ~ 2026-05-22",
+          category: "기초",
+          status: "public",
+          points: ["기록 포맷", "출석 체크", "과제 제출 방식"],
+          description: "첫 클래스로 입문 멤버를 위한 공개형 안내 세션입니다.",
+        },
+        {
+          id: "s2",
+          title: "AI 실무 실습 특강",
+          instructorId: "i2",
+          level: "중급",
+          period: "2026-06-01 ~ 2026-06-24",
+          category: "AI",
+          status: "draft",
+          points: ["프로젝트 기반 학습", "샘플 데이터", "피드백 루틴"],
+          description: "실제 결과물을 만들며 반복 학습하는 구성입니다.",
+        },
+        {
+          id: "s3",
+          title: "브랜딩 아이디어 워크숍",
+          instructorId: "i3",
+          level: "중상",
+          period: "2026-06-10 ~ 2026-06-30",
+          category: "브랜드",
+          status: "public",
+          points: ["핵심 메시지", "시각 정렬", "콘텐츠 연계"],
+          description: "작은 실습 과제로 바로 적용 가능한 형태입니다.",
+        },
+        {
+          id: "s4",
+          title: "실무형 프로젝트 운영 30일 챌린지",
+          instructorId: "i4",
+          level: "고급",
+          period: "2026-07-01 ~ 2026-07-30",
+          category: "운영",
+          status: "public",
+          points: ["우선순위 정렬", "협업 지표", "리뷰 루틴"],
+          description: "실무형 진행 상황 추적이 가능한 운영형 세션입니다.",
+        },
+        {
+          id: "s5",
+          title: "콘텐츠 성과 분석 부트캠프",
+          instructorId: "i1",
+          level: "중급",
+          period: "2026-07-07 ~ 2026-07-28",
+          category: "분석",
+          status: "draft",
+          points: ["성과 수치", "리포팅", "개선 액션"],
+          description: "분석 지표를 바탕으로 수치 기반 개선을 수행합니다.",
+        },
+        {
+          id: "s6",
+          title: "디자인 시그널 스튜디오",
+          instructorId: "i3",
+          level: "중급",
+          period: "2026-08-02 ~ 2026-08-23",
+          category: "디자인",
+          status: "draft",
+          points: ["콘텐츠 톤", "색채 규칙", "레이아웃 가이드"],
+          description: "브랜딩 자산을 지키는 디자인 아카이브 과정입니다.",
+        },
+      ];
+
+      let instructors = [];
+      let sessions = [];
+      const demoMode = new URLSearchParams(window.location.search).get("demo") === "1";
+
+      const state = {
+        search: "",
+        instructor: "all",
+        status: "all",
+        loadError: false,
+      };
+
+      const refs = {
+        totalInstructors: document.getElementById("totalInstructors"),
+        totalSessions: document.getElementById("totalSessions"),
+        instructorFilter: document.getElementById("instructorFilter"),
+        statusFilter: document.getElementById("statusFilter"),
+        featured: document.getElementById("featured"),
+        instructorCards: document.getElementById("instructorCards"),
+        sessionList: document.getElementById("sessionList"),
+        search: document.getElementById("search"),
+      };
+
+      function buildStatusText(status) {
+        if (status === "hidden") return "비공개";
+        return status === "public" ? "공개" : "초안";
+      }
+
+      function normalizeList(value) {
+        if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+        if (!value) return [];
+        return String(value)
+          .replace(/\r/g, "\n")
+          .replace(/,/g, "\n")
+          .split("\n")
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+
+      function currentFeatured() {
+        const pinned = sessions.filter((session) => session.featured);
+        return (pinned.length ? pinned : sessions.filter((session) => session.status === "public")).slice(0, 4);
+      }
+
+      function applyReviewBoardData(payload) {
+        const data = payload?.data || payload || {};
+        const apiInstructors = Array.isArray(data.instructors) ? data.instructors : [];
+        const apiEntries = Array.isArray(data.entries) ? data.entries : [];
+        if (!apiInstructors.length && !apiEntries.length) {
+          instructors = [];
+          sessions = [];
+          return;
+        }
+
+        const entryMap = new Map();
+        apiEntries.forEach((entry) => {
+          const key = entry.instructor_id || "none";
+          if (!entryMap.has(key)) entryMap.set(key, []);
+          entryMap.get(key).push(entry);
+        });
+
+        instructors = apiInstructors.map((instructor) => {
+          const entries = entryMap.get(instructor.id) || [];
+          const classes = [...new Set(entries.map((entry) => entry.class_title).filter(Boolean))];
+          const statuses = [...new Set(entries.map((entry) => entry.status).filter(Boolean))];
+          return {
+            id: instructor.id,
+            name: instructor.name || "ARSEN 강사",
+            field: instructor.role || normalizeList(instructor.specialties).join(", ") || "ARSEN 클래스",
+            classes,
+            status: statuses.length ? statuses : [instructor.status === "active" ? "public" : "hidden"],
+            handle: "",
+          };
+        });
+
+        sessions = apiEntries.map((entry) => {
+          const tags = normalizeList(entry.tags);
+          return {
+            id: entry.id,
+            title: entry.title || entry.class_title || "후기",
+            instructorId: entry.instructor_id || "none",
+            level: "후기",
+            period: entry.class_date || entry.created_at || "-",
+            category: tags[0] || entry.class_title || "수업 후기",
+            status: entry.status || "public",
+            points: tags.length ? tags : normalizeList(entry.summary || entry.body || entry.class_title).slice(0, 3),
+            description: entry.summary || entry.body || entry.class_title || "",
+            featured: Boolean(entry.featured),
+            classTitle: entry.class_title || "",
+            imageUrls: normalizeList(entry.image_urls),
+          };
+        });
+        if (state.instructor !== "all" && !instructors.some((item) => item.id === state.instructor)) {
+          state.instructor = "all";
+        }
+      }
+
+      function renderInstructorOptions() {
+        refs.instructorFilter.innerHTML = '<option value="all">모든 강사</option>';
+        instructors.forEach((instructor) => {
+          const option = document.createElement("option");
+          option.value = instructor.id;
+          option.textContent = instructor.name;
+          refs.instructorFilter.appendChild(option);
+        });
+      }
+
+      function renderStatusOptions() {
+        refs.statusFilter.innerHTML = `
+          <option value="all">전체 상태</option>
+          <option value="public">공개</option>
+          <option value="draft">드래프트</option>
+        `;
+      }
+
+      function renderFeatured() {
+        const tpl = document.getElementById("featuredCardTpl");
+        refs.featured.innerHTML = "";
+        const featuredItems = currentFeatured();
+        if (!featuredItems.length) {
+          const empty = document.createElement("p");
+          empty.className = "empty-state";
+          empty.textContent = state.loadError
+            ? "후기 데이터를 불러오지 못했습니다. 잠시 후 다시 확인해 주세요."
+            : "공개된 추천 후기가 아직 없습니다.";
+          refs.featured.appendChild(empty);
+          return;
+        }
+        featuredItems.forEach((item) => {
+          const node = tpl.content.firstElementChild.cloneNode(true);
+          node.querySelector("h3").textContent = item.title;
+          node.querySelector(".meta").textContent = `설명: ${item.description}`;
+          const statusWrap = node.querySelector(".badges");
+          const badge = document.createElement("span");
+          badge.className = `badge ${item.status}`;
+          badge.textContent = `상태 ${buildStatusText(item.status)}`;
+          statusWrap.appendChild(badge);
+          refs.featured.appendChild(node);
+        });
+      }
+
+      function renderInstructorCards() {
+        const tpl = document.getElementById("instructorCardTpl");
+        refs.instructorCards.innerHTML = "";
+        if (!instructors.length) {
+          const empty = document.createElement("p");
+          empty.className = "empty-state";
+          empty.textContent = state.loadError
+            ? "강사 데이터를 불러오지 못했습니다."
+            : "등록된 강사가 아직 없습니다.";
+          refs.instructorCards.appendChild(empty);
+          return;
+        }
+        instructors.forEach((instructor) => {
+          const node = tpl.content.firstElementChild.cloneNode(true);
+          node.querySelector("h3").textContent = instructor.name;
+          node.querySelectorAll(".meta")[0].textContent = `분야: ${instructor.field}`;
+          node.querySelectorAll(".meta")[1].textContent = `담당 클래스: ${instructor.classes.length}개`;
+          const badgeWrap = node.querySelector(".badges");
+          instructor.status.forEach((status) => {
+            const badge = document.createElement("span");
+            badge.className = `badge ${status}`;
+            badge.textContent = buildStatusText(status);
+            badgeWrap.appendChild(badge);
+          });
+          refs.instructorCards.appendChild(node);
+        });
+      }
+
+      function renderSessionCards() {
+        const tpl = document.getElementById("sessionCardTpl");
+        const normalizedQuery = state.search.trim().toLowerCase();
+        const filtered = sessions.filter((session) => {
+          const instructor = instructors.find((i) => i.id === session.instructorId);
+          const instructorName = instructor?.name?.toLowerCase() ?? "";
+          const matchesSearch =
+            normalizedQuery === "" ||
+            session.title.toLowerCase().includes(normalizedQuery) ||
+            session.description.toLowerCase().includes(normalizedQuery) ||
+            instructorName.includes(normalizedQuery) ||
+            session.category.toLowerCase().includes(normalizedQuery);
+          const matchesInstructor =
+            state.instructor === "all" || session.instructorId === state.instructor;
+          const matchesStatus =
+            state.status === "all" || session.status === state.status;
+          return matchesSearch && matchesInstructor && matchesStatus;
+        });
+
+        refs.sessionList.innerHTML = "";
+        if (!filtered.length) {
+          const empty = document.createElement("p");
+          empty.className = "empty-state";
+          empty.textContent = state.loadError
+            ? "후기 데이터를 불러오지 못했습니다. API 상태를 확인해 주세요."
+            : "조건에 맞는 클래스가 없습니다. 검색어/필터를 조정해 주세요.";
+          refs.sessionList.appendChild(empty);
+          return;
+        }
+
+        filtered.forEach((session) => {
+          const node = tpl.content.firstElementChild.cloneNode(true);
+          const instructor = instructors.find((i) => i.id === session.instructorId);
+          const badgeWrap = node.querySelector(".badges");
+          const badge = document.createElement("span");
+          badge.className = `badge ${session.status}`;
+          badge.textContent = `상태 ${buildStatusText(session.status)}`;
+          badgeWrap.appendChild(badge);
+          node.querySelector("h3").textContent = session.title;
+          node.querySelectorAll(".meta")[0].textContent = `강사: ${instructor?.name ?? "미정"}`;
+          node.querySelectorAll(".meta")[1].textContent = `기간: ${session.period}`;
+          node.querySelectorAll(".meta")[2].textContent = `카테고리: ${session.category} / 난이도: ${session.level}`;
+          node.querySelectorAll(".meta")[3].textContent = `학습 포인트: ${(session.points || []).join(", ") || "-"}`;
+          refs.sessionList.appendChild(node);
+        });
+      }
+
+      function render() {
+        refs.totalInstructors.textContent = instructors.length.toString();
+        refs.totalSessions.textContent = sessions.length.toString();
+        renderFeatured();
+        renderInstructorCards();
+        renderSessionCards();
+      }
+
+      refs.search.addEventListener("input", (e) => {
+        state.search = e.target.value;
+        renderSessionCards();
+      });
+      refs.instructorFilter.addEventListener("change", (e) => {
+        state.instructor = e.target.value;
+        renderSessionCards();
+      });
+      refs.statusFilter.addEventListener("change", (e) => {
+        state.status = e.target.value;
+        renderSessionCards();
+      });
+
+      async function loadReviewBoard() {
+        try {
+          const response = await fetch("/api/review-board", { cache: "no-store" });
+          if (!response.ok) return false;
+          const payload = await response.json();
+          if (!payload?.ok) return false;
+          applyReviewBoardData(payload);
+          state.loadError = false;
+          return true;
+        } catch (_) {
+          return false;
+        }
+      }
+
+      async function boot() {
+        if (demoMode) {
+          instructors = demoInstructors;
+          sessions = demoSessions;
+          renderInstructorOptions();
+          renderStatusOptions();
+          render();
+          return;
+        }
+        renderInstructorOptions();
+        renderStatusOptions();
+        render();
+        const loaded = await loadReviewBoard();
+        if (!loaded && !demoMode) {
+          instructors = [];
+          sessions = [];
+          state.loadError = true;
+        }
+        renderInstructorOptions();
+        refs.instructorFilter.value = state.instructor;
+        render();
+      }
+
+      boot();
+    </script>
+  </body>
+</html>

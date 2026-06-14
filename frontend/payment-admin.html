@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YOONBOT 결제/주문 관리</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090d14;
+      --surface: #101722;
+      --surface-soft: #151f2d;
+      --surface-raised: #1b2635;
+      --border: #2b394b;
+      --border-strong: #41536a;
+      --text: #eef4ff;
+      --muted: #b8c6d9;
+      --subtle: #94a5bc;
+      --primary: #4f83cc;
+      --primary-strong: #78a7e5;
+      --primary-soft: #132b4c;
+      --green: #24966f;
+      --green-strong: #4fc79a;
+      --green-soft: #102f27;
+      --amber: #c68a35;
+      --amber-strong: #e7b866;
+      --amber-soft: #342817;
+      --red: #c75b53;
+      --red-strong: #e58a84;
+      --red-soft: #351d1d;
+      --shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+    main {
+      width: min(1220px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 48px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    h1 { margin: 0 0 8px; font-size: 32px; line-height: 1.15; letter-spacing: 0; }
+    h2 { margin: 0 0 12px; font-size: 18px; letter-spacing: 0; }
+    p { margin: 0; color: var(--muted); line-height: 1.6; }
+    a { color: var(--primary-strong); }
+    .links, .actions, .small-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+    .panel + .panel { margin-top: 14px; }
+    label {
+      display: block;
+      margin: 12px 0 6px;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--muted);
+    }
+    input, select, textarea {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 11px;
+      font: inherit;
+      color: var(--text);
+      background: #0e1726;
+    }
+    textarea { min-height: 86px; resize: vertical; }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary-strong);
+      outline: 3px solid rgba(79, 131, 204, 0.22);
+    }
+    button, .button-link {
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      background: var(--surface-raised);
+      color: var(--text);
+      padding: 10px 12px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    button:hover, .button-link:hover { opacity: 0.88; }
+    button.primary { background: var(--primary); color: #05111f; border-color: var(--primary-strong); }
+    button.green { color: var(--green-strong); border-color: var(--green); background: var(--green-soft); }
+    button.warn { color: var(--amber-strong); border-color: var(--amber); background: var(--amber-soft); }
+    button.danger { color: var(--red-strong); border-color: var(--red); background: var(--red-soft); }
+    .status-line {
+      min-height: 22px;
+      margin: 0 0 14px;
+      color: var(--subtle);
+      font-weight: 700;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .banner {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 10px;
+      background: var(--primary-soft);
+      border: 1px solid var(--border-strong);
+      color: var(--muted);
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .banner.success {
+      background: var(--green-soft);
+      border-color: var(--green);
+      color: var(--green-strong);
+    }
+    .banner.error {
+      background: var(--red-soft);
+      border-color: var(--red);
+      color: var(--red-strong);
+    }
+    .key-box {
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px dashed var(--primary-strong);
+      border-radius: 10px;
+      background: var(--surface-soft);
+    }
+    .key-box code {
+      display: block;
+      margin-top: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 16px;
+      overflow-wrap: anywhere;
+      color: var(--primary-strong);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: var(--surface);
+    }
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--subtle);
+      font-size: 12px;
+      text-transform: uppercase;
+      background: var(--surface-soft);
+    }
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-top: 14px;
+    }
+    .badge {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 800;
+      background: var(--surface-raised);
+      color: var(--muted);
+    }
+    .badge.payment_pending { background: var(--amber-soft); color: var(--amber-strong); }
+    .badge.paid { background: var(--primary-soft); color: var(--primary-strong); }
+    .badge.license_issued { background: var(--green-soft); color: var(--green-strong); }
+    .badge.canceled, .badge.refunded { background: var(--red-soft); color: var(--red-strong); }
+    .muted { color: var(--subtle); font-size: 13px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .empty { padding: 28px; text-align: center; color: var(--subtle); }
+    .small-actions button { padding: 7px 8px; font-size: 12px; }
+    @media (max-width: 920px) {
+      main { width: min(100% - 20px, 1220px); }
+      header, .grid, .row { grid-template-columns: 1fr; display: grid; }
+      .links { justify-content: flex-start; }
+    }
+  </style>
+<link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css">
+<script src="assets/theme-loader.js?v=20260614-modern-bundle"></script>
+</head>
+<body class="ops-tool-page payment-admin-page">
+<main>
+  <header>
+    <div>
+      <h1>YOONBOT 결제/주문 관리</h1>
+      <p>수동 결제 확인 후 라이선스를 발급합니다. 발급된 license key는 발급 순간 한 번만 표시됩니다.</p>
+    </div>
+    <div class="links">
+      <a class="button-link" href="/frontend/yoonbot.html">판매 페이지</a>
+      <a class="button-link" href="/frontend/license-admin.html">라이선스 관리</a>
+      <a class="button-link" href="/frontend/admin.html">ARSEN 관리자</a>
+    </div>
+  </header>
+
+  <div id="status" class="status-line">관리자 비밀번호를 입력한 뒤 주문 목록을 불러오세요.</div>
+
+  <div class="grid">
+    <aside>
+      <section class="panel">
+        <h2>관리자 연결</h2>
+        <label for="admin-key">관리자 비밀번호</label>
+        <input id="admin-key" type="password" autocomplete="off" placeholder="X-Admin-Key">
+        <label>
+          <input id="remember-key" type="checkbox" style="width:auto; margin-right:6px;">
+          이 브라우저에 기억
+        </label>
+        <div class="actions">
+          <button class="primary" id="load-btn" type="button">목록 불러오기</button>
+          <button id="clear-key-btn" type="button">비밀번호 지우기</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>필터</h2>
+        <label for="status-filter">상태</label>
+        <select id="status-filter">
+          <option value="">전체</option>
+          <option value="payment_pending">결제 대기</option>
+          <option value="paid">결제 확인</option>
+          <option value="license_issued">라이선스 발급</option>
+          <option value="canceled">취소</option>
+          <option value="refunded">환불</option>
+        </select>
+        <label for="plan-filter">플랜</label>
+        <select id="plan-filter">
+          <option value="">전체</option>
+          <option value="monthly">monthly</option>
+          <option value="yearly">yearly</option>
+          <option value="trial">trial</option>
+        </select>
+        <div class="actions">
+          <button id="refresh-btn" type="button">새로고침</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>선택 주문</h2>
+        <div id="detail" class="banner">주문을 선택하면 상세와 작업 버튼이 표시됩니다.</div>
+        <label for="admin-note">운영 메모</label>
+        <textarea id="admin-note" placeholder="입금자명, 환불 사유, 고객 전달 기록"></textarea>
+        <div class="actions">
+          <button class="green" id="mark-paid-btn" type="button">결제 확인</button>
+          <button class="primary" id="issue-license-btn" type="button">라이선스 발급</button>
+          <button class="warn" id="refund-btn" type="button">환불 메모</button>
+          <button class="danger" id="cancel-btn" type="button">취소</button>
+        </div>
+        <div id="created-key" class="key-box" hidden>
+          <strong>발급된 키는 지금 한 번만 표시됩니다.</strong>
+          <code id="created-key-text"></code>
+          <div class="actions">
+            <button id="copy-key-btn" type="button">키 복사</button>
+            <button id="copy-message-btn" type="button">안내문 복사</button>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <section class="panel">
+      <h2>주문 목록</h2>
+      <div id="summary" class="banner">요약 정보가 여기에 표시됩니다.</div>
+      <div id="error" class="banner error" hidden></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>상태</th>
+              <th>구매자</th>
+              <th>플랜</th>
+              <th>금액</th>
+              <th>결제 메모</th>
+              <th>라이선스</th>
+              <th>생성일</th>
+              <th>작업</th>
+            </tr>
+          </thead>
+          <tbody id="order-body">
+            <tr><td colspan="8" class="empty">아직 불러온 주문이 없습니다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const state = {
+    adminKey: "",
+    orders: [],
+    selectedOrderId: "",
+    lastCreatedKey: "",
+    lastCustomerMessage: "",
+  };
+
+  function setStatus(message, type = "info") {
+    const el = $("status");
+    el.textContent = message;
+    el.style.color = type === "error"
+      ? "var(--red-strong)"
+      : type === "success"
+        ? "var(--green-strong)"
+        : "var(--subtle)";
+  }
+
+  function setError(message) {
+    const el = $("error");
+    el.hidden = !message;
+    el.textContent = message || "";
+  }
+
+  function adminHeaders() {
+    const key = $("admin-key").value.trim();
+    state.adminKey = key;
+    return {
+      "Content-Type": "application/json",
+      "X-Admin-Key": key,
+    };
+  }
+
+  async function requestJson(path, options = {}) {
+    setError("");
+    const response = await fetch(path, {
+      ...options,
+      headers: {
+        ...adminHeaders(),
+        ...(options.headers || {}),
+      },
+    });
+    const text = await response.text();
+    let payload = {};
+    try {
+      payload = text ? JSON.parse(text) : {};
+    } catch (err) {
+      throw new Error(`JSON 응답 파싱 실패: ${text.slice(0, 300)}`);
+    }
+    if (!response.ok) {
+      throw new Error(payload.detail || payload.message || `HTTP ${response.status}`);
+    }
+    return payload;
+  }
+
+  function badge(status) {
+    return `<span class="badge ${status || ""}">${status || "unknown"}</span>`;
+  }
+
+  function localDate(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString("ko-KR", { hour12: false });
+  }
+
+  function money(value) {
+    return `${Number(value || 0).toLocaleString("ko-KR")}원`;
+  }
+
+  function selectedOrder() {
+    return state.orders.find((item) => item.id === state.selectedOrderId) || null;
+  }
+
+  function renderSummary(summary) {
+    if (!summary) {
+      $("summary").textContent = "요약 정보가 없습니다.";
+      return;
+    }
+    $("summary").innerHTML = `
+      전체 <strong>${summary.total || 0}</strong>건 ·
+      결제 대기 <strong>${summary.payment_pending || 0}</strong>건 ·
+      결제 확인 <strong>${summary.paid || 0}</strong>건 ·
+      라이선스 발급 <strong>${summary.license_issued || 0}</strong>건 ·
+      취소 <strong>${summary.canceled || 0}</strong>건 ·
+      환불 <strong>${summary.refunded || 0}</strong>건
+    `;
+  }
+
+  function renderOrders() {
+    const body = $("order-body");
+    if (!state.orders.length) {
+      body.innerHTML = `<tr><td colspan="8" class="empty">조건에 맞는 주문이 없습니다.</td></tr>`;
+      renderDetail();
+      return;
+    }
+    body.innerHTML = state.orders.map((order) => `
+      <tr>
+        <td>${badge(order.status)}</td>
+        <td>
+          <strong>${order.buyer_name}</strong>
+          <div class="muted">${order.buyer_email_masked || "-"} · ${order.buyer_phone_masked || "-"}</div>
+        </td>
+        <td>${order.plan_code}</td>
+        <td>${money(order.amount_krw)}</td>
+        <td class="mono">${order.payment_ref || "-"}</td>
+        <td class="mono">${order.license_key_hint || order.license_id || "-"}</td>
+        <td>${localDate(order.created_at)}</td>
+        <td><button data-action="select" data-id="${order.id}" type="button">선택</button></td>
+      </tr>
+    `).join("");
+    if (state.selectedOrderId && !selectedOrder()) state.selectedOrderId = "";
+    renderDetail();
+  }
+
+  function renderDetail() {
+    const order = selectedOrder();
+    if (!order) {
+      $("detail").textContent = "주문을 선택하면 상세와 작업 버튼이 표시됩니다.";
+      return;
+    }
+    $("detail").textContent = [
+      `주문ID: ${order.id}`,
+      `상태: ${order.status}`,
+      `구매자: ${order.buyer_name}`,
+      `연락처: ${order.buyer_email_masked || "-"} / ${order.buyer_phone_masked || "-"}`,
+      `플랜/금액: ${order.plan_code} / ${money(order.amount_krw)}`,
+      `결제 메모: ${order.payment_ref || "-"}`,
+      `라이선스: ${order.license_key_hint || order.license_id || "-"}`,
+      `고객 메모: ${order.customer_message || "-"}`,
+      `운영 메모: ${order.note || "-"}`,
+    ].join("\n");
+  }
+
+  async function loadOrders() {
+    try {
+      if ($("remember-key").checked) {
+        localStorage.setItem("yoonbot_payment_admin_key", $("admin-key").value);
+      }
+      const params = new URLSearchParams();
+      if ($("status-filter").value) params.set("status", $("status-filter").value);
+      if ($("plan-filter").value) params.set("plan_code", $("plan-filter").value);
+      const path = `/admin/yoonbot/orders${params.toString() ? `?${params.toString()}` : ""}`;
+      setStatus("주문 목록을 불러오는 중입니다...");
+      const payload = await requestJson(path);
+      state.orders = payload.data || [];
+      renderSummary(payload.summary);
+      renderOrders();
+      setStatus(`주문 ${state.orders.length}건을 불러왔습니다.`, "success");
+    } catch (err) {
+      setError(err.message);
+      setStatus("주문 목록을 불러오지 못했습니다.", "error");
+    }
+  }
+
+  async function runOrderAction(action) {
+    const order = selectedOrder();
+    if (!order) {
+      setStatus("먼저 주문을 선택하세요.", "error");
+      return;
+    }
+    const note = $("admin-note").value.trim();
+    const endpoint = `/admin/yoonbot/orders/${order.id}/${action}`;
+    const body = action === "mark-paid"
+      ? { payment_provider: "manual_bank_transfer", payment_ref: order.payment_ref, note }
+      : { note };
+    setStatus("주문 작업을 처리하는 중입니다...");
+    const payload = await requestJson(endpoint, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    if (action === "issue-license") {
+      state.lastCreatedKey = payload.license_key || "";
+      state.lastCustomerMessage = payload.customer_message || "";
+      $("created-key-text").textContent = state.lastCreatedKey;
+      $("created-key").hidden = !state.lastCreatedKey;
+      setStatus("라이선스를 발급했습니다. 키는 지금 화면에서만 확인할 수 있습니다.", "success");
+    } else {
+      setStatus("주문 작업을 반영했습니다.", "success");
+    }
+    await loadOrders();
+  }
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action='select']");
+    if (!button) return;
+    state.selectedOrderId = button.dataset.id;
+    renderDetail();
+  });
+
+  $("load-btn").addEventListener("click", loadOrders);
+  $("refresh-btn").addEventListener("click", loadOrders);
+  $("status-filter").addEventListener("change", loadOrders);
+  $("plan-filter").addEventListener("change", loadOrders);
+  $("mark-paid-btn").addEventListener("click", () => runOrderAction("mark-paid").catch((err) => {
+    setError(err.message);
+    setStatus("결제 확인에 실패했습니다.", "error");
+  }));
+  $("issue-license-btn").addEventListener("click", () => runOrderAction("issue-license").catch((err) => {
+    setError(err.message);
+    setStatus("라이선스 발급에 실패했습니다.", "error");
+  }));
+  $("cancel-btn").addEventListener("click", () => runOrderAction("cancel").catch((err) => {
+    setError(err.message);
+    setStatus("취소 처리에 실패했습니다.", "error");
+  }));
+  $("refund-btn").addEventListener("click", () => runOrderAction("refund-note").catch((err) => {
+    setError(err.message);
+    setStatus("환불 메모 처리에 실패했습니다.", "error");
+  }));
+  $("clear-key-btn").addEventListener("click", () => {
+    localStorage.removeItem("yoonbot_payment_admin_key");
+    $("admin-key").value = "";
+    setStatus("저장된 관리자 비밀번호를 지웠습니다.");
+  });
+  $("copy-key-btn").addEventListener("click", async () => {
+    if (!state.lastCreatedKey) return;
+    await navigator.clipboard.writeText(state.lastCreatedKey);
+    setStatus("라이선스 키를 복사했습니다.", "success");
+  });
+  $("copy-message-btn").addEventListener("click", async () => {
+    if (!state.lastCustomerMessage) return;
+    await navigator.clipboard.writeText(state.lastCustomerMessage);
+    setStatus("고객 안내문을 복사했습니다.", "success");
+  });
+
+  const savedKey = localStorage.getItem("yoonbot_payment_admin_key");
+  if (savedKey) {
+    $("admin-key").value = savedKey;
+    $("remember-key").checked = true;
+  }
+</script>
+</body>
+</html>

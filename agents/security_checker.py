@@ -29,6 +29,7 @@ MAX_LENGTHS = {
     "ai_weekly_hours": 50,
     "short_term_goal": 1000,
     "preferred_schedule": 200,
+    "available_time_slots": 100,
     "region": 100,
     "skills": 1000,
     "contribution": 1000,

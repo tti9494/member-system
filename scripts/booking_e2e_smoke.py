@@ -162,6 +162,23 @@ def create_test_application() -> dict[str, str]:
     return {"session_id": session_id, "member_id": member_id, "booking_id": booking_id}
 
 
+def run_payment_confirmation_flow(booking_id: str, session_id: str) -> dict[str, str | bool | int]:
+    guide_booking = booking_manager.send_payment_guide_state(booking_id)
+    ok, message, confirmed_booking = booking_manager.confirm_payment_state(
+        booking_id,
+        "TEST operator manual payment confirmation",
+    )
+    session = booking_manager.get_session(session_id)
+    return {
+        "guide_sent": bool(guide_booking and guide_booking.get("payment_status") == "guide_sent"),
+        "confirmed_ok": ok,
+        "message": message,
+        "booking_status": (confirmed_booking or {}).get("status", ""),
+        "payment_status": (confirmed_booking or {}).get("payment_status", ""),
+        "confirmed_count": int((session or {}).get("confirmed_booking_count") or 0),
+    }
+
+
 def assert_increments(before: dict[str, int], after: dict[str, int]) -> list[str]:
     errors = []
     expected = {"members": 1, "bookings": 1, "sessions": 1}
@@ -169,6 +186,20 @@ def assert_increments(before: dict[str, int], after: dict[str, int]) -> list[str
         actual = after[key] - before[key]
         if actual != delta:
             errors.append(f"{key} delta expected {delta}, got {actual}")
+    return errors
+
+
+def assert_operator_safe_report(report_text: str) -> list[str]:
+    errors = []
+    email_local = TEST_EMAIL.split("@", 1)[0]
+    forbidden_values = {
+        "raw test phone": TEST_PHONE,
+        "raw test email": TEST_EMAIL,
+        "raw test email local": email_local,
+    }
+    for label, value in forbidden_values.items():
+        if value and value in report_text:
+            errors.append(f"smoke report exposed {label}")
     return errors
 
 
@@ -185,6 +216,8 @@ def main() -> int:
         before = count_tables()
         before_admin = admin_counts()
         ids = create_test_application()
+        created_admin = admin_counts()
+        payment_flow = run_payment_confirmation_flow(ids["booking_id"], ids["session_id"])
         after = count_tables()
         after_admin = admin_counts()
         status = external_status()
@@ -203,8 +236,10 @@ def main() -> int:
         },
     )
     errors.extend(f"admin {item}" for item in admin_errors)
-    if int(after_admin["requested_bookings"]) - int(before_admin["requested_bookings"]) != 1:
-        errors.append("admin requested_bookings delta expected 1")
+    if int(created_admin["requested_bookings"]) - int(before_admin["requested_bookings"]) != 1:
+        errors.append("admin requested_bookings delta after create expected 1")
+    if int(after_admin["requested_bookings"]) != int(before_admin["requested_bookings"]):
+        errors.append("admin requested_bookings should return to baseline after confirmation")
     if int(after_admin["active_bookings"]) - int(before_admin["active_bookings"]) != 1:
         errors.append("admin active_bookings delta expected 1")
     if int(after_admin["snapshot_members"]) != after["members"]:
@@ -213,6 +248,16 @@ def main() -> int:
         errors.append("storage snapshot booking count does not match DB")
     if str(after_admin["snapshot_path"]) != str(db_path):
         errors.append("storage snapshot DB path does not match active DB path")
+    if not payment_flow["guide_sent"]:
+        errors.append("payment guide state was not set")
+    if not payment_flow["confirmed_ok"]:
+        errors.append(f"payment confirmation failed: {payment_flow['message']}")
+    if payment_flow["booking_status"] != "confirmed":
+        errors.append(f"booking status expected confirmed, got {payment_flow['booking_status']}")
+    if payment_flow["payment_status"] != "paid":
+        errors.append(f"payment status expected paid, got {payment_flow['payment_status']}")
+    if int(payment_flow["confirmed_count"]) != 1:
+        errors.append("session confirmed count expected 1")
 
     report = {
         "ok": not errors,
@@ -220,16 +265,24 @@ def main() -> int:
         "db_path": str(db_path),
         "test_identity": {
             "name": TEST_NAME,
-            "phone": TEST_PHONE,
-            "email": TEST_EMAIL,
+            "phone_masked": mask_phone(TEST_PHONE),
+            "email_domain": TEST_EMAIL.split("@", 1)[-1],
         },
         "ids": ids,
         "counts": {"before": before, "after": after},
-        "admin_counts": {"before": before_admin, "after": after_admin},
+        "admin_counts": {"before": before_admin, "after_create": created_admin, "after": after_admin},
+        "payment_flow": payment_flow,
         "external_status": status,
         "errors": errors,
     }
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    report_text = json.dumps(report, ensure_ascii=False, indent=2)
+    safety_errors = assert_operator_safe_report(report_text)
+    if safety_errors:
+        errors.extend(safety_errors)
+        report["ok"] = False
+        report["errors"] = errors
+        report_text = json.dumps(report, ensure_ascii=False, indent=2)
+    print(report_text)
     return 0 if not errors else 1
 
 
