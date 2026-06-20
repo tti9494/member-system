@@ -196,10 +196,22 @@ def test_public_entry_points_include_free_application_link():
     assert "무료 강의 신청" in main_py
     assert "/frontend/class-stories.html" in main_py
     assert "공개 후기 보기" in main_py
+    assert "/frontend/yoonbot.html#download" in main_py
+    assert "YOONBOT 다운로드" in main_py
+    assert "/frontend/status.html" in main_py
+    assert "예약 확인" in main_py
+    assert "/frontend/member.html" in main_py
+    assert "회원 페이지" in main_py
     assert "/frontend/join-free.html" in build_pages
     assert "무료 강의 신청" in build_pages
     assert "/frontend/class-stories.html" in build_pages
     assert "공개 후기 보기" in build_pages
+    assert "/frontend/yoonbot.html#download" in build_pages
+    assert "YOONBOT 다운로드" in build_pages
+    assert "/frontend/status.html" in build_pages
+    assert "예약 확인" in build_pages
+    assert "/frontend/member.html" in build_pages
+    assert "회원 페이지" in build_pages
     assert "class-dashboard.html" in build_pages
 
 

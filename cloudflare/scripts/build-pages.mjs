@@ -153,25 +153,30 @@ if (!checkOnly) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ARSEN 신청 페이지</title>
+<title>ARSEN 고객 페이지</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif;background:#0b111c;color:#eef4ff;display:grid;place-items:center;padding:28px 16px}
-main{width:min(720px,100%);border:1px solid #334258;border-radius:16px;background:#121a28;padding:30px;box-shadow:0 18px 50px rgba(0,0,0,.28)}
+main{width:min(820px,100%);border:1px solid #334258;border-radius:16px;background:#121a28;padding:30px;box-shadow:0 18px 50px rgba(0,0,0,.28)}
 h1{margin:0 0 10px;font-size:clamp(1.8rem,5vw,2.4rem);letter-spacing:0}
 p{margin:0 0 22px;color:#b8c6d9;line-height:1.7}
-.actions{display:grid;gap:12px}
+.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 a{display:block;border:1px solid #40526d;border-radius:12px;color:#eef4ff;text-decoration:none;padding:16px 18px;font-weight:800;background:#182234}
 a.primary{background:#18438f;border-color:#6ea8ff}
+a.product{background:#0f3d35;border-color:#36d399}
 a span{display:block;margin-top:4px;color:#b8c6d9;font-weight:600;font-size:.95rem}
+@media(max-width:720px){.actions{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <main>
-<h1>ARSEN 신청 페이지</h1>
-<p>원하는 신청 유형을 선택해주세요. 무료 강의는 일정 회차 없이 연락과 편성 참고 정보를 받습니다.</p>
+<h1>ARSEN 고객 페이지</h1>
+<p>강의 신청, 예약 확인, 후기, YOONBOT 파일럿 다운로드까지 여기서 바로 이동합니다.</p>
 <div class="actions">
 <a class="primary" href="/frontend/join-free.html">무료 강의 신청<span>참여 가능 지역과 시간대를 남겨주세요.</span></a>
+<a class="product" href="/frontend/yoonbot.html#download">YOONBOT 다운로드<span>Windows 런처를 내려받고 파일럿 구매 정보를 확인합니다.</span></a>
+<a href="/frontend/status.html">예약 확인<span>신청/예약 상태와 안내 문구를 확인합니다.</span></a>
+<a href="/frontend/class-dashboard.html">수업용 대시보드<span>강의 자료와 공개 학습 아카이브를 봅니다.</span></a>
 <a href="/frontend/class-stories.html">공개 후기 보기<span>관리자가 승인한 후기와 결과물만 표시됩니다.</span></a>
 <a href="/frontend/join-basic.html">체험 신청 (Basic)<span>간단한 체험 신청과 운영자 확인용입니다.</span></a>
 <a href="/frontend/join-full.html">정식 신청 (Full)<span>승인 코드 발급 후 유료 강의 참여까지 연결됩니다.</span></a>
