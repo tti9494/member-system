@@ -6,6 +6,9 @@ CREATE TABLE IF NOT EXISTS members (
   phone_hash TEXT,
   phone_masked TEXT NOT NULL,
   phone_encrypted TEXT NOT NULL DEFAULT '',
+  kakao_id TEXT,
+  kakao_profile TEXT,
+  kakao_connected_at TEXT,
   gender TEXT NOT NULL DEFAULT '',
   age INTEGER NOT NULL DEFAULT 0,
   job TEXT NOT NULL DEFAULT '',
@@ -143,6 +146,31 @@ CREATE TABLE IF NOT EXISTS review_invites (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS consultations (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL DEFAULT 'public_site',
+  topic TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL DEFAULT '',
+  email_hash TEXT,
+  email_masked TEXT NOT NULL DEFAULT '',
+  email_encrypted TEXT NOT NULL DEFAULT '',
+  phone_hash TEXT,
+  phone_masked TEXT NOT NULL DEFAULT '',
+  phone_encrypted TEXT NOT NULL DEFAULT '',
+  product_interest TEXT,
+  message TEXT,
+  status TEXT NOT NULL DEFAULT 'new',
+  admin_note TEXT,
+  page_url TEXT,
+  referrer TEXT,
+  user_agent TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_consultations_status_created ON consultations(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_consultations_source_created ON consultations(source, created_at);
+
 CREATE TABLE IF NOT EXISTS licenses (
   id TEXT PRIMARY KEY,
   member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
@@ -205,9 +233,14 @@ CREATE TABLE IF NOT EXISTS orders (
   product_code TEXT NOT NULL DEFAULT 'yoonbot',
   plan_code TEXT NOT NULL,
   amount_krw INTEGER NOT NULL,
+  original_amount_krw INTEGER,
+  discount_code TEXT,
+  discount_label TEXT,
+  discount_amount_krw INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'payment_pending',
   payment_provider TEXT NOT NULL DEFAULT 'manual_bank_transfer',
   payment_ref TEXT,
+  toss_order_id TEXT,
   member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
   license_id TEXT REFERENCES licenses(id) ON DELETE SET NULL,
   note TEXT,
@@ -215,6 +248,23 @@ CREATE TABLE IF NOT EXISTS orders (
   paid_at TEXT,
   canceled_at TEXT,
   refunded_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS yoonbot_discount_codes (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL UNIQUE,
+  label TEXT,
+  plan_code TEXT,
+  discount_type TEXT NOT NULL,
+  discount_value INTEGER NOT NULL,
+  max_redemptions INTEGER,
+  redeemed_count INTEGER NOT NULL DEFAULT 0,
+  starts_at TEXT,
+  expires_at TEXT,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  note TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -240,3 +290,5 @@ CREATE INDEX IF NOT EXISTS idx_license_events_license_created ON license_events(
 CREATE INDEX IF NOT EXISTS idx_orders_status_created ON orders(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_plan_created ON orders(plan_code, created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_license ON orders(license_id);
+CREATE INDEX IF NOT EXISTS idx_discount_codes_code ON yoonbot_discount_codes(code);
+CREATE INDEX IF NOT EXISTS idx_discount_codes_enabled_created ON yoonbot_discount_codes(enabled, created_at);

@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>ARSEN 수업용 대시보드</title>
+  <link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css">
+  <script src="assets/theme-loader.js?v=member-newsletter-dark-v5"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b111c;
+      --panel: #111a29;
+      --panel-2: #172235;
+      --line: #2a3a52;
+      --text: #eef4ff;
+      --muted: #9fb0c7;
+      --primary: #74a7ff;
+      --green: #37c58f;
+      --red: #ff7474;
+      --amber: #f7bd52;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      line-height: 1.55;
+      letter-spacing: 0;
+    }
+    a { color: inherit; }
+    button, input, select, textarea {
+      font: inherit;
+    }
+    .page {
+      width: min(1440px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 48px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+    .eyebrow {
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 6px 0 0;
+      font-size: clamp(32px, 5vw, 56px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+    .subtitle {
+      max-width: 720px;
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+    .top-actions, .actions, .filter-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 12px;
+      background: var(--panel-2);
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .btn.primary { background: #255fd5; border-color: #5f91ff; color: #fff; }
+    .btn.green { background: #0f8f62; border-color: #36c891; color: #fff; }
+    .btn.red { background: #7f1d1d; border-color: #ef4444; color: #fff; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    body.class-dashboard-page {
+      color-scheme: dark !important;
+      background:
+        radial-gradient(circle at 92% 0%, rgba(81, 132, 206, 0.13), transparent 26rem),
+        linear-gradient(180deg, #090d14 0%, #0b121e 46%, #090d14 100%) !important;
+      color: #eef4ff !important;
+    }
+    body.class-dashboard-page .page {
+      color: #eef4ff !important;
+    }
+    body.class-dashboard-page .panel,
+    body.class-dashboard-page .metric,
+    body.class-dashboard-page .archive-card,
+    body.class-dashboard-page .status-line {
+      background: rgba(16, 23, 34, 0.96) !important;
+      border-color: #2c3b50 !important;
+      color: #eef4ff !important;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28) !important;
+    }
+    body.class-dashboard-page .panel-head,
+    body.class-dashboard-page .filters,
+    body.class-dashboard-page .summary-grid {
+      border-color: #2c3b50 !important;
+      background: rgba(13, 20, 31, 0.36) !important;
+    }
+    body.class-dashboard-page h1,
+    body.class-dashboard-page .panel-title,
+    body.class-dashboard-page .metric-value,
+    body.class-dashboard-page .archive-title,
+    body.class-dashboard-page label {
+      color: #f8fbff !important;
+    }
+    body.class-dashboard-page .subtitle,
+    body.class-dashboard-page .panel-caption,
+    body.class-dashboard-page .metric-label,
+    body.class-dashboard-page .archive-meta,
+    body.class-dashboard-page .empty,
+    body.class-dashboard-page .status-line {
+      color: #b8c6d9 !important;
+    }
+    body.class-dashboard-page input,
+    body.class-dashboard-page select,
+    body.class-dashboard-page textarea {
+      background: #0d1726 !important;
+      border-color: #344760 !important;
+      color: #eef4ff !important;
+      box-shadow: none !important;
+      caret-color: #eef4ff;
+    }
+    body.class-dashboard-page option {
+      background: #0d1726;
+      color: #eef4ff;
+    }
+    body.class-dashboard-page input::placeholder,
+    body.class-dashboard-page textarea::placeholder {
+      color: #7f91ab !important;
+    }
+    body.class-dashboard-page input:focus,
+    body.class-dashboard-page select:focus,
+    body.class-dashboard-page textarea:focus {
+      border-color: #7fb0f0 !important;
+      box-shadow: 0 0 0 3px rgba(127, 176, 240, 0.18) !important;
+    }
+    body.class-dashboard-page .btn,
+    body.class-dashboard-page button.btn,
+    body.class-dashboard-page label.btn {
+      background: #1a2636 !important;
+      border-color: #40536b !important;
+      color: #eef4ff !important;
+      box-shadow: none !important;
+      text-decoration: none !important;
+      transform: none !important;
+    }
+    body.class-dashboard-page .btn:hover,
+    body.class-dashboard-page button.btn:hover,
+    body.class-dashboard-page label.btn:hover {
+      background: #223149 !important;
+      border-color: #7fb0f0 !important;
+      color: #ffffff !important;
+    }
+    body.class-dashboard-page .btn.primary,
+    body.class-dashboard-page button.btn.primary {
+      background: #315f9f !important;
+      border-color: #7fb0f0 !important;
+      color: #ffffff !important;
+    }
+    body.class-dashboard-page .btn.green,
+    body.class-dashboard-page button.btn.green {
+      background: #16845f !important;
+      border-color: #43c291 !important;
+      color: #ffffff !important;
+    }
+    body.class-dashboard-page .btn.red,
+    body.class-dashboard-page button.btn.red {
+      background: #7f2424 !important;
+      border-color: #d86d67 !important;
+      color: #ffffff !important;
+    }
+    body.class-dashboard-page .chip {
+      background: #162337 !important;
+      border-color: #344760 !important;
+      color: #d9e6f7 !important;
+    }
+    body.class-dashboard-page .archive-copy,
+    body.class-dashboard-page code,
+    body.class-dashboard-page .thumb {
+      background: #09111d !important;
+      border-color: #2c3b50 !important;
+      color: #dce7f8 !important;
+    }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+    }
+    .auth-panel {
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(360px, 0.78fr) minmax(0, 1.22fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .form-panel {
+      padding: 18px;
+      position: sticky;
+      top: 16px;
+    }
+    .list-panel {
+      min-height: 620px;
+      overflow: hidden;
+    }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-title {
+      font-size: 18px;
+      font-weight: 950;
+    }
+    .panel-caption {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    .field {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 12px;
+    }
+    label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 850;
+    }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #0d1523;
+      color: var(--text);
+      padding: 10px 11px;
+      outline: none;
+    }
+    textarea { min-height: 96px; resize: vertical; }
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .status-line {
+      min-height: 38px;
+      margin: 0 0 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #0d1523;
+      color: var(--muted);
+      font-weight: 750;
+    }
+    .status-line.ok { color: #baf7d8; border-color: rgba(55, 197, 143, 0.5); }
+    .status-line.error { color: #ffd0d0; border-color: rgba(255, 116, 116, 0.55); }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #0d1523;
+      padding: 12px;
+    }
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .metric-value {
+      margin-top: 3px;
+      font-size: 24px;
+      font-weight: 950;
+    }
+    .filters {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .filters .field {
+      min-width: 180px;
+      margin: 0;
+    }
+    .archive-list {
+      max-height: calc(100vh - 340px);
+      overflow: auto;
+      padding: 14px 18px 18px;
+    }
+    .archive-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 164px;
+      gap: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #0d1523;
+      padding: 14px;
+    }
+    .archive-card + .archive-card { margin-top: 10px; }
+    .archive-title {
+      font-size: 17px;
+      font-weight: 950;
+      overflow-wrap: anywhere;
+    }
+    .archive-meta {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+    .archive-copy {
+      margin-top: 10px;
+      white-space: pre-wrap;
+      color: #dce7f8;
+      font-size: 14px;
+      max-height: 130px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #0b111c;
+      padding: 10px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: #cbd8eb;
+      font-size: 12px;
+      font-weight: 850;
+      margin: 0 5px 5px 0;
+      background: #122033;
+    }
+    .thumb {
+      width: 100%;
+      height: 108px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #0b111c;
+    }
+    .empty {
+      padding: 48px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .hidden { display: none !important; }
+    code {
+      color: #c7dbff;
+      background: #0b111c;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 1px 5px;
+    }
+    @media (max-width: 980px) {
+      .topbar, .layout { display: block; }
+      .top-actions { margin-top: 14px; }
+      .form-panel { position: static; margin-bottom: 16px; }
+      .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .archive-card { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="ops-tool-page class-dashboard-page">
+  <main class="page">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">ARSEN class dashboard</div>
+        <h1>수업용 대시보드</h1>
+        <p class="subtitle">수업에서 바로 쓰는 링크, 이미지, 프롬프트, 팁을 분류해 저장합니다. 학생에게 줄 홈페이지와 분리된 운영자용 아카이브입니다.</p>
+      </div>
+      <div class="top-actions">
+        <a class="btn" href="/frontend/admin.html">관리자</a>
+        <a class="btn" href="/frontend/class-stories.html" target="_blank" rel="noopener">후기 공개</a>
+        <button class="btn" id="download-backup-btn" type="button">JSON 백업</button>
+      </div>
+    </header>
+
+    <section class="panel auth-panel" id="auth-panel">
+      <div class="two">
+        <div class="field">
+          <label for="admin-key">관리자 비밀번호</label>
+          <input id="admin-key" type="password" autocomplete="current-password" placeholder="관리자 비밀번호">
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button class="btn primary" id="load-btn" type="button">대시보드 열기</button>
+        </div>
+      </div>
+      <div class="panel-caption">관리자 화면에서 비밀번호를 기억해 둔 경우 자동으로 불러옵니다. 자료 저장은 <code>/api/education</code>에 기록됩니다.</div>
+    </section>
+
+    <div class="status-line" id="status-line">수업 자료를 불러오려면 관리자 비밀번호로 연결하세요.</div>
+
+    <section class="layout">
+      <section class="panel form-panel">
+        <div class="panel-title" id="editor-title">자료 추가</div>
+        <div class="panel-caption">링크를 넣고 “분류 추천”을 누르면 제목/URL/내용 기준으로 대분류를 추천합니다.</div>
+        <form id="archive-form">
+          <input id="resource-id" type="hidden">
+          <div class="two">
+            <div class="field">
+              <label for="category">대분류</label>
+              <select id="category"></select>
+            </div>
+            <div class="field">
+              <label for="kind">자료 유형</label>
+              <select id="kind">
+                <option value="link">링크</option>
+                <option value="prompt">프롬프트</option>
+                <option value="image">이미지</option>
+                <option value="document">문서</option>
+                <option value="tip">팁</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="title">제목</label>
+            <input id="title" required placeholder="예: Runway 영상 생성 프롬프트">
+          </div>
+          <div class="field">
+            <label for="url">링크</label>
+            <input id="url" type="url" placeholder="https://...">
+          </div>
+          <div class="field">
+            <label for="image-url">이미지 URL</label>
+            <input id="image-url" type="url" placeholder="https://.../preview.png">
+          </div>
+          <div class="field">
+            <label for="description">설명</label>
+            <textarea id="description" placeholder="수업에서 어디에 쓰는 자료인지 적어주세요."></textarea>
+          </div>
+          <div class="field">
+            <label for="copy-text">복사용 프롬프트 / 메모</label>
+            <textarea id="copy-text" placeholder="수업 중 바로 복사할 프롬프트나 안내문을 저장하세요."></textarea>
+          </div>
+          <div class="two">
+            <div class="field">
+              <label for="tags">태그</label>
+              <input id="tags" placeholder="예: chatgpt,이미지,초안">
+            </div>
+            <div class="field">
+              <label for="status">상태</label>
+              <select id="status">
+                <option value="active">사용중</option>
+                <option value="draft">정리중</option>
+                <option value="archived">보관</option>
+              </select>
+            </div>
+          </div>
+          <label class="field" style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px;">
+            <input id="visible" type="checkbox" checked style="width:auto;">
+            공개 자료 API에도 포함
+          </label>
+          <div class="actions">
+            <button class="btn primary" type="submit">저장</button>
+            <button class="btn" id="suggest-category-btn" type="button">분류 추천</button>
+            <button class="btn" id="reset-form-btn" type="button">새 자료</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel list-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">수업 자료 아카이브</div>
+            <div class="panel-caption" id="archive-caption">자료를 불러오지 않았습니다.</div>
+          </div>
+          <div class="actions">
+            <label class="btn" for="restore-file">백업 불러오기</label>
+            <input id="restore-file" class="hidden" type="file" accept="application/json">
+            <button class="btn green" id="save-all-btn" type="button">전체 저장</button>
+          </div>
+        </div>
+        <div class="summary-grid">
+          <div class="metric"><div class="metric-label">전체</div><div class="metric-value" id="metric-total">-</div></div>
+          <div class="metric"><div class="metric-label">공개</div><div class="metric-value" id="metric-visible">-</div></div>
+          <div class="metric"><div class="metric-label">프롬프트</div><div class="metric-value" id="metric-prompts">-</div></div>
+          <div class="metric"><div class="metric-label">링크/이미지</div><div class="metric-value" id="metric-assets">-</div></div>
+        </div>
+        <div class="filters">
+          <div class="filter-row">
+            <div class="field">
+              <label for="filter-category">대분류</label>
+              <select id="filter-category"></select>
+            </div>
+            <div class="field">
+              <label for="filter-kind">유형</label>
+              <select id="filter-kind">
+                <option value="">전체</option>
+                <option value="link">링크</option>
+                <option value="prompt">프롬프트</option>
+                <option value="image">이미지</option>
+                <option value="document">문서</option>
+                <option value="tip">팁</option>
+              </select>
+            </div>
+            <div class="field" style="flex:1;min-width:220px;">
+              <label for="search">검색</label>
+              <input id="search" type="search" placeholder="제목, 설명, 태그, 프롬프트 검색">
+            </div>
+          </div>
+        </div>
+        <div class="archive-list" id="archive-list">
+          <div class="empty">관리자 비밀번호로 연결하면 자료를 불러옵니다.</div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+  (() => {
+    "use strict";
+
+    const CATEGORIES = [
+      "영상생성",
+      "스토리보드",
+      "인물 프롬프트",
+      "문서자동화",
+      "앱 만들기",
+      "운영 자동화",
+      "마케팅/콘텐츠",
+      "알면 좋은 팁",
+      "기타",
+    ];
+
+    const state = {
+      key: localStorage.getItem("memberAdminKey") || sessionStorage.getItem("memberAdminKey") || "",
+      resources: [],
+      updatedAt: "",
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const fields = {
+      adminKey: $("admin-key"),
+      statusLine: $("status-line"),
+      category: $("category"),
+      kind: $("kind"),
+      title: $("title"),
+      url: $("url"),
+      imageUrl: $("image-url"),
+      description: $("description"),
+      copyText: $("copy-text"),
+      tags: $("tags"),
+      status: $("status"),
+      visible: $("visible"),
+      resourceId: $("resource-id"),
+      editorTitle: $("editor-title"),
+      archiveList: $("archive-list"),
+      archiveCaption: $("archive-caption"),
+      filterCategory: $("filter-category"),
+      filterKind: $("filter-kind"),
+      search: $("search"),
+    };
+
+    fields.adminKey.value = state.key === "__local_admin_preview__" ? "" : state.key;
+
+    function createId() {
+      if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        return window.crypto.randomUUID();
+      }
+      return `resource-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    function setStatus(message, tone = "") {
+      fields.statusLine.textContent = message;
+      fields.statusLine.className = `status-line ${tone}`.trim();
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      }[ch]));
+    }
+
+    function adminHeaders() {
+      const key = fields.adminKey.value.trim() || state.key;
+      return key && key !== "__local_admin_preview__"
+        ? { "Content-Type": "application/json", "X-Admin-Key": key }
+        : { "Content-Type": "application/json" };
+    }
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {
+        cache: "no-store",
+        ...options,
+        headers: { ...adminHeaders(), ...(options.headers || {}) },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || data.message || `HTTP ${response.status}`);
+      return data;
+    }
+
+    function fillCategoryOptions() {
+      const options = CATEGORIES.map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join("");
+      fields.category.innerHTML = options;
+      fields.filterCategory.innerHTML = `<option value="">전체</option>${options}`;
+    }
+
+    function tagsToText(value) {
+      return Array.isArray(value) ? value.join(", ") : String(value || "");
+    }
+
+    function textToTags(value) {
+      return String(value || "")
+        .replace(/\r/g, "\n")
+        .replace(/#/g, "")
+        .replace(/,/g, "\n")
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+
+    function normalizeResource(item = {}) {
+      return {
+        id: item.id || createId(),
+        category: item.category || item.section || "기타",
+        section: item.category || item.section || "기타",
+        kind: item.kind || item.type || "link",
+        title: item.title || "",
+        status: item.status || "active",
+        description: item.description || "",
+        url: item.url || "",
+        image_url: item.image_url || item.asset_url || "",
+        copy_text: item.copy_text || "",
+        tags: textToTags(item.tags),
+        visible: item.visible !== false,
+        created_at: item.created_at || new Date().toISOString(),
+        updated_at: item.updated_at || new Date().toISOString(),
+      };
+    }
+
+    function currentPayload() {
+      const now = new Date().toISOString();
+      const category = fields.category.value || "기타";
+      return normalizeResource({
+        id: fields.resourceId.value || createId(),
+        category,
+        section: category,
+        kind: fields.kind.value || "link",
+        title: fields.title.value.trim(),
+        status: fields.status.value || "active",
+        description: fields.description.value.trim(),
+        url: fields.url.value.trim(),
+        image_url: fields.imageUrl.value.trim(),
+        copy_text: fields.copyText.value.trim(),
+        tags: textToTags(fields.tags.value),
+        visible: fields.visible.checked,
+        created_at: state.resources.find((item) => item.id === fields.resourceId.value)?.created_at || now,
+        updated_at: now,
+      });
+    }
+
+    function suggestCategoryText() {
+      const text = [
+        fields.title.value,
+        fields.url.value,
+        fields.description.value,
+        fields.copyText.value,
+        fields.tags.value,
+      ].join(" ").toLowerCase();
+      const rules = [
+        ["영상생성", ["video", "runway", "pika", "veo", "sora", "영상", "쇼츠", "유튜브"]],
+        ["스토리보드", ["storyboard", "story board", "콘티", "스토리보드", "장면", "시퀀스"]],
+        ["인물 프롬프트", ["character", "person", "portrait", "avatar", "인물", "캐릭터", "프로필"]],
+        ["문서자동화", ["document", "docs", "sheet", "excel", "pdf", "notion", "문서", "엑셀", "시트"]],
+        ["앱 만들기", ["app", "github", "replit", "cursor", "bolt", "lovable", "앱", "서비스", "코딩"]],
+        ["운영 자동화", ["automation", "zapier", "make.com", "n8n", "workflow", "자동화", "업무"]],
+        ["마케팅/콘텐츠", ["blog", "instagram", "thread", "copywriting", "블로그", "인스타", "마케팅", "콘텐츠"]],
+        ["알면 좋은 팁", ["tip", "guide", "cheat", "shortcut", "팁", "가이드", "단축키"]],
+      ];
+      const found = rules.find(([, keywords]) => keywords.some((keyword) => text.includes(keyword)));
+      return found ? found[0] : "기타";
+    }
+
+    function resetForm() {
+      fields.resourceId.value = "";
+      fields.editorTitle.textContent = "자료 추가";
+      fields.kind.value = "link";
+      fields.category.value = "기타";
+      fields.title.value = "";
+      fields.url.value = "";
+      fields.imageUrl.value = "";
+      fields.description.value = "";
+      fields.copyText.value = "";
+      fields.tags.value = "";
+      fields.status.value = "active";
+      fields.visible.checked = true;
+    }
+
+    function editResource(id) {
+      const item = state.resources.find((resource) => resource.id === id);
+      if (!item) return;
+      fields.resourceId.value = item.id;
+      fields.editorTitle.textContent = "자료 수정";
+      fields.category.value = item.category || item.section || "기타";
+      fields.kind.value = item.kind || "link";
+      fields.title.value = item.title || "";
+      fields.url.value = item.url || "";
+      fields.imageUrl.value = item.image_url || "";
+      fields.description.value = item.description || "";
+      fields.copyText.value = item.copy_text || "";
+      fields.tags.value = tagsToText(item.tags);
+      fields.status.value = item.status || "active";
+      fields.visible.checked = item.visible !== false;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function deleteResource(id) {
+      const item = state.resources.find((resource) => resource.id === id);
+      if (!item) return;
+      if (!window.confirm(`자료 '${item.title}'을 삭제할까요?`)) return;
+      state.resources = state.resources.filter((resource) => resource.id !== id);
+      renderArchive();
+      setStatus("자료를 목록에서 제거했습니다. 전체 저장을 눌러야 서버에 반영됩니다.", "ok");
+    }
+
+    async function copyText(text, label) {
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus(`${label || "내용"}을 클립보드에 복사했습니다.`, "ok");
+      } catch (_) {
+        window.prompt("복사할 내용을 선택하세요.", text);
+      }
+    }
+
+    function filteredResources() {
+      const category = fields.filterCategory.value;
+      const kind = fields.filterKind.value;
+      const query = fields.search.value.trim().toLowerCase().replace(/\s+/g, "");
+      return state.resources.filter((item) => {
+        if (category && (item.category || item.section) !== category) return false;
+        if (kind && item.kind !== kind) return false;
+        if (!query) return true;
+        const text = [item.title, item.category, item.kind, item.description, item.url, item.image_url, item.copy_text, tagsToText(item.tags)]
+          .join(" ")
+          .toLowerCase()
+          .replace(/\s+/g, "");
+        return text.includes(query);
+      });
+    }
+
+    function renderArchive() {
+      const resources = filteredResources();
+      const visible = state.resources.filter((item) => item.visible !== false).length;
+      const prompts = state.resources.filter((item) => item.kind === "prompt" || item.copy_text).length;
+      const assets = state.resources.filter((item) => item.url || item.image_url).length;
+      $("metric-total").textContent = String(state.resources.length);
+      $("metric-visible").textContent = String(visible);
+      $("metric-prompts").textContent = String(prompts);
+      $("metric-assets").textContent = String(assets);
+      fields.archiveCaption.textContent = `${resources.length}개 표시 / 전체 ${state.resources.length}개 · 마지막 저장 ${state.updatedAt || "-"}`;
+      fields.archiveList.innerHTML = "";
+      if (!resources.length) {
+        fields.archiveList.innerHTML = '<div class="empty">조건에 맞는 자료가 없습니다.</div>';
+        return;
+      }
+      for (const item of resources) {
+        const card = document.createElement("article");
+        card.className = "archive-card";
+        const tags = textToTags(item.tags).map((tag) => `<span class="chip">${escapeHtml(tag)}</span>`).join("");
+        const image = item.image_url ? `<img class="thumb" src="${escapeHtml(item.image_url)}" alt="">` : '<div class="thumb" aria-hidden="true"></div>';
+        card.innerHTML = `
+          <div>
+            <div>
+              <span class="chip">${escapeHtml(item.category || item.section || "기타")}</span>
+              <span class="chip">${escapeHtml(item.kind || "link")}</span>
+              <span class="chip">${escapeHtml(item.visible === false ? "비공개" : "공개")}</span>
+              <span class="chip">${escapeHtml(item.status || "active")}</span>
+            </div>
+            <div class="archive-title">${escapeHtml(item.title || "제목 없음")}</div>
+            <div class="archive-meta">${escapeHtml(item.description || "설명 없음")}</div>
+            ${item.url ? `<div class="archive-meta"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.url)}</a></div>` : ""}
+            ${tags ? `<div class="archive-meta">${tags}</div>` : ""}
+            ${item.copy_text ? `<div class="archive-copy">${escapeHtml(item.copy_text)}</div>` : ""}
+          </div>
+          <div>
+            ${image}
+            <div class="actions" style="margin-top:10px;">
+              <button class="btn" data-action="edit" data-id="${escapeHtml(item.id)}" type="button">수정</button>
+              <button class="btn" data-action="copy" data-id="${escapeHtml(item.id)}" type="button">복사</button>
+              <button class="btn red" data-action="delete" data-id="${escapeHtml(item.id)}" type="button">삭제</button>
+            </div>
+          </div>
+        `;
+        fields.archiveList.appendChild(card);
+      }
+    }
+
+    async function loadArchive() {
+      try {
+        setStatus("수업 자료를 불러오는 중입니다.");
+        const data = await api("/api/education?include_hidden=true");
+        state.updatedAt = data.updated_at || "";
+        state.resources = Array.isArray(data.resources) ? data.resources.map(normalizeResource) : [];
+        renderArchive();
+        setStatus("수업 자료를 불러왔습니다.", "ok");
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+    }
+
+    async function saveArchive() {
+      try {
+        setStatus("수업 자료를 저장하는 중입니다.");
+        const payload = { resources: state.resources.map(normalizeResource) };
+        const data = await api("/api/education", {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        state.updatedAt = data.updated_at || new Date().toISOString();
+        state.resources = Array.isArray(data.resources) ? data.resources.map(normalizeResource) : state.resources;
+        renderArchive();
+        setStatus("수업 자료를 저장했습니다.", "ok");
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+    }
+
+    function downloadBackup() {
+      const payload = {
+        exported_at: new Date().toISOString(),
+        updated_at: state.updatedAt,
+        resources: state.resources.map(normalizeResource),
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2) + "\n"], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `arsen-class-archive-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setStatus("현재 수업 자료 JSON 백업을 내려받았습니다.", "ok");
+    }
+
+    async function restoreBackup(file) {
+      if (!file) return;
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      const imported = Array.isArray(payload) ? payload : payload.resources;
+      if (!Array.isArray(imported)) throw new Error("백업 파일 형식이 올바르지 않습니다.");
+      state.resources = imported.map(normalizeResource);
+      renderArchive();
+      setStatus("백업 파일을 화면에 불러왔습니다. 전체 저장을 눌러야 서버에 반영됩니다.", "ok");
+    }
+
+    $("archive-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const item = currentPayload();
+      if (!item.title.trim()) {
+        setStatus("제목을 입력하세요.", "error");
+        return;
+      }
+      const index = state.resources.findIndex((resource) => resource.id === item.id);
+      if (index >= 0) state.resources[index] = item;
+      else state.resources.unshift(item);
+      renderArchive();
+      resetForm();
+      setStatus("자료를 목록에 반영했습니다. 전체 저장을 눌러야 서버에 저장됩니다.", "ok");
+    });
+
+    $("load-btn").addEventListener("click", loadArchive);
+    $("save-all-btn").addEventListener("click", saveArchive);
+    $("download-backup-btn").addEventListener("click", downloadBackup);
+    $("reset-form-btn").addEventListener("click", resetForm);
+    $("suggest-category-btn").addEventListener("click", () => {
+      fields.category.value = suggestCategoryText();
+      setStatus(`추천 분류를 '${fields.category.value}'로 선택했습니다. 필요하면 직접 바꾸세요.`, "ok");
+    });
+    fields.archiveList.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      const item = state.resources.find((resource) => resource.id === button.dataset.id);
+      if (!item) return;
+      if (button.dataset.action === "edit") editResource(item.id);
+      if (button.dataset.action === "delete") deleteResource(item.id);
+      if (button.dataset.action === "copy") copyText(item.copy_text || item.url || item.description, item.title);
+    });
+    ["change", "input"].forEach((eventName) => {
+      fields.filterCategory.addEventListener(eventName, renderArchive);
+      fields.filterKind.addEventListener(eventName, renderArchive);
+      fields.search.addEventListener(eventName, renderArchive);
+    });
+    $("restore-file").addEventListener("change", async (event) => {
+      try {
+        await restoreBackup(event.target.files?.[0]);
+      } catch (error) {
+        setStatus(error.message, "error");
+      } finally {
+        event.target.value = "";
+      }
+    });
+    fields.adminKey.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") loadArchive();
+    });
+
+    fillCategoryOptions();
+    resetForm();
+    if (state.key) loadArchive();
+  })();
+  </script>
+</body>
+</html>

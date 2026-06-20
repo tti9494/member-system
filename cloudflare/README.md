@@ -33,6 +33,10 @@ Schema/migration notes before deployment:
   available_time_slots TEXT` for older D1 databases and ignores the duplicate
   column case. If deployment is done manually, run the same schema/migration
   step first or new application submissions can fail on older D1 schemas.
+- Kakao Login adds guarded `members.kakao_id`, `members.kakao_profile`, and
+  `members.kakao_connected_at` migrations plus `idx_members_kakao_id`. Register
+  `https://apply.arsen-ai.com/auth/kakao/callback` in Kakao Developers before
+  enabling `KAKAO_REST_API_KEY`.
 - Do not run manual D1 imports over live operational data unless explicitly
   approved. The default deploy path preserves existing D1 rows.
 

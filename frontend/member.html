@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARSEN 회원 페이지</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f7f8fb;
+    --panel: #ffffff;
+    --panel-2: #f3f5f8;
+    --ink: #0a0a0a;
+    --muted: #475467;
+    --line: #e5e7eb;
+    --line-strong: #cfd5df;
+    --blue: #355f92;
+    --green: #087451;
+    --amber: #7a4300;
+    --red: #b42318;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 86% 4%, rgba(53, 95, 146, 0.1), transparent 24rem),
+      linear-gradient(180deg, #ffffff 0%, var(--bg) 42%, #ffffff 100%);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    line-height: 1.55;
+  }
+  a { color: inherit; }
+  .shell { width: min(1120px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 64px; }
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 0 24px;
+  }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 900; text-decoration: none; }
+  .brand-mark {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: #0a0a0a;
+    color: #ffffff;
+  }
+  .top-links { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .top-links a, .link-button {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 800;
+    background: #ffffff;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+  }
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    gap: 22px;
+    align-items: stretch;
+    margin-top: 8px;
+  }
+  .login-card, .panel, .action-card, .booking-card {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  }
+  .hero-copy {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 16px;
+    background:
+      radial-gradient(circle at 88% 10%, rgba(88, 141, 207, 0.32), transparent 19rem),
+      linear-gradient(115deg, #101820 0%, #203853 48%, #121925 100%);
+    box-shadow: 0 22px 56px rgba(15, 23, 42, 0.18);
+    color: #ffffff;
+  }
+  .hero-copy { padding: clamp(24px, 4vw, 44px); min-height: 420px; display: flex; flex-direction: column; justify-content: space-between; }
+  .eyebrow { margin: 0 0 16px; color: var(--green); font-size: 12px; font-weight: 900; letter-spacing: 0; text-transform: uppercase; }
+  h1 { margin: 0; font-size: clamp(2.15rem, 6vw, 4.25rem); line-height: 1.04; letter-spacing: 0; }
+  .hero-text { max-width: 680px; margin: 18px 0 0; color: rgba(255, 255, 255, 0.82); font-size: 1.04rem; }
+  .hero-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 34px; }
+  .metric {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.12);
+    min-width: 0;
+  }
+  .metric small { color: rgba(255, 255, 255, 0.68); font-size: 12px; font-weight: 800; }
+  .metric strong { display: block; margin-top: 4px; font-size: 1.18rem; overflow-wrap: anywhere; }
+  .login-card { padding: 22px; }
+  .login-card h2, .panel h2 { margin: 0 0 10px; font-size: 1.2rem; letter-spacing: 0; }
+  .muted { color: var(--muted); }
+  .form-grid { display: grid; gap: 14px; margin-top: 18px; }
+  label { display: block; margin-bottom: 7px; color: #182230; font-weight: 850; font-size: 14px; }
+  input, textarea {
+    width: 100%;
+    min-height: 46px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 10px;
+    padding: 11px 12px;
+    background: #ffffff;
+    color: var(--ink);
+    font: inherit;
+  }
+  textarea { min-height: 92px; resize: vertical; }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(127, 176, 240, 0.18);
+  }
+  .button-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  button, .button {
+    min-height: 46px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 11px 15px;
+    background: #0a0a0a;
+    color: #ffffff;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  button:hover, .button:hover { filter: brightness(1.08); }
+  button:disabled { cursor: not-allowed; opacity: 0.62; }
+  .button.secondary, button.secondary {
+    background: #ffffff;
+    color: var(--ink);
+    border-color: var(--line-strong);
+  }
+  .auth-methods {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 16px 0 14px;
+    padding: 5px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #f6f8fb;
+  }
+  .auth-method {
+    min-height: 46px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    box-shadow: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    font-size: 14px;
+    white-space: normal;
+  }
+  .auth-method.active {
+    background: #0a0a0a;
+    border-color: #0a0a0a;
+    color: #ffffff;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+  }
+  .auth-method:not(.active):hover {
+    background: #ffffff;
+    border-color: #e1e5ec;
+    color: var(--ink);
+  }
+  .member-helper {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 760;
+  }
+  .member-helper a {
+    color: var(--blue);
+    font-weight: 900;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .notice {
+    margin-top: 14px;
+    min-height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #f6f8fb;
+    color: var(--muted);
+    font-weight: 750;
+  }
+  .notice.ok { color: var(--green); border-color: rgba(66, 212, 154, 0.45); }
+  .notice.error { color: var(--red); border-color: rgba(255, 133, 133, 0.45); }
+  .hidden { display: none !important; }
+  .dashboard { margin-top: 22px; display: grid; gap: 16px; }
+  .panel { padding: 22px; }
+  .panel-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+  .profile-grid, .action-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .profile-card, .action-card { padding: 14px; min-width: 0; }
+  .profile-card span, .action-card span { display: block; color: var(--muted); font-size: 12px; font-weight: 850; }
+  .profile-card strong, .action-card strong { display: block; margin-top: 5px; font-size: 1rem; overflow-wrap: anywhere; }
+  .action-card { text-decoration: none; }
+  .action-card:hover { border-color: rgba(127, 176, 240, 0.56); }
+  .booking-list { display: grid; gap: 12px; }
+  .booking-card { padding: 16px; background: #ffffff; }
+  .booking-card.confirmed { border-color: rgba(66, 212, 154, 0.6); }
+  .booking-card.waiting { border-color: rgba(243, 201, 107, 0.55); }
+  .booking-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
+  .booking-title { margin: 0; font-size: 1.04rem; }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 5px 10px;
+    color: #dbe7f5;
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  .pill.green { color: var(--green); border-color: rgba(66, 212, 154, 0.55); }
+  .pill.amber { color: var(--amber); border-color: rgba(243, 201, 107, 0.55); }
+  .booking-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+  .meta-cell { border-top: 1px solid var(--line); padding-top: 10px; min-width: 0; }
+  .meta-cell span { display: block; color: var(--muted); font-size: 12px; font-weight: 800; }
+  .meta-cell strong { display: block; margin-top: 4px; overflow-wrap: anywhere; }
+  .empty {
+    border: 1px dashed var(--line-strong);
+    border-radius: 8px;
+    padding: 20px;
+    color: var(--muted);
+    background: #f6f8fb;
+  }
+  .booking-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 16px; }
+  .booking-form .wide { grid-column: 1 / -1; }
+  select {
+    width: 100%;
+    min-height: 46px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 10px;
+    padding: 11px 12px;
+    background: #ffffff;
+    color: var(--ink);
+    font: inherit;
+  }
+  @media (max-width: 880px) {
+    .hero { grid-template-columns: 1fr; }
+    .hero-copy { min-height: auto; }
+    .profile-grid, .action-grid, .booking-meta, .hero-metrics, .booking-form { grid-template-columns: 1fr; }
+    .panel-head, .booking-head, .topbar { display: block; }
+    .top-links { justify-content: flex-start; margin-top: 12px; }
+  }
+</style>
+<link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css?v=member-page-v1">
+<style>
+  body.member-page {
+    color-scheme: light !important;
+    background:
+      radial-gradient(circle at 86% 4%, rgba(53, 95, 146, 0.1), transparent 24rem),
+      linear-gradient(180deg, #ffffff 0%, #f7f8fb 42%, #ffffff 100%) !important;
+    color: #0a0a0a !important;
+  }
+
+  body.member-page .shell {
+    width: min(1180px, calc(100% - 32px));
+    padding: 24px 0 72px;
+  }
+
+  body.member-page .topbar {
+    padding: 12px 0 22px;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 22px;
+  }
+
+  body.member-page .brand {
+    color: #0a0a0a;
+    letter-spacing: 0;
+  }
+
+  body.member-page .brand-mark {
+    border-color: #d8dee8;
+    background: #0a0a0a;
+    color: #ffffff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  }
+
+  body.member-page .top-links a,
+  body.member-page .link-button {
+    background: #ffffff;
+    border-color: #e1e5ec;
+    color: #344054;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+  }
+
+  body.member-page .top-links a:hover,
+  body.member-page .link-button:hover {
+    border-color: #0a0a0a;
+    color: #0a0a0a;
+  }
+
+  body.member-page .hero {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 420px !important;
+    gap: 22px !important;
+    align-items: stretch !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    color: #0a0a0a !important;
+  }
+
+  body.member-page .hero-copy {
+    min-height: 430px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 16px;
+    background:
+      radial-gradient(circle at 88% 10%, rgba(88, 141, 207, 0.32), transparent 19rem),
+      linear-gradient(115deg, #101820 0%, #203853 48%, #121925 100%) !important;
+    color: #ffffff;
+    box-shadow: 0 22px 56px rgba(15, 23, 42, 0.18);
+  }
+
+  body.member-page .hero-copy h1,
+  body.member-page .hero-copy .eyebrow,
+  body.member-page .hero-copy .hero-text,
+  body.member-page .hero-copy p {
+    color: #ffffff !important;
+  }
+
+  body.member-page .hero-copy .eyebrow {
+    color: #b8d9ff !important;
+  }
+
+  body.member-page .hero-text {
+    color: rgba(255, 255, 255, 0.82) !important;
+  }
+
+  body.member-page .metric {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(10px);
+  }
+
+  body.member-page .metric small {
+    color: rgba(255, 255, 255, 0.68) !important;
+  }
+
+  body.member-page .login-card,
+  body.member-page .panel,
+  body.member-page .action-card,
+  body.member-page .booking-card {
+    background: rgba(255, 255, 255, 0.94) !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 16px !important;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08) !important;
+    color: #0a0a0a !important;
+  }
+
+  body.member-page .login-card {
+    align-self: stretch;
+  }
+
+  body.member-page .login-card h2,
+  body.member-page .panel h2,
+  body.member-page .booking-title,
+  body.member-page .profile-card strong,
+  body.member-page .action-card strong,
+  body.member-page .meta-cell strong {
+    color: #0a0a0a !important;
+  }
+
+  body.member-page .muted,
+  body.member-page .profile-card span,
+  body.member-page .action-card span,
+  body.member-page .meta-cell span {
+    color: #475467 !important;
+  }
+
+  body.member-page label {
+    color: #182230 !important;
+  }
+
+  body.member-page input,
+  body.member-page select,
+  body.member-page textarea {
+    background: #ffffff !important;
+    border: 1.5px solid #cfd5df !important;
+    color: #0a0a0a !important;
+    border-radius: 10px !important;
+  }
+
+  body.member-page input:focus,
+  body.member-page select:focus,
+  body.member-page textarea:focus {
+    border-color: #355f92 !important;
+    box-shadow: 0 0 0 4px rgba(53, 95, 146, 0.14) !important;
+  }
+
+  body.member-page button,
+  body.member-page .button {
+    background: #0a0a0a !important;
+    color: #ffffff !important;
+    border-color: #0a0a0a !important;
+    border-radius: 10px !important;
+  }
+
+  body.member-page button:hover,
+  body.member-page .button:hover {
+    filter: none;
+    background: #1f2937 !important;
+    border-color: #1f2937 !important;
+  }
+
+  body.member-page button.secondary,
+  body.member-page .button.secondary {
+    background: #ffffff !important;
+    color: #0a0a0a !important;
+    border-color: #cfd5df !important;
+  }
+
+  body.member-page .auth-methods {
+    background: #f6f8fb !important;
+    border-color: #e1e5ec !important;
+  }
+
+  body.member-page .auth-method {
+    color: #667085 !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  body.member-page .auth-method.active {
+    color: #ffffff !important;
+    background: #0a0a0a !important;
+    border-color: #0a0a0a !important;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12) !important;
+  }
+
+  body.member-page .auth-method:not(.active):hover {
+    background: #ffffff !important;
+    border-color: #e1e5ec !important;
+    color: #0a0a0a !important;
+  }
+
+  body.member-page .member-helper {
+    color: #667085 !important;
+  }
+
+  body.member-page .member-helper a {
+    color: #355f92 !important;
+  }
+
+  body.member-page .notice,
+  body.member-page .empty,
+  body.member-page .profile-card {
+    background: #f6f8fb !important;
+    border-color: #e1e5ec !important;
+    color: #475467 !important;
+  }
+
+  body.member-page .notice.ok,
+  body.member-page .pill.green {
+    color: #087451 !important;
+    border-color: rgba(8, 116, 81, 0.35) !important;
+  }
+
+  body.member-page .notice.error {
+    color: #b42318 !important;
+    border-color: rgba(180, 35, 24, 0.35) !important;
+  }
+
+  body.member-page .pill {
+    background: #f2f4f7 !important;
+    border-color: #d8dee8 !important;
+    color: #344054 !important;
+  }
+
+  body.member-page .pill.amber {
+    color: #7a4300 !important;
+    border-color: rgba(122, 67, 0, 0.32) !important;
+  }
+
+  body.member-page .booking-card.confirmed {
+    background: linear-gradient(180deg, #f1fbf6 0%, #ffffff 72%) !important;
+    border-color: rgba(8, 116, 81, 0.28) !important;
+  }
+
+  body.member-page .booking-card.waiting {
+    background: linear-gradient(180deg, #fff8e8 0%, #ffffff 72%) !important;
+    border-color: rgba(122, 67, 0, 0.24) !important;
+  }
+
+  body.member-page .meta-cell {
+    border-top-color: #e5e7eb !important;
+  }
+
+  @media (max-width: 880px) {
+    body.member-page .hero {
+      grid-template-columns: 1fr !important;
+    }
+
+    body.member-page .hero-copy {
+      min-height: auto;
+    }
+  }
+
+  @media (max-width: 520px) {
+    body.member-page .shell {
+      width: min(100% - 20px, 1180px);
+      padding-top: 16px;
+    }
+
+    body.member-page .hero-copy,
+    body.member-page .login-card,
+    body.member-page .panel {
+      border-radius: 14px !important;
+    }
+  }
+</style>
+<script src="assets/theme-loader.js?v=member-page-v1"></script>
+</head>
+<body class="member-page">
+<div class="shell">
+  <nav class="topbar" aria-label="회원 페이지 상단">
+    <a class="brand" href="/"><span class="brand-mark">AI</span><span>ARSEN</span></a>
+    <div class="top-links">
+      <a href="/frontend/education.html">강의 안내</a>
+      <a href="/frontend/status.html">예약 확인</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-copy">
+      <div>
+        <p class="eyebrow">member workspace</p>
+        <h1>내 강의 흐름을 한 곳에서 봅니다.</h1>
+        <p class="hero-text">승인 코드를 받은 회원은 예약 상태, 수강 이력, 다음 안내 링크를 한 화면에서 확인할 수 있습니다.</p>
+      </div>
+      <div class="hero-metrics" aria-label="회원 페이지 기능 요약">
+        <div class="metric"><small>확인</small><strong>승인 코드</strong></div>
+        <div class="metric"><small>관리</small><strong>예약·수강 이력</strong></div>
+        <div class="metric"><small>다음 단계</small><strong>후기·자료 링크</strong></div>
+      </div>
+    </div>
+
+    <aside class="login-card" aria-label="회원 로그인">
+      <h2>회원 확인</h2>
+      <div class="auth-methods" role="tablist" aria-label="회원 확인 방식">
+        <button id="auth-code-mode" class="auth-method active" type="button" role="tab" aria-selected="true">승인 코드로 확인</button>
+        <button id="auth-kakao-mode" class="auth-method" type="button" role="tab" aria-selected="false">카카오로 확인</button>
+      </div>
+      <p class="muted">신청할 때 입력한 전화번호와 운영자가 발급한 승인 코드를 입력하세요.</p>
+      <form id="member-login-form" class="form-grid">
+        <div>
+          <label for="phone">전화번호</label>
+          <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="010-1234-5678" required>
+        </div>
+        <div>
+          <label for="code">승인 코드</label>
+          <input id="code" name="code" type="text" autocomplete="one-time-code" placeholder="발급받은 승인 코드" required>
+        </div>
+        <button id="login-btn" type="submit">내 페이지 열기</button>
+      </form>
+      <p class="member-helper">처음 신청하시는 분은 상단의 강의 안내에서 무료/유료 과정을 선택하세요.</p>
+      <div id="status" class="notice">로그인 후 회원 정보가 이 화면 아래에 표시됩니다.</div>
+    </aside>
+  </section>
+
+  <main id="dashboard" class="dashboard hidden">
+    <section class="panel" aria-label="회원 요약">
+      <div class="panel-head">
+        <div>
+          <h2>회원 요약</h2>
+          <p class="muted">운영자가 확인하는 신청자 정보와 같은 기준으로 표시합니다.</p>
+        </div>
+        <button class="secondary" id="refresh-btn" type="button">새로고침</button>
+      </div>
+      <div class="profile-grid">
+        <div class="profile-card"><span>이름</span><strong id="member-name">-</strong></div>
+        <div class="profile-card"><span>상태</span><strong id="member-status">-</strong></div>
+        <div class="profile-card"><span>신청 구분</span><strong id="member-plan">-</strong></div>
+        <div class="profile-card"><span>수강 이력</span><strong id="member-history">-</strong></div>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="다음 행동">
+      <h2>다음 행동</h2>
+      <div class="action-grid">
+        <a class="action-card" href="/frontend/status.html"><span>예약</span><strong>상세 예약 확인</strong></a>
+        <a class="action-card" href="/frontend/class-stories.html"><span>후기</span><strong>공개 후기 보기</strong></a>
+        <a class="action-card" href="/frontend/class-dashboard.html"><span>자료</span><strong>수업용 대시보드</strong></a>
+        <a class="action-card" href="https://open.kakao.com/o/gm9tRoJh" target="_blank" rel="noopener"><span>채널</span><strong>정보 공유방</strong></a>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="내 예약과 수강 이력">
+      <div class="panel-head">
+        <div>
+          <h2>내 예약·수강 이력</h2>
+          <p class="muted">예약 신청, 입금 확인, 완료된 수강 내역을 최신 순으로 확인합니다.</p>
+        </div>
+        <span class="pill" id="booking-count">0건</span>
+      </div>
+      <div id="booking-list" class="booking-list"></div>
+    </section>
+
+    <section class="panel" aria-label="새 예약 신청">
+      <h2>새 예약 신청</h2>
+      <p class="muted">승인 코드를 받은 유료강의 회원은 공개된 일정에 예약을 신청할 수 있습니다. 무료강의는 일정이 열린 경우에만 선택 가능합니다.</p>
+      <form id="booking-form" class="booking-form">
+        <div class="wide">
+          <label for="session">일정 선택</label>
+          <select id="session" required></select>
+        </div>
+        <div>
+          <label for="desired-outcome">얻고 싶은 것</label>
+          <textarea id="desired-outcome" placeholder="예: 업무 자동화 방향 잡기"></textarea>
+        </div>
+        <div>
+          <label for="preparedness">준비 상태</label>
+          <textarea id="preparedness" placeholder="예: 노트북 지참 가능, ChatGPT 사용 중"></textarea>
+        </div>
+        <div class="wide button-row">
+          <button id="booking-btn" type="submit">예약 신청</button>
+          <a class="button secondary" href="/frontend/status.html">기존 예약 확인 화면</a>
+        </div>
+      </form>
+    </section>
+  </main>
+</div>
+
+<script>
+const state = { member: null, code: "", phone: "", bookings: [], sessions: [], kakao: null };
+const $ = (id) => document.getElementById(id);
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[ch]));
+}
+
+function setStatus(message, tone = "") {
+  const el = $("status");
+  el.textContent = message;
+  el.className = `notice ${tone}`.trim();
+}
+
+function setAuthMode(mode) {
+  const codeButton = $("auth-code-mode");
+  const kakaoButton = $("auth-kakao-mode");
+  const isKakao = mode === "kakao";
+  codeButton.classList.toggle("active", !isKakao);
+  kakaoButton.classList.toggle("active", isKakao);
+  codeButton.setAttribute("aria-selected", String(!isKakao));
+  kakaoButton.setAttribute("aria-selected", String(isKakao));
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) {
+    const detail = typeof data.detail === "string" ? data.detail : data.message;
+    throw new Error(detail || `HTTP ${response.status}`);
+  }
+  return data;
+}
+
+function formatDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function formatAmount(value) {
+  const amount = Number(value || 0);
+  return amount ? `${amount.toLocaleString("ko-KR")}원` : "무료";
+}
+
+function planLabel(plan) {
+  return { free: "무료강의", basic: "기본강의", full: "유료강의" }[String(plan || "").toLowerCase()] || plan || "-";
+}
+
+function statusLabel(status) {
+  return {
+    pending: "검토 대기",
+    approved: "승인 완료",
+    rejected: "거절",
+    blacklist: "신청 제한",
+  }[String(status || "").toLowerCase()] || status || "-";
+}
+
+function bookingState(booking) {
+  if (booking.status === "completed") return ["수강 완료", "green"];
+  if (booking.status === "confirmed" && ["paid", "waived"].includes(booking.payment_status)) return ["예약 확정", "green"];
+  if (booking.status === "waitlisted") return ["대기", "amber"];
+  if (["canceled", "rejected", "no_show"].includes(booking.status)) return ["종료", ""];
+  return ["확인 중", "amber"];
+}
+
+function historySummary() {
+  const active = state.bookings.filter((item) => !["canceled", "rejected", "no_show"].includes(item.status));
+  const completed = active.filter((item) => item.status === "completed").length;
+  const confirmed = active.filter((item) => item.status === "confirmed").length;
+  return `완료 ${completed}회 · 예약 ${confirmed}건`;
+}
+
+function renderProfile() {
+  $("member-name").textContent = state.member?.name || "-";
+  $("member-status").textContent = statusLabel(state.member?.status);
+  $("member-plan").textContent = planLabel(state.member?.plan_type);
+  $("member-history").textContent = historySummary();
+}
+
+function renderBookings() {
+  $("booking-count").textContent = `${state.bookings.length}건`;
+  const list = $("booking-list");
+  if (!state.bookings.length) {
+    list.innerHTML = '<div class="empty">아직 예약 또는 수강 이력이 없습니다. 일정이 필요하면 아래에서 새 예약을 신청하세요.</div>';
+    return;
+  }
+  list.innerHTML = state.bookings.map((booking) => {
+    const [label, tone] = bookingState(booking);
+    const amount = booking.payment_amount_krw || booking.session_price_krw;
+    const location = booking.session_location || booking.location || "-";
+    const rank = booking.request_rank ? `신청 ${booking.request_rank}번째` : "순번 확인 전";
+    const paid = booking.paid_rank ? `확정 ${booking.paid_rank}번째` : "확정 전";
+    return `
+      <article class="booking-card ${tone === "green" ? "confirmed" : "waiting"}">
+        <div class="booking-head">
+          <div>
+            <h3 class="booking-title">${escapeHtml(booking.session_title || "일정 미선택 예약")}</h3>
+            <p class="muted">${escapeHtml(formatDate(booking.session_starts_at))}</p>
+          </div>
+          <span class="pill ${tone}">${escapeHtml(label)}</span>
+        </div>
+        <div class="booking-meta">
+          <div class="meta-cell"><span>장소</span><strong>${escapeHtml(location)}</strong></div>
+          <div class="meta-cell"><span>금액</span><strong>${escapeHtml(formatAmount(amount))}</strong></div>
+          <div class="meta-cell"><span>순번</span><strong>${escapeHtml(rank)}</strong></div>
+          <div class="meta-cell"><span>입금/확정</span><strong>${escapeHtml(paid)}</strong></div>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderSessions() {
+  const select = $("session");
+  select.innerHTML = "";
+  if (!state.sessions.length) {
+    select.innerHTML = '<option value="">현재 공개된 일정이 없습니다</option>';
+    select.disabled = true;
+    $("booking-btn").disabled = true;
+    return;
+  }
+  select.disabled = false;
+  $("booking-btn").disabled = false;
+  for (const session of state.sessions) {
+    const option = document.createElement("option");
+    option.value = session.id;
+    option.disabled = Boolean(session.is_request_full || session.status === "full");
+    option.textContent = `${formatDate(session.starts_at)} · ${session.location || "-"} · ${formatAmount(session.price_krw)}`;
+    select.appendChild(option);
+  }
+}
+
+function renderDashboard() {
+  $("dashboard").classList.remove("hidden");
+  renderProfile();
+  renderBookings();
+}
+
+function applyMemberPayload(payload) {
+  state.kakao = payload.kakao || state.kakao;
+  state.member = payload.member;
+  state.bookings = payload.bookings || [];
+  renderDashboard();
+}
+
+async function verifyAndLoad() {
+  const data = await api("/member/verify-code", {
+    method: "POST",
+    body: JSON.stringify({ phone: state.phone, code: state.code }),
+  });
+  applyMemberPayload(data.data);
+}
+
+async function loadKakaoSession(status = "") {
+  setAuthMode("kakao");
+  if (status === "not_configured") {
+    setStatus("카카오 로그인 키가 아직 서버에 설정되지 않았습니다. 운영자 설정 후 사용할 수 있습니다.", "error");
+    return false;
+  }
+  if (["error", "state_error", "token_error"].includes(status)) {
+    setStatus("카카오 로그인 확인 중 문제가 있었습니다. 다시 시도해 주세요.", "error");
+    return false;
+  }
+  const data = await api("/auth/kakao/me", { method: "GET" });
+  state.kakao = data.data.kakao || null;
+  if (data.data.member) {
+    applyMemberPayload(data.data);
+    await loadSessions();
+    setStatus("카카오 계정으로 회원 페이지를 열었습니다.", "ok");
+    return true;
+  }
+  setStatus("카카오 계정은 확인되었습니다. 기존 전화번호와 승인 코드로 한 번만 연결해 주세요.");
+  return true;
+}
+
+async function linkKakaoAndLoad() {
+  const data = await api("/auth/kakao/link", {
+    method: "POST",
+    body: JSON.stringify({ phone: state.phone, code: state.code }),
+  });
+  applyMemberPayload(data.data);
+  await loadSessions();
+  setStatus(data.message || "카카오 계정이 회원 정보와 연결되었습니다.", "ok");
+}
+
+async function loadSessions() {
+  const data = await api("/sessions");
+  state.sessions = data.data || [];
+  renderSessions();
+}
+
+$("member-login-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  $("login-btn").disabled = true;
+  setStatus("회원 정보를 확인하는 중입니다.");
+  try {
+    state.phone = $("phone").value.trim();
+    state.code = $("code").value.trim();
+    if (state.kakao?.connected && !state.kakao?.linked) {
+      await linkKakaoAndLoad();
+    } else {
+      await verifyAndLoad();
+      await loadSessions();
+      setStatus("회원 페이지를 열었습니다.", "ok");
+    }
+  } catch (error) {
+    setStatus(error.message, "error");
+  } finally {
+    $("login-btn").disabled = false;
+  }
+});
+
+$("refresh-btn").addEventListener("click", async () => {
+  if (!state.kakao?.linked && (!state.phone || !state.code)) return;
+  setStatus("회원 정보를 새로고침합니다.");
+  try {
+    if (state.kakao?.linked) {
+      await loadKakaoSession("linked");
+    } else {
+      await verifyAndLoad();
+      await loadSessions();
+      setStatus("최신 상태로 갱신했습니다.", "ok");
+    }
+  } catch (error) {
+    setStatus(error.message, "error");
+  }
+});
+
+$("booking-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!state.member || (!state.code && !state.kakao?.linked)) {
+    setStatus("먼저 회원 확인을 완료하세요.", "error");
+    return;
+  }
+  $("booking-btn").disabled = true;
+  setStatus("예약 신청을 접수하는 중입니다.");
+  try {
+    const data = await api("/member/bookings", {
+      method: "POST",
+      body: JSON.stringify({
+        member_id: state.member.id,
+        code: state.code || undefined,
+        session_id: $("session").value,
+        desired_outcome: $("desired-outcome").value.trim(),
+        preparedness: $("preparedness").value.trim(),
+      }),
+    });
+    const booking = data.data;
+    state.bookings = [booking, ...state.bookings.filter((item) => item.id !== booking.id)];
+    renderDashboard();
+    await loadSessions();
+    setStatus(data.message || "예약 신청이 접수되었습니다.", "ok");
+  } catch (error) {
+    setStatus(error.message, "error");
+  } finally {
+    $("booking-btn").disabled = false;
+  }
+});
+
+$("auth-code-mode").addEventListener("click", () => {
+  setAuthMode("code");
+  setStatus("신청할 때 입력한 전화번호와 운영자가 발급한 승인 코드를 입력하세요.");
+});
+
+$("auth-kakao-mode").addEventListener("click", () => {
+  setAuthMode("kakao");
+  setStatus("카카오 로그인 화면으로 이동합니다.");
+  window.location.href = "/auth/kakao/start?next=/frontend/member.html";
+});
+
+const kakaoStatus = new URLSearchParams(window.location.search).get("kakao");
+if (kakaoStatus) {
+  loadKakaoSession(kakaoStatus).catch((error) => {
+    setStatus(error.message, "error");
+  });
+}
+</script>
+</body>
+</html>

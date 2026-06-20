@@ -23,6 +23,9 @@ def init_db():
             phone_hash TEXT,
             phone_masked TEXT NOT NULL,
             phone_encrypted TEXT NOT NULL,
+            kakao_id TEXT,
+            kakao_profile TEXT,
+            kakao_connected_at TEXT,
             gender TEXT NOT NULL,
             age INTEGER NOT NULL,
             job TEXT NOT NULL,
@@ -161,6 +164,29 @@ def init_db():
             updated_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS consultations (
+            id TEXT PRIMARY KEY,
+            source TEXT NOT NULL DEFAULT 'public_site',
+            topic TEXT NOT NULL DEFAULT '',
+            name TEXT NOT NULL DEFAULT '',
+            email_hash TEXT,
+            email_masked TEXT NOT NULL DEFAULT '',
+            email_encrypted TEXT NOT NULL DEFAULT '',
+            phone_hash TEXT,
+            phone_masked TEXT NOT NULL DEFAULT '',
+            phone_encrypted TEXT NOT NULL DEFAULT '',
+            product_interest TEXT,
+            message TEXT,
+            status TEXT NOT NULL DEFAULT 'new',
+            admin_note TEXT,
+            page_url TEXT,
+            referrer TEXT,
+            user_agent TEXT,
+            member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS licenses (
             id TEXT PRIMARY KEY,
             member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
@@ -222,6 +248,10 @@ def init_db():
             product_code TEXT NOT NULL DEFAULT 'yoonbot',
             plan_code TEXT NOT NULL,
             amount_krw INTEGER NOT NULL,
+            original_amount_krw INTEGER,
+            discount_code TEXT,
+            discount_label TEXT,
+            discount_amount_krw INTEGER NOT NULL DEFAULT 0,
             status TEXT NOT NULL DEFAULT 'payment_pending',
             payment_provider TEXT NOT NULL DEFAULT 'manual_bank_transfer',
             payment_ref TEXT,
@@ -232,6 +262,23 @@ def init_db():
             paid_at TEXT,
             canceled_at TEXT,
             refunded_at TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS yoonbot_discount_codes (
+            id TEXT PRIMARY KEY,
+            code TEXT NOT NULL UNIQUE,
+            label TEXT,
+            plan_code TEXT,
+            discount_type TEXT NOT NULL,
+            discount_value INTEGER NOT NULL,
+            max_redemptions INTEGER,
+            redeemed_count INTEGER NOT NULL DEFAULT 0,
+            starts_at TEXT,
+            expires_at TEXT,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            note TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         );
@@ -250,6 +297,8 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_review_entries_instructor ON review_entries(instructor_id);
         CREATE INDEX IF NOT EXISTS idx_review_invites_status_created ON review_invites(status, created_at);
         CREATE INDEX IF NOT EXISTS idx_review_invites_token ON review_invites(token_hash);
+        CREATE INDEX IF NOT EXISTS idx_consultations_status_created ON consultations(status, created_at);
+        CREATE INDEX IF NOT EXISTS idx_consultations_source_created ON consultations(source, created_at);
         CREATE INDEX IF NOT EXISTS idx_licenses_member ON licenses(member_id);
         CREATE INDEX IF NOT EXISTS idx_licenses_status_expires ON licenses(status, expires_at);
         CREATE INDEX IF NOT EXISTS idx_license_activations_license_status ON license_activations(license_id, status);
@@ -257,8 +306,20 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_orders_status_created ON orders(status, created_at);
         CREATE INDEX IF NOT EXISTS idx_orders_plan_created ON orders(plan_code, created_at);
         CREATE INDEX IF NOT EXISTS idx_orders_license ON orders(license_id);
+        CREATE INDEX IF NOT EXISTS idx_discount_codes_code ON yoonbot_discount_codes(code);
+        CREATE INDEX IF NOT EXISTS idx_discount_codes_enabled_created ON yoonbot_discount_codes(enabled, created_at);
     """)
     _ensure_column(conn, "members", "available_time_slots", "TEXT")
+    _ensure_column(conn, "members", "kakao_id", "TEXT")
+    _ensure_column(conn, "members", "kakao_profile", "TEXT")
+    _ensure_column(conn, "members", "kakao_connected_at", "TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_members_kakao_id ON members(kakao_id)")
+    _ensure_column(conn, "orders", "toss_order_id", "TEXT")
+    _ensure_column(conn, "orders", "original_amount_krw", "INTEGER")
+    _ensure_column(conn, "orders", "discount_code", "TEXT")
+    _ensure_column(conn, "orders", "discount_label", "TEXT")
+    _ensure_column(conn, "orders", "discount_amount_krw", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(conn, "consultations", "member_id", "TEXT REFERENCES members(id) ON DELETE SET NULL")
     conn.commit()
     conn.close()
 

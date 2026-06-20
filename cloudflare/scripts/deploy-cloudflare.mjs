@@ -15,6 +15,7 @@ const wranglerToml = resolve(root, "wrangler.toml");
 const envPath = resolve(repo, ".env");
 const importLocalData = process.argv.includes("--import-local-data")
   || ["1", "true", "yes"].includes(String(process.env.MEMBER_SYSTEM_IMPORT_LOCAL_DATA || "").trim().toLowerCase());
+const enableR2Binding = ["1", "true", "yes"].includes(String(process.env.MEMBER_SYSTEM_ENABLE_R2_BINDING || "").trim().toLowerCase());
 const totalSteps = importLocalData ? 8 : 7;
 let currentStep = 1;
 
@@ -135,9 +136,16 @@ binding = "DB"
 database_name = "${dbName}"
 database_id = "${databaseId}"
 
+${enableR2Binding ? `
+[[r2_buckets]]
+binding = "LAUNCHER_RELEASES"
+bucket_name = "arsen-launcher-releases"
+` : ""}
+
 [vars]
 ALLOWED_ORIGINS = "https://arsen-ai.com,https://www.arsen-ai.com,https://apply.arsen-ai.com"
 PUBLIC_BASE_URL = "https://apply.arsen-ai.com"
+KAKAO_REDIRECT_URI = "https://apply.arsen-ai.com/auth/kakao/callback"
 TELEGRAM_NOTIFY_ENABLED = "true"
 TELEGRAM_APPLICATION_NOTIFY_ENABLED = "true"
 TELEGRAM_BOOKING_NOTIFY_ENABLED = "true"
@@ -176,6 +184,8 @@ async function main() {
       existingLocalSecrets.CONTACT_ENCRYPTION_KEY || crypto.randomBytes(32).toString("base64url"),
     TELEGRAM_WEBHOOK_SECRET:
       existingLocalSecrets.TELEGRAM_WEBHOOK_SECRET || crypto.randomBytes(32).toString("base64url"),
+    KAKAO_SESSION_SECRET:
+      existingLocalSecrets.KAKAO_SESSION_SECRET || crypto.randomBytes(32).toString("base64url"),
   });
   const adminKey = localEnv.ADMIN_API_KEY || existingLocalSecrets.ADMIN_API_KEY;
   if (!adminKey) {
@@ -183,6 +193,7 @@ async function main() {
   }
   const phoneSecret = localEnv.PHONE_SECRET_KEY || existingLocalSecrets.PHONE_SECRET_KEY;
   const emailSecret = localEnv.EMAIL_SECRET_KEY || existingLocalSecrets.EMAIL_SECRET_KEY;
+  const codeSecret = localEnv.CODE_SECRET_KEY || existingLocalSecrets.CODE_SECRET_KEY;
   if (!phoneSecret || !emailSecret) {
     throw new Error("PHONE_SECRET_KEY and EMAIL_SECRET_KEY are required to preserve existing encrypted contact records.");
   }
@@ -205,6 +216,15 @@ async function main() {
   logStep("apply schema");
   await wrangler(["d1", "execute", dbName, "--remote", "--yes", "--file", "schema.sql"]);
   await tryD1Migration("ALTER TABLE members ADD COLUMN available_time_slots TEXT", "duplicate column name");
+  await tryD1Migration("ALTER TABLE members ADD COLUMN kakao_id TEXT", "duplicate column name");
+  await tryD1Migration("ALTER TABLE members ADD COLUMN kakao_profile TEXT", "duplicate column name");
+  await tryD1Migration("ALTER TABLE members ADD COLUMN kakao_connected_at TEXT", "duplicate column name");
+  await wrangler(["d1", "execute", dbName, "--remote", "--yes", "--command", "CREATE INDEX IF NOT EXISTS idx_members_kakao_id ON members(kakao_id)"]);
+  await tryD1Migration("ALTER TABLE orders ADD COLUMN toss_order_id TEXT", "duplicate column name");
+  await tryD1Migration("ALTER TABLE orders ADD COLUMN original_amount_krw INTEGER", "duplicate column name");
+  await tryD1Migration("ALTER TABLE orders ADD COLUMN discount_code TEXT", "duplicate column name");
+  await tryD1Migration("ALTER TABLE orders ADD COLUMN discount_label TEXT", "duplicate column name");
+  await tryD1Migration("ALTER TABLE orders ADD COLUMN discount_amount_krw INTEGER NOT NULL DEFAULT 0", "duplicate column name");
 
   if (importLocalData) {
     logStep("export local sqlite seed (explicit opt-in)");
@@ -224,10 +244,18 @@ async function main() {
   await putSecret("ADMIN_API_KEY", adminKey);
   await putSecret("PHONE_SECRET_KEY", phoneSecret);
   await putSecret("EMAIL_SECRET_KEY", emailSecret);
+  if (configured(codeSecret)) await putSecret("CODE_SECRET_KEY", codeSecret);
   await putSecret("CONTACT_ENCRYPTION_KEY", localSecrets.CONTACT_ENCRYPTION_KEY);
   await putSecret("TELEGRAM_WEBHOOK_SECRET", localSecrets.TELEGRAM_WEBHOOK_SECRET);
+  await putSecret("KAKAO_SESSION_SECRET", localSecrets.KAKAO_SESSION_SECRET);
   if (configured(telegramToken)) await putSecret("TELEGRAM_BOT_TOKEN", telegramToken);
   if (configured(telegramChatId)) await putSecret("TELEGRAM_ADMIN_CHAT_ID", telegramChatId);
+  if (configured(localEnv.KAKAO_REST_API_KEY || existingLocalSecrets.KAKAO_REST_API_KEY)) {
+    await putSecret("KAKAO_REST_API_KEY", localEnv.KAKAO_REST_API_KEY || existingLocalSecrets.KAKAO_REST_API_KEY);
+  }
+  if (configured(localEnv.KAKAO_CLIENT_SECRET || existingLocalSecrets.KAKAO_CLIENT_SECRET)) {
+    await putSecret("KAKAO_CLIENT_SECRET", localEnv.KAKAO_CLIENT_SECRET || existingLocalSecrets.KAKAO_CLIENT_SECRET);
+  }
 
   logStep("set Telegram webhook");
   const webhookStatus = await setTelegramWebhook(telegramToken, localSecrets.TELEGRAM_WEBHOOK_SECRET);

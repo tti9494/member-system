@@ -6,33 +6,41 @@ import io
 import logging
 import shutil
 import uuid
+import base64
+import hashlib
+import hmac
+import secrets
+import urllib.parse
 from html import escape as html_escape
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException, Depends
-from fastapi.responses import HTMLResponse, FileResponse, Response
+from fastapi.responses import HTMLResponse, FileResponse, Response, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any
 from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+import httpx
 
 load_dotenv(dotenv_path=str(Path.home() / "member-system" / ".env"))
 sys.path.insert(0, str(Path.home() / "member-system"))
 
-from db import init_db
+from db import init_db, get_conn
 from agents.validator import validate
 from agents.duplicate_checker import check_duplicate, find_duplicate_member
 from agents.consent_checker import check_consent
 from agents.db_manager import (
-    create_member, get_member, list_members, update_status,
+    create_member, get_member, list_members, update_member, update_status,
     blacklist_member, get_stats, save_to_sheets, log_action,
     backup_database, cleanup_expired_codes, get_expiring_soon, get_storage_status,
     get_latest_member_by_phone_hash, get_operator_health, get_storage_snapshot,
     release_expired_locks, get_code_delivery_logs, erase_member_personal_data,
+    get_member_by_kakao_id, link_member_kakao, unlink_member_kakao,
+    upgrade_lead_to_application,
     list_review_board, get_review_instructor, get_review_entry,
     create_review_instructor, update_review_instructor, delete_review_instructor,
     create_review_entry, update_review_entry, delete_review_entry,
@@ -40,7 +48,7 @@ from agents.db_manager import (
     list_review_invites, revoke_review_invite, submit_review_from_invite,
 )
 from agents.booking_manager import (
-    DEFAULT_PRICE, confirm_payment_state, create_booking, create_session, default_location_guide, default_payment_guide,
+    DEFAULT_PRICE, confirm_payment_state, create_booking, create_session, default_free_class_guide, default_location_guide, default_payment_guide,
     default_refund_guide,
     delete_booking, delete_session, find_active_member_booking, get_booking, get_session, list_bookings, list_member_bookings,
     list_sessions, move_booking_to_session, refresh_session_counts, seed_default_sunday_sessions, send_payment_guide_state,
@@ -54,9 +62,16 @@ from agents.license_manager import (
 )
 from agents.order_manager import (
     cancel_order as cancel_yoonbot_order,
+    confirm_toss_payment as confirm_yoonbot_toss_payment,
     create_order as create_yoonbot_order,
+    create_discount_code as create_yoonbot_discount_code,
+    disable_discount_code as disable_yoonbot_discount_code,
     get_order as get_yoonbot_order,
+    get_order_by_toss_order_id as get_yoonbot_order_by_toss_id,
+    get_toss_payment_config,
+    build_toss_payment_payload,
     issue_license as issue_yoonbot_order_license,
+    list_discount_codes as list_yoonbot_discount_codes,
     list_orders as list_yoonbot_orders,
     mark_paid as mark_yoonbot_order_paid,
     order_summary as yoonbot_order_summary,
@@ -252,6 +267,8 @@ EDUCATION_DATA_PATH = Path.home() / "arsen-dashboard" / "data" / "education_reso
 PAYMENT_ACCOUNTS_PATH = Path.home() / "member-system" / "private" / "payment_accounts.json"
 PREPARATION_GUIDE_PATH = Path.home() / "member-system" / "private" / "preparation_guide.json"
 SITE_THEME_PATH = Path.home() / "member-system" / "private" / "site_theme.json"
+LAUNCHER_MANIFEST_PATH = Path.home() / "arsen-dashboard" / "data" / "launcher_ops.json"
+LAUNCHER_ARTIFACT_DIR = Path.home() / ".arsen-work-bus" / "artifacts" / "launcher"
 DEFAULT_SITE_THEME_ID = "arsen-modern"
 SITE_THEME_PROFILES = [
     {
@@ -271,6 +288,122 @@ SITE_THEME_PROFILES = [
         "enabled": True,
     },
 ]
+
+
+def _load_launcher_manifest() -> dict[str, Any]:
+    try:
+        data = json.loads(LAUNCHER_MANIFEST_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="launcher_manifest_missing") from exc
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=500, detail=f"launcher_manifest_invalid: {exc}") from exc
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=500, detail="launcher_manifest_must_be_object")
+    return data
+
+
+def _safe_launcher_artifact_name(artifact_name: str) -> bool:
+    return bool(artifact_name) and artifact_name == Path(artifact_name).name and "/" not in artifact_name and "\\" not in artifact_name
+
+
+def _launcher_public_base_url(request: Request) -> str:
+    configured = os.getenv("ARSEN_LAUNCHER_ARTIFACT_BASE_URL", "").strip().rstrip("/")
+    if configured.startswith("https://"):
+        return configured
+    forwarded_proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    proto = forwarded_proto.split(",")[0].strip().lower()
+    if proto != "https":
+        return ""
+    forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
+    host = forwarded_host.split(",")[0].strip()
+    return f"https://{host}"
+
+
+def _public_launcher_release(raw_launcher: Any, request: Request) -> dict[str, Any]:
+    launcher = dict(raw_launcher) if isinstance(raw_launcher, dict) else {}
+    artifact_name = str(launcher.get("artifact_name") or "").strip()
+    launcher["artifact_available"] = False
+    if not _safe_launcher_artifact_name(artifact_name):
+        launcher["artifact_download_url"] = ""
+        return launcher
+
+    artifact_endpoint = f"/api/daf/launcher/artifacts/{artifact_name}"
+    artifact_path = LAUNCHER_ARTIFACT_DIR / artifact_name
+    launcher["artifact_endpoint"] = artifact_endpoint
+    if artifact_path.is_file():
+        launcher["artifact_available"] = True
+        launcher["size_bytes"] = artifact_path.stat().st_size
+
+    download_url = str(launcher.get("artifact_download_url") or "").strip()
+    if not download_url.startswith("https://"):
+        base_url = _launcher_public_base_url(request)
+        launcher["artifact_download_url"] = f"{base_url}{artifact_endpoint}" if base_url and artifact_path.is_file() else ""
+        launcher["artifact_url"] = launcher["artifact_download_url"]
+    return launcher
+
+
+def _public_launcher_programs(raw_programs: Any) -> list[dict[str, Any]]:
+    if not isinstance(raw_programs, list):
+        return []
+    return [
+        dict(program)
+        for program in raw_programs
+        if isinstance(program, dict)
+        and program.get("expose_to_customer") is True
+        and program.get("internal_only") is not True
+    ]
+
+
+def _public_launcher_tiers(raw_tiers: Any) -> list[dict[str, Any]]:
+    if not isinstance(raw_tiers, list):
+        return []
+    return [
+        dict(tier)
+        for tier in raw_tiers
+        if isinstance(tier, dict) and tier.get("internal_only") is not True
+    ]
+
+
+def _public_launcher_notices(raw_notices: Any, *, audience: str | None = None, level: str | None = None) -> list[dict[str, Any]]:
+    if not isinstance(raw_notices, list):
+        return []
+    filtered: list[dict[str, Any]] = []
+    for notice in raw_notices:
+        if not isinstance(notice, dict):
+            continue
+        if level and notice.get("level") != level:
+            continue
+        if audience == "launcher" and notice.get("show_in_launcher") is False:
+            continue
+        if audience == "website" and notice.get("show_in_website") is False:
+            continue
+        filtered.append(dict(notice))
+    return sorted(
+        filtered,
+        key=lambda item: (not item.get("pinned", False), str(item.get("published_at") or "")),
+    )
+
+
+def _public_launcher_manifest(request: Request) -> dict[str, Any]:
+    data = dict(_load_launcher_manifest())
+    data["launcher"] = _public_launcher_release(data.get("launcher", {}), request)
+    data["programs"] = _public_launcher_programs(data.get("programs", []))
+    data["tiers"] = _public_launcher_tiers(data.get("tiers", []))
+    data["notices"] = _public_launcher_notices(data.get("notices", []), audience="launcher")
+    strategy = dict(data.get("product_strategy") or {})
+    tracks = strategy.get("tracks")
+    if isinstance(tracks, list):
+        strategy["tracks"] = [
+            dict(track)
+            for track in tracks
+            if isinstance(track, dict)
+            and track.get("expose_to_customer") is True
+            and track.get("internal_only") is not True
+        ]
+    data["product_strategy"] = strategy
+    data["served_at"] = datetime.now(timezone.utc).isoformat()
+    data["source"] = "member-system-public-launcher-proxy"
+    return data
 
 DEFAULT_PREPARATION_GUIDE = """[강의 준비물 안내]
 입금 확인되신 분들께 공통 안내드립니다.
@@ -434,6 +567,30 @@ class ApplyRequest(BaseModel):
     consent_marketing: Optional[bool] = False
 
 
+class ConsultationRequest(BaseModel):
+    source: Optional[str] = "public_site"
+    topic: Optional[str] = "상담"
+    consult_type: Optional[str] = None
+    subject: Optional[str] = None
+    contact: Optional[str] = None
+    lead_contact: Optional[str] = None
+    contact_type: Optional[str] = None
+    name: Optional[str] = None
+    buyer_name: Optional[str] = None
+    email: Optional[str] = None
+    buyer_email: Optional[str] = None
+    phone: Optional[str] = None
+    buyer_phone: Optional[str] = None
+    product_interest: Optional[str] = None
+    product: Optional[str] = None
+    message: Optional[str] = None
+    customer_message: Optional[str] = None
+    memo: Optional[str] = None
+    page_url: Optional[str] = None
+    referrer: Optional[str] = None
+    consent_privacy: Optional[bool] = True
+
+
 class RejectRequest(BaseModel):
     reason: str
 
@@ -458,10 +615,15 @@ class PublicVerifyCodeRequest(BaseModel):
 
 class PublicBookingRequest(BaseModel):
     member_id: str
-    code: str
+    code: Optional[str] = None
     session_id: str
     desired_outcome: Optional[str] = None
     preparedness: Optional[str] = None
+
+
+class KakaoLinkRequest(BaseModel):
+    phone: str
+    code: str
 
 
 class SessionRequest(BaseModel):
@@ -631,6 +793,45 @@ class MemberEraseRequest(BaseModel):
     cancel_bookings: bool = True
 
 
+class MemberUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    gender: Optional[str] = None
+    age: Optional[int] = None
+    job: Optional[str] = None
+    referral_source: Optional[str] = None
+    reason: Optional[str] = None
+    ai_level: Optional[str] = None
+    plan_type: Optional[str] = None
+    ai_tools: Optional[List[str] | str] = None
+    ai_subscription: Optional[str] = None
+    ai_weekly_hours: Optional[str] = None
+    ai_use_cases: Optional[List[str] | str] = None
+    group_goals: Optional[List[str] | str] = None
+    short_term_goal: Optional[str] = None
+    participation_type: Optional[str] = None
+    preferred_schedule: Optional[str] = None
+    available_time_slots: Optional[List[str] | str] = None
+    region: Optional[str] = None
+    main_device: Optional[str] = None
+    can_code: Optional[bool] = None
+    can_present: Optional[bool] = None
+    skills: Optional[str] = None
+    contribution: Optional[str] = None
+    participation_grade: Optional[str] = None
+    consent_marketing: Optional[bool] = None
+    status: Optional[str] = None
+    rejection_reason: Optional[str] = None
+
+
+class ContactRegisteredRequest(BaseModel):
+    registered: bool = True
+    note: Optional[str] = None
+
+
+class MemberKickRequest(BaseModel):
+    reason: Optional[str] = None
+
+
 class LicenseActivateRequest(BaseModel):
     license_key: str
     hwid: str
@@ -675,6 +876,7 @@ class YoonbotOrderCreateRequest(BaseModel):
     customer_message: Optional[str] = None
     consent_privacy: bool = False
     consent_terms: bool = False
+    discount_code: Optional[str] = None
 
 
 class AdminYoonbotOrderPaidRequest(BaseModel):
@@ -684,6 +886,24 @@ class AdminYoonbotOrderPaidRequest(BaseModel):
 
 
 class AdminYoonbotOrderNoteRequest(BaseModel):
+    note: Optional[str] = None
+
+
+class TossPaymentConfirmRequest(BaseModel):
+    payment_key: str
+    order_id: str   # toss_order_id (yb-... format)
+    amount: int
+
+
+class AdminYoonbotDiscountCreateRequest(BaseModel):
+    code: str
+    label: Optional[str] = None
+    plan_code: Optional[str] = None
+    discount_type: str = "percent"
+    discount_value: int
+    max_redemptions: Optional[int] = 1
+    starts_at: Optional[str] = None
+    expires_at: Optional[str] = None
     note: Optional[str] = None
 
 
@@ -1116,6 +1336,111 @@ def _safe_member_profile(member: dict) -> dict:
     }
 
 
+KAKAO_AUTHORIZE_URL = "https://kauth.kakao.com/oauth/authorize"
+KAKAO_TOKEN_URL = "https://kauth.kakao.com/oauth/token"
+KAKAO_USER_ME_URL = "https://kapi.kakao.com/v2/user/me"
+KAKAO_STATE_COOKIE = "arsen_kakao_state"
+KAKAO_SESSION_COOKIE = "arsen_kakao_session"
+KAKAO_SESSION_MAX_AGE = 60 * 60 * 24 * 30
+
+
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def _b64url_decode(text: str) -> bytes:
+    padding = "=" * (-len(text) % 4)
+    return base64.urlsafe_b64decode(f"{text}{padding}".encode("ascii"))
+
+
+def _kakao_session_secret() -> bytes:
+    secret = (
+        os.getenv("KAKAO_SESSION_SECRET")
+        or os.getenv("ADMIN_KEY")
+        or os.getenv("TELEGRAM_WEBHOOK_SECRET")
+        or "arsen-local-kakao-session"
+    )
+    return secret.encode("utf-8")
+
+
+def _pack_signed_cookie(payload: dict) -> str:
+    body = _b64url_encode(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+    signature = hmac.new(_kakao_session_secret(), body.encode("ascii"), hashlib.sha256).digest()
+    return f"{body}.{_b64url_encode(signature)}"
+
+
+def _unpack_signed_cookie(value: str | None) -> dict | None:
+    if not value or "." not in value:
+        return None
+    body, signature = value.split(".", 1)
+    expected = _b64url_encode(hmac.new(_kakao_session_secret(), body.encode("ascii"), hashlib.sha256).digest())
+    if not hmac.compare_digest(signature, expected):
+        return None
+    try:
+        payload = json.loads(_b64url_decode(body).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _safe_next_path(next_path: str | None) -> str:
+    value = (next_path or "/frontend/member.html").strip()
+    if not value.startswith("/") or value.startswith("//") or value.startswith("/auth/"):
+        return "/frontend/member.html"
+    return value
+
+
+def _append_kakao_status(next_path: str, status: str) -> str:
+    separator = "&" if "?" in next_path else "?"
+    return f"{next_path}{separator}kakao={urllib.parse.quote(status)}"
+
+
+def _set_signed_cookie(response: Response, request: Request, name: str, payload: dict, max_age: int):
+    response.set_cookie(
+        name,
+        _pack_signed_cookie(payload),
+        max_age=max_age,
+        httponly=True,
+        secure=request.url.scheme == "https",
+        samesite="lax",
+        path="/",
+    )
+
+
+def _read_kakao_session(request: Request) -> dict | None:
+    return _unpack_signed_cookie(request.cookies.get(KAKAO_SESSION_COOKIE))
+
+
+def _delete_kakao_cookie(response: Response, name: str):
+    response.delete_cookie(name, path="/")
+
+
+def _kakao_redirect_uri(request: Request) -> str:
+    return os.getenv("KAKAO_REDIRECT_URI") or str(request.url_for("kakao_callback"))
+
+
+def _kakao_profile_payload(user: dict) -> dict:
+    account = user.get("kakao_account") if isinstance(user.get("kakao_account"), dict) else {}
+    properties = user.get("properties") if isinstance(user.get("properties"), dict) else {}
+    profile = account.get("profile") if isinstance(account.get("profile"), dict) else {}
+    return {
+        "id": str(user.get("id") or ""),
+        "nickname": properties.get("nickname") or profile.get("nickname") or "",
+        "email": account.get("email") or "",
+        "phone_number": account.get("phone_number") or "",
+        "connected_at": user.get("connected_at") or "",
+    }
+
+
+def _kakao_public_payload(session: dict, member: dict | None = None) -> dict:
+    profile = session.get("profile") if isinstance(session.get("profile"), dict) else {}
+    return {
+        "connected": True,
+        "linked": bool(session.get("member_id") and member),
+        "nickname": profile.get("nickname") or "",
+    }
+
+
 def _code_delivery_message(member: dict, code: str) -> str:
     name = member.get("name") or "신청자"
     return "\n".join(
@@ -1248,6 +1573,75 @@ def _safe_public_booking(booking: dict) -> dict:
     }
 
 
+APPLICATION_PLAN_TYPES = {"free", "basic", "full"}
+LEAD_PLAN_TYPES = {"consultation", "lead_email", "lead_phone"}
+
+
+def _plan_label(plan_type: str | None) -> str:
+    return {
+        "free": "무료강의",
+        "basic": "기본강의",
+        "full": "유료강의",
+        "consultation": "상담",
+        "lead_email": "소식받기",
+        "lead_phone": "소식받기",
+    }.get(str(plan_type or "").lower(), str(plan_type or "") or "-")
+
+
+def _can_upgrade_lead_to_application(existing: dict | None, attempted: dict) -> bool:
+    existing_plan = str((existing or {}).get("plan_type") or "").lower()
+    attempted_plan = str((attempted or {}).get("plan_type") or "").lower()
+    return existing_plan in LEAD_PLAN_TYPES and attempted_plan in APPLICATION_PLAN_TYPES
+
+
+def _is_free_session(session: dict | None) -> bool:
+    if not session:
+        return False
+    program = str(session.get("program_type") or "").lower()
+    return "free" in program or int(session.get("price_krw") or 0) == 0
+
+
+def _maybe_create_free_session_booking(member: dict, session_id: str | None, request: Request) -> dict | None:
+    if not session_id:
+        return None
+    session = get_session(session_id)
+    if not _is_free_session(session):
+        raise HTTPException(400, detail="무료강의 일정만 무료 신청에서 바로 예약할 수 있습니다.")
+    existing = find_active_member_booking(member["id"], session_id)
+    if existing:
+        booking = get_booking(existing["id"]) or existing
+        return {
+            "booking": booking,
+            "booking_id": existing["id"],
+            "duplicate_booking": True,
+            "message": "이미 선택한 무료강의 일정에 신청되어 있습니다.",
+        }
+    ok, reason = session_acceptance(session)
+    if not ok:
+        raise HTTPException(400, detail=reason)
+    booking_id = create_booking({
+        "session_id": session_id,
+        "member_id": member["id"],
+        "applicant_name": member.get("name") or "신청자",
+        "phone_masked": member.get("phone_masked") or "",
+        "desired_outcome": member.get("short_term_goal") or member.get("reason") or "",
+        "preparedness": member.get("skills") or "",
+        "status": "confirmed",
+        "payment_status": "waived",
+        "payment_amount_krw": 0,
+        "payment_note": "무료강의 신청: 입금 없음",
+        "confirmed_at": datetime.now(timezone.utc).isoformat(),
+    })
+    refresh_session_counts(session_id)
+    log_action(member["id"], "free_booking_created", f"booking_id={booking_id}", request.client.host if request.client else None)
+    return {
+        "booking": get_booking(booking_id) or {},
+        "booking_id": booking_id,
+        "duplicate_booking": False,
+        "message": "무료강의 일정 신청이 함께 접수되었습니다.",
+    }
+
+
 def _booking_status_summaries() -> dict[str, str]:
     summaries: dict[str, list[str]] = {}
     for booking in list_bookings():
@@ -1277,7 +1671,7 @@ def _contact_status_filter(status: Optional[str]) -> Optional[str]:
 
 def _contact_plan_filter(plan_type: Optional[str]) -> Optional[str]:
     normalized = (plan_type or "").strip().lower()
-    return normalized if normalized in {"free", "full", "basic"} else None
+    return normalized if normalized in {"free", "full", "basic", "consultation", "lead_email", "lead_phone"} else None
 
 
 def _contact_plan_label(plan_type: str | None) -> str:
@@ -1286,6 +1680,9 @@ def _contact_plan_label(plan_type: str | None) -> str:
         "free": "무료",
         "full": "유료",
         "basic": "기본",
+        "consultation": "상담",
+        "lead_email": "소식 이메일",
+        "lead_phone": "소식 번호",
     }.get(normalized, "기본")
 
 
@@ -1451,14 +1848,30 @@ def _normalize_education_resources(raw_resources) -> list[dict]:
         title = str(item.get("title") or "").strip()
         if not title:
             continue
+        category = str(item.get("category") or item.get("section") or "기타").strip() or "기타"
+        resource_id = str(item.get("id") or uuid.uuid4()).strip()
+        tags = item.get("tags", [])
+        if isinstance(tags, str):
+            tags = [part.strip() for part in tags.replace("#", "").replace(",", "\n").splitlines() if part.strip()]
+        elif isinstance(tags, list):
+            tags = [str(part).strip() for part in tags if str(part).strip()]
+        else:
+            tags = []
         entry = {
-            "section": str(item.get("section") or "기타").strip() or "기타",
+            "id": resource_id,
+            "category": category,
+            "section": category,
+            "kind": str(item.get("kind") or item.get("type") or "link").strip() or "link",
             "title": title,
             "status": str(item.get("status", "")).strip(),
             "description": str(item.get("description") or "").strip(),
             "url": str(item.get("url") or "").strip(),
+            "image_url": str(item.get("image_url") or item.get("asset_url") or "").strip(),
             "copy_text": str(item.get("copy_text", "")).strip(),
+            "tags": tags,
             "visible": item.get("visible") is not False,
+            "created_at": str(item.get("created_at") or datetime.now(timezone.utc).isoformat()).strip(),
+            "updated_at": str(item.get("updated_at") or datetime.now(timezone.utc).isoformat()).strip(),
         }
         template_id = str(item.get("template_id", "")).strip()
         if template_id:
@@ -1497,6 +1910,11 @@ def _save_education_resources(resources: list[dict]) -> dict:
     EDUCATION_DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
     updated_at = datetime.now(timezone.utc).isoformat()
     payload = _education_payload(resources, updated_at)
+    if EDUCATION_DATA_PATH.exists():
+        backup_dir = Path.home() / ".arsen-work-bus" / "backups" / "class-dashboard"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        backup_name = f"education_resources-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.json"
+        shutil.copy2(EDUCATION_DATA_PATH, backup_dir / backup_name)
     tmp_path = EDUCATION_DATA_PATH.with_name(
         f".{EDUCATION_DATA_PATH.name}.{uuid.uuid4().hex}.tmp"
     )
@@ -1611,6 +2029,375 @@ async def update_education_resources(body: dict, request: Request, _=Depends(req
     return result
 
 
+def _consultation_text(*values: object, default: str = "") -> str:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return default
+
+
+def _normalize_consultation_phone(value: str) -> str:
+    text = str(value or "").strip()
+    digits = "".join(ch for ch in text if ch.isdigit())
+    if len(digits) == 11:
+        return f"{digits[:3]}-{digits[3:7]}-{digits[7:]}"
+    if len(digits) == 10:
+        return f"{digits[:3]}-{digits[3:6]}-{digits[6:]}"
+    return text
+
+
+def _looks_like_email(value: str) -> bool:
+    text = str(value or "").strip()
+    return "@" in text and "." in text.rsplit("@", 1)[-1]
+
+
+def _mask_email(value: str) -> str:
+    text = str(value or "").strip().lower()
+    if "@" not in text:
+        return ""
+    local, domain = text.split("@", 1)
+    visible = local[:2] if len(local) >= 2 else local[:1]
+    return f"{visible}{'*' * max(3, len(local) - len(visible))}@{domain}"
+
+
+def _consultation_status(value: str | None) -> str:
+    normalized = str(value or "").strip().lower()
+    return normalized if normalized in {"new", "contacted", "on_hold", "closed", "spam"} else "new"
+
+
+def _consultation_public(row: dict | None) -> dict | None:
+    if not row:
+        return None
+    return {
+        "id": row.get("id"),
+        "source": row.get("source") or "public_site",
+        "topic": row.get("topic") or "",
+        "name": row.get("name") or "",
+        "email_masked": row.get("email_masked") or "",
+        "phone_masked": row.get("phone_masked") or "",
+        "product_interest": row.get("product_interest") or "",
+        "message": row.get("message") or "",
+        "status": row.get("status") or "new",
+        "admin_note": row.get("admin_note") or "",
+        "page_url": row.get("page_url") or "",
+        "referrer": row.get("referrer") or "",
+        "member_id": row.get("member_id") or "",
+        "created_at": row.get("created_at"),
+        "updated_at": row.get("updated_at"),
+    }
+
+
+def _consultation_kind_clause(kind: str | None) -> tuple[str, list[str]]:
+    normalized = str(kind or "").strip().lower()
+    if normalized in {"newsletter", "news", "lead", "leads"}:
+        return "source='home_newsletter'", []
+    if normalized in {"consultation", "consult", "inquiry"}:
+        return "source!='home_newsletter'", []
+    return "", []
+
+
+def _consultation_summary(kind: str | None = None) -> dict:
+    where, params = _consultation_kind_clause(kind)
+    query = "SELECT status, COUNT(*) AS count FROM consultations"
+    if where:
+        query += f" WHERE {where}"
+    query += " GROUP BY status"
+    conn = get_conn()
+    try:
+        rows = conn.execute(query, params).fetchall()
+    finally:
+        conn.close()
+    counts = {row["status"]: int(row["count"] or 0) for row in rows}
+    return {
+        "total": sum(counts.values()),
+        "new": counts.get("new", 0),
+        "contacted": counts.get("contacted", 0),
+        "on_hold": counts.get("on_hold", 0),
+        "closed": counts.get("closed", 0),
+        "spam": counts.get("spam", 0),
+    }
+
+
+def _list_consultations(status: str | None = None, source: str | None = None, kind: str | None = None) -> list[dict]:
+    where = []
+    params: list[str] = []
+    status_text = str(status or "").strip()
+    if status_text == "active":
+        where.append("status NOT IN ('closed', 'spam')")
+    elif status_text:
+        where.append("status=?")
+        params.append(_consultation_status(status_text))
+    source_text = str(source or "").strip()
+    if source_text:
+        where.append("source=?")
+        params.append(source_text[:80])
+    kind_clause, kind_params = _consultation_kind_clause(kind)
+    if kind_clause:
+        where.append(kind_clause)
+        params.extend(kind_params)
+    query = "SELECT * FROM consultations"
+    if where:
+        query += " WHERE " + " AND ".join(where)
+    query += " ORDER BY created_at DESC LIMIT 300"
+    conn = get_conn()
+    try:
+        rows = conn.execute(query, params).fetchall()
+    finally:
+        conn.close()
+    return [_consultation_public(dict(row)) for row in rows]
+
+
+def _get_consultation_row(consultation_id: str) -> dict | None:
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT * FROM consultations WHERE id=?", (consultation_id,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def _safe_decrypt_contact(value: str, decryptor) -> str:
+    if not value:
+        return ""
+    try:
+        return decryptor(value)
+    except Exception:
+        log.exception("상담 연락처 복호화 실패")
+        return ""
+
+
+def _consultation_contact(consultation_id: str) -> dict | None:
+    row = _get_consultation_row(consultation_id)
+    if not row:
+        return None
+    return {
+        "id": row["id"],
+        "name": row.get("name") or "신청자",
+        "phone": _safe_decrypt_contact(row.get("phone_encrypted", ""), decrypt_phone),
+        "email": _safe_decrypt_contact(row.get("email_encrypted", ""), decrypt_email),
+        "phone_masked": row.get("phone_masked") or "",
+        "email_masked": row.get("email_masked") or "",
+    }
+
+
+def _update_consultation_status(consultation_id: str, status: str, note: str | None = None) -> dict | None:
+    existing = _get_consultation_row(consultation_id)
+    if not existing:
+        return None
+    timestamp = datetime.now(timezone.utc).isoformat()
+    conn = get_conn()
+    try:
+        conn.execute(
+            "UPDATE consultations SET status=?, admin_note=COALESCE(?, admin_note), updated_at=? WHERE id=?",
+            (_consultation_status(status), (note or "").strip() or None, timestamp, consultation_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return _consultation_public(_get_consultation_row(consultation_id))
+
+
+@app.post("/api/consultations")
+async def public_consultation(req: ConsultationRequest, request: Request):
+    data = req.model_dump()
+    source = _consultation_text(data.get("source"), default="public_site")[:80]
+    raw_contact = _consultation_text(data.get("contact"), data.get("lead_contact"))
+    contact_digits = "".join(ch for ch in raw_contact if ch.isdigit())
+    raw_email = _consultation_text(
+        data.get("email"),
+        data.get("buyer_email"),
+        raw_contact if _looks_like_email(raw_contact) else "",
+    ).lower()
+    raw_phone = _consultation_text(
+        data.get("phone"),
+        data.get("buyer_phone"),
+        raw_contact if not _looks_like_email(raw_contact) and len(contact_digits) >= 7 else "",
+    )
+    phone = _normalize_consultation_phone(raw_phone)
+    email = raw_email
+    contact_type = _consultation_text(data.get("contact_type")).lower() or ("email" if email else "phone" if phone else "")
+    is_newsletter = source == "home_newsletter"
+    if is_newsletter:
+        contact_type = "phone"
+    newsletter_label = "번호" if contact_type == "phone" else "이메일"
+    topic_base = _consultation_text(
+        data.get("topic"),
+        data.get("consult_type"),
+        data.get("subject"),
+        data.get("product_interest"),
+        default="상담",
+    )[:120]
+    topic = f"{topic_base} · {newsletter_label}" if is_newsletter and "·" not in topic_base else topic_base
+    name = _consultation_text(data.get("name"), data.get("buyer_name"))[:80]
+    product_interest = _consultation_text(
+        data.get("product_interest"),
+        data.get("product"),
+        f"메인 소식 받기 · {newsletter_label}" if is_newsletter else "",
+    )
+    message = _consultation_text(data.get("message"), data.get("customer_message"), data.get("memo"))
+    page_url = _consultation_text(data.get("page_url"))
+    referrer = _consultation_text(data.get("referrer"))
+
+    if data.get("consent_privacy") is False:
+        raise HTTPException(status_code=400, detail="상담 연락을 위한 개인정보 수집 동의가 필요합니다.")
+    if is_newsletter and not name:
+        raise HTTPException(status_code=400, detail="소식받기 신청은 이름을 입력해야 합니다.")
+    if is_newsletter and not phone:
+        raise HTTPException(status_code=400, detail="소식받기 신청은 전화번호를 입력해야 합니다.")
+    if not phone and not email:
+        raise HTTPException(status_code=400, detail="연락 가능한 전화번호 또는 이메일이 필요합니다.")
+
+    if not name:
+        name = "상담 신청자"
+    encrypted = encrypt_data({"phone": phone, "email": email})
+    plan_type = "lead_phone" if is_newsletter and contact_type == "phone" else "lead_email" if is_newsletter else "consultation"
+    kind_label = f"소식 받기 · {newsletter_label}" if is_newsletter else "상담"
+    reason_parts = [
+        f"분류: {kind_label}",
+        f"상담 주제: {topic}",
+        f"관심 항목: {product_interest}" if product_interest else "",
+        f"내용: {message}" if message else "",
+        f"페이지: {page_url}" if page_url else "",
+        f"유입: {referrer}" if referrer else "",
+    ]
+    member_data = {
+        "name": name,
+        "email": email,
+        "phone": phone,
+        **encrypted,
+        "gender": "상담",
+        "age": 0,
+        "job": "소식 받기 신청" if is_newsletter else "상담 신청",
+        "referral_source": source,
+        "reason": "\n".join(part for part in reason_parts if part),
+        "ai_level": kind_label,
+        "plan_type": plan_type,
+        "ai_tools": [],
+        "ai_subscription": "",
+        "ai_weekly_hours": "",
+        "ai_use_cases": [],
+        "group_goals": product_interest or kind_label,
+        "short_term_goal": message or topic,
+        "participation_type": kind_label,
+        "preferred_schedule": "",
+        "available_time_slots": [],
+        "region": "",
+        "main_device": "",
+        "can_code": False,
+        "can_present": False,
+        "skills": "",
+        "contribution": message or product_interest or kind_label,
+        "participation_grade": kind_label,
+        "consent_personal": True,
+        "consent_marketing": False,
+        "consent_at": datetime.now(timezone.utc).isoformat(),
+        "consent_version": "public-newsletter-v1" if is_newsletter else "public-consultation-v1",
+    }
+    member_id = create_member(member_data)
+    consultation_id = str(uuid.uuid4())
+    timestamp = datetime.now(timezone.utc).isoformat()
+    conn = get_conn()
+    try:
+        conn.execute(
+            """
+            INSERT INTO consultations (
+                id, source, topic, name, email_hash, email_masked, email_encrypted,
+                phone_hash, phone_masked, phone_encrypted, product_interest, message,
+                status, admin_note, page_url, referrer, user_agent, member_id, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                consultation_id,
+                source,
+                topic,
+                name,
+                encrypted.get("email_hash") if email else None,
+                _mask_email(email),
+                encrypted.get("email_encrypted", "") if email else "",
+                encrypted.get("phone_hash") if phone else None,
+                encrypted.get("phone_masked", ""),
+                encrypted.get("phone_encrypted", "") if phone else "",
+                product_interest,
+                message,
+                "new",
+                None,
+                page_url,
+                referrer,
+                request.headers.get("user-agent", "")[:500],
+                member_id,
+                timestamp,
+                timestamp,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    log_action(
+        member_id,
+        "consultation_created",
+        json.dumps({"id": consultation_id, "source": source, "topic": topic, "page_url": page_url}, ensure_ascii=False),
+        _client_ip(request),
+    )
+    return {
+        "ok": True,
+        "message": "소식받기 신청이 접수되었습니다. 새 소식이 준비되면 안내드리겠습니다." if is_newsletter else "상담 신청이 접수되었습니다. 운영자가 확인 후 연락드립니다.",
+        "member_id": member_id,
+        "data": {
+            "id": consultation_id,
+            "member_id": member_id,
+            "source": source,
+            "topic": topic,
+            "name": name,
+            "plan_type": plan_type,
+        },
+    }
+
+
+@app.get("/admin/consultations")
+async def admin_consultations(
+    status: Optional[str] = None,
+    source: Optional[str] = None,
+    kind: Optional[str] = None,
+    _=Depends(require_admin),
+):
+    return {
+        "ok": True,
+        "summary": _consultation_summary(kind),
+        "data": _list_consultations(status=status, source=source, kind=kind),
+    }
+
+
+@app.get("/admin/consultations/{consultation_id}")
+async def admin_consultation_detail(consultation_id: str, _=Depends(require_admin)):
+    row = _get_consultation_row(consultation_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="상담 접수를 찾을 수 없습니다.")
+    return {"ok": True, "data": _consultation_public(row)}
+
+
+@app.get("/admin/consultations/{consultation_id}/contact")
+async def admin_consultation_contact(consultation_id: str, request: Request, _=Depends(require_admin)):
+    contact = _consultation_contact(consultation_id)
+    if not contact:
+        raise HTTPException(status_code=404, detail="상담 접수를 찾을 수 없습니다.")
+    log_action("system", "consultation_contact_view", consultation_id, _client_ip(request))
+    return {"ok": True, "data": contact}
+
+
+@app.post("/admin/consultations/{consultation_id}/status")
+async def admin_consultation_status(consultation_id: str, body: dict, request: Request, _=Depends(require_admin)):
+    updated = _update_consultation_status(
+        consultation_id,
+        str(body.get("status") or ""),
+        str(body.get("admin_note") or body.get("note") or ""),
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="상담 접수를 찾을 수 없습니다.")
+    log_action("system", "consultation_status_update", f"{consultation_id}:{updated.get('status')}", _client_ip(request))
+    return {"ok": True, "data": updated}
+
+
 @app.get("/sessions")
 async def public_sessions():
     rows = list_sessions(include_closed=False)
@@ -1659,12 +2446,127 @@ async def apply(req: ApplyRequest, request: Request):
     if duplicate_member:
         if duplicate_member.get("status") == "blacklist":
             return {"ok": False, "errors": ["접근이 제한된 신청자입니다."]}
+        if _can_upgrade_lead_to_application(duplicate_member, data):
+            con = check_consent(data)
+            if not con["ok"]:
+                return {"ok": False, "errors": con["errors"]}
+            grade = _grade_count(data)
+            enc = encrypt_data(data)
+            member_data = {
+                **data,
+                **enc,
+                "consent_at": con["consent_data"]["at"],
+                "consent_version": con["consent_data"]["version"],
+                "consent_marketing": con["consent_data"]["marketing"],
+                "participation_grade": grade,
+            }
+            previous_plan = duplicate_member.get("plan_type")
+            upgraded = upgrade_lead_to_application(duplicate_member["id"], member_data)
+            if not upgraded:
+                raise HTTPException(500, detail="기존 리드를 강의 신청으로 전환하지 못했습니다.")
+
+            member = get_member(duplicate_member["id"])
+            sheets_data = {k: v for k, v in member_data.items()
+                           if k not in ("phone_encrypted", "email_encrypted")}
+            sheets_data["member_id"] = duplicate_member["id"]
+            sheets_ok = save_to_sheets(sheets_data)
+            log_action(duplicate_member["id"], "sheets_sync", "ok" if sheets_ok else "not_configured_or_failed", client_ip)
+            log_action(
+                duplicate_member["id"],
+                "duplicate_apply",
+                json.dumps(
+                    {
+                        "source": duplicate_member.get("duplicate_source"),
+                        "converted": True,
+                        "from_plan_type": previous_plan,
+                        "to_plan_type": data.get("plan_type"),
+                        "attempt_name": data.get("name"),
+                        "attempt_phone_masked": enc.get("phone_masked"),
+                        "attempt_plan_type": data.get("plan_type"),
+                        "attempt_session_id": data.get("session_id"),
+                    },
+                    ensure_ascii=False,
+                ),
+                client_ip,
+            )
+            log_action(
+                duplicate_member["id"],
+                "lead_upgraded_to_apply",
+                json.dumps(
+                    {
+                        "from_plan_type": previous_plan,
+                        "to_plan_type": data.get("plan_type"),
+                        "from_label": _plan_label(previous_plan),
+                        "to_label": _plan_label(data.get("plan_type")),
+                    },
+                    ensure_ascii=False,
+                ),
+                client_ip,
+            )
+
+            free_booking = None
+            if data.get("plan_type") == "free" and data.get("session_id"):
+                free_booking = _maybe_create_free_session_booking(member, data.get("session_id"), request)
+
+            backup_result = backup_database(reason="lead_upgrade_apply")
+            backup_summary = {
+                "ok_count": backup_result.get("ok_count", 0),
+                "failed_count": backup_result.get("failed_count", 0),
+                "targets": [
+                    {"name": item.get("name"), "status": item.get("status")}
+                    for item in backup_result.get("targets", [])
+                ],
+            }
+            log_action(duplicate_member["id"], "db_backup", json.dumps(backup_summary, ensure_ascii=False), client_ip)
+            hermes_status = notify_admin_new_apply(
+                member,
+                booking=(free_booking or {}).get("booking") if free_booking else None,
+                storage_status={
+                    "db": "ok",
+                    "sheets": "ok" if sheets_ok else "not_configured_or_failed",
+                    "backup": f"{backup_result.get('ok_count', 0)} ok / {backup_result.get('failed_count', 0)} failed",
+                },
+                stats=get_stats(),
+                raw_application=data,
+                lead_upgrade_from=previous_plan,
+            )
+            log_action(duplicate_member["id"], "hermes_notify", hermes_status, client_ip)
+            return {
+                "ok": True,
+                "duplicate": False,
+                "upgraded_from_lead": True,
+                "previous_plan_type": previous_plan,
+                "message": f"{_plan_label(previous_plan)} 내역을 {_plan_label(data.get('plan_type'))} 신청으로 변경해 접수했습니다.",
+                "member_id": duplicate_member["id"],
+                "status": member.get("status"),
+                "booking_id": (free_booking or {}).get("booking_id"),
+                "next_steps": [
+                    "운영자가 신청 내용을 확인한 뒤 승인 코드를 발급합니다.",
+                    "관리자 신청자/멤버 목록에서는 강의 신청자로 표시됩니다.",
+                    "무료강의 일정을 선택했다면 해당 일정 신청도 함께 연결됩니다.",
+                ],
+                "reservation": _safe_public_booking((free_booking or {}).get("booking") or {}) if free_booking else None,
+                "payment": None,
+            }
+        free_booking = None
+        if data.get("plan_type") == "free" and data.get("session_id"):
+            free_booking = _maybe_create_free_session_booking(duplicate_member, data.get("session_id"), request)
         stats_data = get_stats()
         hermes_status = notify_admin_duplicate_apply(duplicate_member, data, stats=stats_data)
         log_action(
             duplicate_member["id"],
             "duplicate_apply",
-            f"source={duplicate_member.get('duplicate_source')},notify={hermes_status}",
+            json.dumps(
+                {
+                    "source": duplicate_member.get("duplicate_source"),
+                    "notify": hermes_status,
+                    "attempt_name": data.get("name"),
+                    "attempt_phone_masked": encrypt_data({"phone": data.get("phone") or "", "email": data.get("email") or ""}).get("phone_masked"),
+                    "attempt_plan_type": data.get("plan_type"),
+                    "attempt_session_id": data.get("session_id"),
+                },
+                ensure_ascii=False,
+            ),
             client_ip,
         )
         return {
@@ -1675,10 +2577,11 @@ async def apply(req: ApplyRequest, request: Request):
             "status": duplicate_member.get("status"),
             "next_steps": [
                 "기존 신청이 대기 중이면 운영자가 순서대로 확인합니다.",
-                "이미 승인된 경우 예약자 확인 페이지에서 기존 연락처와 코드를 사용해 수강 신청을 진행하세요.",
-                "코드를 잊었다면 운영자에게 재발급을 요청해주세요.",
+                "무료강의 일정을 선택했다면 같은 일정에 중복 예약 없이 연결합니다.",
+                "유료강의는 승인 코드 받은 뒤 예약자 확인 페이지에서 진행하세요.",
             ],
-            "reservation": None,
+            "booking_id": (free_booking or {}).get("booking_id"),
+            "reservation": _safe_public_booking((free_booking or {}).get("booking") or {}) if free_booking else None,
             "payment": None,
         }
 
@@ -1720,6 +2623,9 @@ async def apply(req: ApplyRequest, request: Request):
     # 11. 이력 기록
     member = get_member(member_id)
     log_action(member_id, "apply", f"plan={data['plan_type']}, grade={grade}", client_ip)
+    free_booking = None
+    if data.get("plan_type") == "free" and data.get("session_id"):
+        free_booking = _maybe_create_free_session_booking(member, data.get("session_id"), request)
 
     booking_next_steps = [
         "운영자가 신청 내용을 확인한 뒤 승인 코드를 발급합니다.",
@@ -1739,10 +2645,17 @@ async def apply(req: ApplyRequest, request: Request):
     }
     log_action(member_id, "db_backup", json.dumps(backup_summary, ensure_ascii=False), client_ip)
 
+    if free_booking:
+        booking_next_steps = [
+            "선택한 무료강의 일정에 신청이 접수되었습니다.",
+            "운영자가 무료강의 안내 멘트를 복사해 개별 안내할 수 있습니다.",
+            "수업 후 운영자가 참여 완료/불참을 표시해 수강 이력에 반영합니다.",
+        ]
+
     # 13. Hermes/Telegram 알림
     hermes_status = notify_admin_new_apply(
         member,
-        booking=None,
+        booking=(free_booking or {}).get("booking") if free_booking else None,
         storage_status={
             "db": "ok",
             "sheets": "ok" if sheets_ok else "not_configured_or_failed",
@@ -1755,11 +2668,11 @@ async def apply(req: ApplyRequest, request: Request):
 
     return {
         "ok": True,
-        "message": "신청이 접수되었습니다.",
+        "message": (free_booking or {}).get("message") or "신청이 접수되었습니다.",
         "member_id": member_id,
-        "booking_id": None,
+        "booking_id": (free_booking or {}).get("booking_id"),
         "next_steps": booking_next_steps,
-        "reservation": None,
+        "reservation": _safe_public_booking((free_booking or {}).get("booking") or {}) if free_booking else None,
         "payment": None,
     }
 
@@ -1821,6 +2734,157 @@ async def telegram_webhook(request: Request):
     return {"ok": True, "message": message}
 
 
+@app.get("/auth/kakao/start")
+async def kakao_start(request: Request, next: Optional[str] = None):
+    client_id = (os.getenv("KAKAO_REST_API_KEY") or "").strip()
+    next_path = _safe_next_path(next)
+    if not client_id:
+        return RedirectResponse(_append_kakao_status(next_path, "not_configured"), status_code=302)
+
+    state = secrets.token_urlsafe(24)
+    response = RedirectResponse(
+        f"{KAKAO_AUTHORIZE_URL}?{urllib.parse.urlencode({
+            'response_type': 'code',
+            'client_id': client_id,
+            'redirect_uri': _kakao_redirect_uri(request),
+            'state': state,
+        })}",
+        status_code=302,
+    )
+    _set_signed_cookie(
+        response,
+        request,
+        KAKAO_STATE_COOKIE,
+        {"state": state, "next": next_path, "iat": datetime.now(timezone.utc).isoformat()},
+        600,
+    )
+    return response
+
+
+@app.get("/auth/kakao/callback")
+async def kakao_callback(
+    request: Request,
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    state_payload = _unpack_signed_cookie(request.cookies.get(KAKAO_STATE_COOKIE))
+    next_path = _safe_next_path(state_payload.get("next") if state_payload else None)
+    if error:
+        response = RedirectResponse(_append_kakao_status(next_path, "error"), status_code=302)
+        _delete_kakao_cookie(response, KAKAO_STATE_COOKIE)
+        return response
+    if not state_payload or state_payload.get("state") != state or not code:
+        response = RedirectResponse(_append_kakao_status(next_path, "state_error"), status_code=302)
+        _delete_kakao_cookie(response, KAKAO_STATE_COOKIE)
+        return response
+
+    client_id = (os.getenv("KAKAO_REST_API_KEY") or "").strip()
+    if not client_id:
+        response = RedirectResponse(_append_kakao_status(next_path, "not_configured"), status_code=302)
+        _delete_kakao_cookie(response, KAKAO_STATE_COOKIE)
+        return response
+
+    token_body = {
+        "grant_type": "authorization_code",
+        "client_id": client_id,
+        "redirect_uri": _kakao_redirect_uri(request),
+        "code": code,
+    }
+    client_secret = (os.getenv("KAKAO_CLIENT_SECRET") or "").strip()
+    if client_secret:
+        token_body["client_secret"] = client_secret
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            token_response = await client.post(KAKAO_TOKEN_URL, data=token_body)
+            token_response.raise_for_status()
+            access_token = token_response.json().get("access_token")
+            if not access_token:
+                raise ValueError("missing_access_token")
+            user_response = await client.get(KAKAO_USER_ME_URL, headers={"Authorization": f"Bearer {access_token}"})
+            user_response.raise_for_status()
+            user = user_response.json()
+    except Exception as exc:
+        logging.warning("kakao_login_failed: %s", exc)
+        response = RedirectResponse(_append_kakao_status(next_path, "token_error"), status_code=302)
+        _delete_kakao_cookie(response, KAKAO_STATE_COOKIE)
+        return response
+
+    profile = _kakao_profile_payload(user)
+    kakao_id = profile.get("id") or str(user.get("id") or "")
+    member = get_member_by_kakao_id(kakao_id)
+    session_payload = {
+        "kakao_id": kakao_id,
+        "member_id": member["id"] if member else "",
+        "profile": profile,
+        "iat": datetime.now(timezone.utc).isoformat(),
+    }
+    response = RedirectResponse(_append_kakao_status(next_path, "linked" if member else "unmatched"), status_code=302)
+    _delete_kakao_cookie(response, KAKAO_STATE_COOKIE)
+    _set_signed_cookie(response, request, KAKAO_SESSION_COOKIE, session_payload, KAKAO_SESSION_MAX_AGE)
+    log_action(member["id"] if member else "kakao", "kakao_login", "linked=1" if member else "linked=0", request.client.host if request.client else None)
+    return response
+
+
+@app.get("/auth/kakao/me")
+async def kakao_me(request: Request):
+    session = _read_kakao_session(request)
+    if not session or not session.get("kakao_id"):
+        raise HTTPException(401, detail="카카오 로그인이 필요합니다.")
+    member = get_member(session.get("member_id")) if session.get("member_id") else None
+    return {
+        "ok": True,
+        "data": {
+            "kakao": _kakao_public_payload(session, member),
+            "member": _safe_member_profile(member) if member else None,
+            "bookings": [_safe_public_booking(item) for item in list_member_bookings(member["id"])] if member else [],
+        },
+    }
+
+
+@app.post("/auth/kakao/link")
+async def kakao_link(body: KakaoLinkRequest, request: Request):
+    session = _read_kakao_session(request)
+    if not session or not session.get("kakao_id"):
+        raise HTTPException(401, detail="카카오 로그인이 필요합니다.")
+    member = _get_member_by_phone(body.phone)
+    if not member:
+        raise HTTPException(404, detail="신청 정보를 찾을 수 없습니다. 신청한 전화번호를 확인해주세요.")
+    result = verify_code(body.code, member["id"])
+    log_action(member["id"], "kakao_link_code_used" if result.get("ok") else "kakao_link_code_failed", None, request.client.host if request.client else None)
+    if not result.get("ok"):
+        raise HTTPException(400, detail=result.get("error") or "코드 확인에 실패했습니다.")
+    if member.get("status") != "approved":
+        raise HTTPException(400, detail=f"현재 신청 상태는 {member.get('status')}입니다.")
+
+    existing = get_member_by_kakao_id(session["kakao_id"])
+    if existing and existing["id"] != member["id"]:
+        raise HTTPException(409, detail="이미 다른 회원 정보에 연결된 카카오 계정입니다.")
+
+    profile = session.get("profile") if isinstance(session.get("profile"), dict) else {}
+    link_member_kakao(member["id"], session["kakao_id"], profile)
+    member = get_member(member["id"]) or member
+    response = {
+        "ok": True,
+        "message": "카카오 계정이 회원 정보와 연결되었습니다.",
+        "data": {
+            "kakao": {"connected": True, "linked": True, "nickname": profile.get("nickname") or ""},
+            "member": _safe_member_profile(member),
+            "bookings": [_safe_public_booking(item) for item in list_member_bookings(member["id"])],
+        },
+    }
+    return response
+
+
+@app.post("/auth/kakao/logout")
+async def kakao_logout():
+    body = {"ok": True, "message": "카카오 회원 세션을 종료했습니다."}
+    response = Response(content=json.dumps(body, ensure_ascii=False), media_type="application/json")
+    _delete_kakao_cookie(response, KAKAO_SESSION_COOKIE)
+    return response
+
+
 @app.post("/verify-code")
 async def verify(body: VerifyCodeRequest, request: Request):
     result = verify_code(body.code, body.member_id)
@@ -1860,11 +2924,18 @@ async def public_create_booking(body: PublicBookingRequest, request: Request):
     if member.get("status") != "approved":
         raise HTTPException(400, detail="승인된 신청자만 예약할 수 있습니다.")
 
-    result = verify_code(body.code, body.member_id)
-    action = "booking_code_verified" if result.get("ok") else "booking_code_failed"
-    log_action(body.member_id, action, None, request.client.host if request.client else None)
-    if not result.get("ok"):
-        raise HTTPException(400, detail=result.get("error") or "코드 확인에 실패했습니다.")
+    kakao_session = _read_kakao_session(request)
+    kakao_member_ok = bool(kakao_session and kakao_session.get("member_id") == body.member_id)
+    if body.code:
+        result = verify_code(body.code, body.member_id)
+        action = "booking_code_verified" if result.get("ok") else "booking_code_failed"
+        log_action(body.member_id, action, None, request.client.host if request.client else None)
+        if not result.get("ok"):
+            raise HTTPException(400, detail=result.get("error") or "코드 확인에 실패했습니다.")
+    elif kakao_member_ok:
+        log_action(body.member_id, "booking_kakao_verified", None, request.client.host if request.client else None)
+    else:
+        raise HTTPException(400, detail="승인 코드 확인 또는 카카오 회원 로그인이 필요합니다.")
 
     session = get_session(body.session_id)
     ok, reason = session_acceptance(session)
@@ -2032,6 +3103,98 @@ async def member_contact(member_id: str, request: Request, _=Depends(require_adm
             "email": email,
         },
     }
+
+
+@app.put("/admin/members/{member_id}")
+async def admin_update_member(member_id: str, body: MemberUpdateRequest, request: Request, _=Depends(require_admin)):
+    if not get_member(member_id):
+        raise HTTPException(404, detail="신청자를 찾을 수 없습니다.")
+    updates = body.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(400, detail="변경할 값이 없습니다.")
+    if updates.get("status") and updates["status"] not in {"pending", "approved", "rejected", "blacklist", "erased"}:
+        raise HTTPException(400, detail="상태 값이 올바르지 않습니다.")
+    if updates.get("plan_type") and updates["plan_type"] not in {"free", "full", "basic", "consultation", "lead_email", "lead_phone"}:
+        raise HTTPException(400, detail="신청 유형 값이 올바르지 않습니다.")
+    ok = update_member(member_id, updates)
+    if not ok:
+        raise HTTPException(400, detail="변경할 값이 없습니다.")
+    log_action(
+        member_id,
+        "member_update",
+        json.dumps({"fields": sorted(updates.keys())}, ensure_ascii=False),
+        request.client.host if request.client else None,
+    )
+    member = get_member(member_id)
+    member.pop("phone_encrypted", None)
+    member.pop("email_encrypted", None)
+    member.pop("access_code", None)
+    return {"ok": True, "data": member}
+
+
+@app.post("/admin/members/{member_id}/contact-registered")
+async def admin_member_contact_registered(member_id: str, body: ContactRegisteredRequest, request: Request, _=Depends(require_admin)):
+    member = get_member(member_id)
+    if not member:
+        raise HTTPException(404, detail="신청자를 찾을 수 없습니다.")
+    detail = {
+        "registered": bool(body.registered),
+        "note": (body.note or "").strip(),
+    }
+    log_action(
+        member_id,
+        "contact_registered",
+        json.dumps(detail, ensure_ascii=False),
+        request.client.host if request.client else None,
+    )
+    updated = get_member(member_id)
+    updated.pop("phone_encrypted", None)
+    updated.pop("email_encrypted", None)
+    updated.pop("access_code", None)
+    return {"ok": True, "data": updated}
+
+
+@app.post("/admin/members/{member_id}/kakao-unlink")
+async def admin_member_kakao_unlink(member_id: str, request: Request, _=Depends(require_admin)):
+    member = get_member(member_id)
+    if not member:
+        raise HTTPException(404, detail="신청자를 찾을 수 없습니다.")
+    if not member.get("kakao_id"):
+        raise HTTPException(400, detail="연결된 카카오 계정이 없습니다.")
+    unlink_member_kakao(member_id)
+    log_action(
+        member_id,
+        "kakao_unlinked_by_admin",
+        "admin_manual_unlink",
+        request.client.host if request.client else None,
+    )
+    updated = get_member(member_id)
+    updated.pop("phone_encrypted", None)
+    updated.pop("email_encrypted", None)
+    updated.pop("access_code", None)
+    return {"ok": True, "message": "카카오 계정 연결을 해제했습니다.", "data": updated}
+
+
+@app.post("/admin/members/{member_id}/kick")
+async def admin_kick_member_from_classes(member_id: str, body: MemberKickRequest, request: Request, _=Depends(require_admin)):
+    member = get_member(member_id)
+    if not member:
+        raise HTTPException(404, detail="신청자를 찾을 수 없습니다.")
+    reason = (body.reason or "운영자 강의 추방 처리").strip()
+    targets = [
+        item for item in list_member_bookings(member_id)
+        if item.get("status") not in {"canceled", "rejected", "no_show", "completed"}
+    ]
+    for booking in targets:
+        note = "\n".join(part for part in [booking.get("payment_note"), f"[강의 추방] {reason}"] if part)
+        set_booking_state(booking["id"], status="canceled", payment_note=note)
+    log_action(
+        member_id,
+        "member_kicked_from_classes",
+        json.dumps({"count": len(targets), "reason": reason}, ensure_ascii=False),
+        request.client.host if request.client else None,
+    )
+    return {"ok": True, "message": f"활성 강의 예약 {len(targets)}건을 취소 처리했습니다.", "data": {"member_id": member_id, "canceled": len(targets)}}
 
 
 @app.post("/members/{member_id}/erase")
@@ -2213,10 +3376,52 @@ async def api_yoonbot_create_order(body: YoonbotOrderCreateRequest, request: Req
             customer_message=body.customer_message,
             consent_privacy=body.consent_privacy,
             consent_terms=body.consent_terms,
+            discount_code=body.discount_code,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    # Override payment payload only when Toss is fully configured (client + secret both set)
+    config = get_toss_payment_config()
+    if config["provider"] == "toss_payments" and config["client_key_set"] and config["secret_key_set"]:
+        result["payment"] = build_toss_payment_payload(result["data"])
     log_action("system", "yoonbot_order_created", result["data"]["id"], _client_ip(request))
+    return result
+
+
+@app.post("/api/yoonbot/orders/{order_id}/payments/toss/confirm")
+async def api_yoonbot_toss_confirm(order_id: str, body: TossPaymentConfirmRequest, request: Request):
+    try:
+        result = confirm_yoonbot_toss_payment(
+            order_id=order_id,
+            payment_key=body.payment_key,
+            client_amount=body.amount,
+            toss_order_id=body.order_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    log_action("system", "yoonbot_toss_payment_confirmed", order_id, _client_ip(request))
+    return result
+
+
+@app.post("/api/yoonbot/orders/by-toss-id/{toss_order_id}/payments/toss/confirm")
+async def api_yoonbot_toss_confirm_by_toss_id(toss_order_id: str, body: TossPaymentConfirmRequest, request: Request):
+    order = get_yoonbot_order_by_toss_id(toss_order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다.")
+    try:
+        result = confirm_yoonbot_toss_payment(
+            order_id=order["id"],
+            payment_key=body.payment_key,
+            client_amount=body.amount,
+            toss_order_id=body.order_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    log_action("system", "yoonbot_toss_payment_confirmed", order["id"], _client_ip(request))
     return result
 
 
@@ -2304,6 +3509,52 @@ async def admin_yoonbot_refund_order(
     return result
 
 
+@app.get("/admin/yoonbot/discounts")
+async def admin_yoonbot_list_discounts(
+    _=Depends(require_admin),
+):
+    codes = list_yoonbot_discount_codes()
+    return {"ok": True, "data": codes, "total": len(codes)}
+
+
+@app.post("/admin/yoonbot/discounts")
+async def admin_yoonbot_create_discount(
+    body: AdminYoonbotDiscountCreateRequest,
+    request: Request,
+    _=Depends(require_admin),
+):
+    try:
+        result = create_yoonbot_discount_code(
+            code=body.code,
+            label=body.label,
+            plan_code=body.plan_code,
+            discount_type=body.discount_type,
+            discount_value=body.discount_value,
+            max_redemptions=body.max_redemptions,
+            starts_at=body.starts_at,
+            expires_at=body.expires_at,
+            note=body.note,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    log_action("system", "yoonbot_discount_created", result["code"], _client_ip(request))
+    return {"ok": True, "data": result}
+
+
+@app.post("/admin/yoonbot/discounts/{code}/disable")
+async def admin_yoonbot_disable_discount(
+    code: str,
+    request: Request,
+    _=Depends(require_admin),
+):
+    try:
+        result = disable_yoonbot_discount_code(code)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    log_action("system", "yoonbot_discount_disabled", code, _client_ip(request))
+    return {"ok": True, "data": result}
+
+
 @app.get("/stats")
 async def stats(_=Depends(require_admin)):
     data = get_stats()
@@ -2325,6 +3576,66 @@ async def health(request: Request):
         "local_admin_preview": is_local_admin_preview(request),
         "data": get_operator_health(),
     }
+
+
+@app.get("/api/daf/manifest")
+async def public_launcher_manifest(request: Request):
+    return _public_launcher_manifest(request)
+
+
+@app.get("/api/daf/programs")
+async def public_launcher_programs(request: Request):
+    data = _public_launcher_manifest(request)
+    return {
+        "schema_version": data.get("schema_version"),
+        "updated_at": data.get("updated_at"),
+        "served_at": data.get("served_at"),
+        "programs": data.get("programs", []),
+    }
+
+
+@app.get("/api/daf/notices")
+async def public_launcher_notices(
+    request: Request,
+    audience: Optional[str] = None,
+    level: Optional[str] = None,
+):
+    if audience not in (None, "launcher", "website"):
+        raise HTTPException(status_code=422, detail="invalid_audience")
+    if level not in (None, "info", "warning", "critical"):
+        raise HTTPException(status_code=422, detail="invalid_level")
+    data = _load_launcher_manifest()
+    return {
+        "schema_version": data.get("schema_version"),
+        "updated_at": data.get("updated_at"),
+        "served_at": datetime.now(timezone.utc).isoformat(),
+        "notices": _public_launcher_notices(data.get("notices", []), audience=audience, level=level),
+    }
+
+
+@app.get("/api/daf/launcher/release")
+async def public_daf_launcher_release(request: Request):
+    data = _load_launcher_manifest()
+    return _public_launcher_release(data.get("launcher", {}), request)
+
+
+@app.get("/api/launcher/release")
+async def public_launcher_release(request: Request):
+    return await public_daf_launcher_release(request)
+
+
+@app.get("/api/daf/launcher/artifacts/{artifact_name}")
+async def public_launcher_artifact(artifact_name: str):
+    if not _safe_launcher_artifact_name(artifact_name):
+        raise HTTPException(status_code=400, detail="invalid_artifact_name")
+    artifact_path = LAUNCHER_ARTIFACT_DIR / artifact_name
+    if not artifact_path.is_file():
+        raise HTTPException(status_code=404, detail="launcher_artifact_missing")
+    return FileResponse(
+        str(artifact_path),
+        media_type="application/zip",
+        filename=artifact_name,
+    )
 
 
 @app.get("/api/site-theme")
@@ -2857,15 +4168,23 @@ async def admin_manual_booking(session_id: str, body: ManualBookingRequest, requ
         log_action(member_id, "manual_member_create", f"session_id={session_id}", request.client.host if request.client else None)
 
     existing = find_active_member_booking(member_id, session_id)
-    payment_note = body.payment_note or "운영자 수동 추가: 입금 확인 완료"
+    is_free = _is_free_session(session)
+    payment_note = body.payment_note or ("운영자 수동 추가: 무료강의 확정" if is_free else "운영자 수동 추가: 입금 확인 완료")
     if existing:
-        ok, message, booking = confirm_payment_state(existing["id"], payment_note)
-        if not ok:
-            raise HTTPException(409, detail=message)
+        if is_free:
+            ok = set_booking_state(existing["id"], status="confirmed", payment_status="waived", payment_note=payment_note)
+            if not ok:
+                raise HTTPException(409, detail="기존 무료강의 예약 상태를 변경하지 못했습니다.")
+            booking = get_booking(existing["id"])
+            message = "이미 연결된 무료강의 예약을 확정으로 변경했습니다. 자동 알림은 보내지 않았습니다."
+        else:
+            ok, message, booking = confirm_payment_state(existing["id"], payment_note)
+            if not ok:
+                raise HTTPException(409, detail=message)
         log_action(member_id, "manual_booking_existing_confirmed", f"booking_id={existing['id']}", request.client.host if request.client else None)
         return {
             "ok": True,
-            "message": "이미 연결된 예약을 입금확정으로 변경했습니다. 자동 알림은 보내지 않았습니다.",
+            "message": message,
             "data": booking,
             "member_id": member_id,
             "reused_member": reused_member,
@@ -2884,8 +4203,8 @@ async def admin_manual_booking(session_id: str, body: ManualBookingRequest, requ
         "desired_outcome": body.desired_outcome or "",
         "preparedness": "운영자 수동 추가",
         "status": "confirmed",
-        "payment_status": "paid",
-        "payment_amount_krw": int(body.payment_amount_krw or session.get("price_krw") or DEFAULT_PRICE),
+        "payment_status": "waived" if is_free else "paid",
+        "payment_amount_krw": int((session.get("price_krw") if body.payment_amount_krw is None else body.payment_amount_krw) or 0),
         "payment_note": payment_note,
         "confirmed_at": datetime.now(timezone.utc).isoformat(),
     })
@@ -2894,7 +4213,7 @@ async def admin_manual_booking(session_id: str, body: ManualBookingRequest, requ
     log_action(member_id, "manual_booking_confirmed", f"booking_id={booking_id}", request.client.host if request.client else None)
     return {
         "ok": True,
-        "message": "입금확정 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다.",
+        "message": "무료강의 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다." if is_free else "입금확정 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다.",
         "data": booking,
         "member_id": member_id,
         "reused_member": reused_member,
@@ -2999,6 +4318,22 @@ async def admin_location_guide(booking_id: str, request: Request, _=Depends(requ
         "message": "장소 안내 문구를 만들었습니다. 신청자에게 자동 전송하지 않았습니다.",
         **_admin_no_send_delivery("manual_copy"),
         "location_guide": guide,
+        "data": booking,
+    }
+
+
+@app.post("/admin/bookings/{booking_id}/free-guide")
+async def admin_free_class_guide(booking_id: str, request: Request, _=Depends(require_admin)):
+    booking = get_booking(booking_id)
+    if not booking:
+        raise HTTPException(404, detail="예약 신청을 찾을 수 없습니다.")
+    guide = default_free_class_guide(booking)
+    log_action(booking_id, "booking_free_guide_viewed", "manual_copy", request.client.host if request.client else None)
+    return {
+        "ok": True,
+        "message": "무료강의 안내 문구를 만들었습니다. 신청자에게 자동 전송하지 않았습니다.",
+        **_admin_no_send_delivery("manual_copy"),
+        "free_guide": guide,
         "data": booking,
     }
 

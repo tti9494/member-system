@@ -119,12 +119,149 @@ def create_member(data: dict) -> str:
     return member_id
 
 
+def upgrade_lead_to_application(member_id: str, data: dict) -> bool:
+    """Convert a consultation/newsletter lead into a real class application."""
+    list_fields = {"ai_tools", "ai_use_cases", "group_goals", "available_time_slots"}
+    bool_fields = {"can_code", "can_present", "consent_marketing", "consent_personal"}
+    updates = {
+        "name": data.get("name") or "신청자",
+        "email_encrypted": data.get("email_encrypted", ""),
+        "email_hash": data.get("email_hash", ""),
+        "phone_masked": data.get("phone_masked", ""),
+        "phone_encrypted": data.get("phone_encrypted", ""),
+        "phone_hash": data.get("phone_hash", ""),
+        "gender": data.get("gender", ""),
+        "age": int(data.get("age") or 0),
+        "job": data.get("job", ""),
+        "referral_source": data.get("referral_source", ""),
+        "reason": data.get("reason") or data.get("desired_outcome") or "",
+        "ai_level": data.get("ai_level", ""),
+        "plan_type": data.get("plan_type") or "full",
+        "ai_tools": data.get("ai_tools", []),
+        "ai_subscription": data.get("ai_subscription", ""),
+        "ai_weekly_hours": data.get("ai_weekly_hours", ""),
+        "ai_use_cases": data.get("ai_use_cases", []),
+        "group_goals": data.get("group_goals", []),
+        "short_term_goal": data.get("short_term_goal") or data.get("desired_outcome") or "",
+        "participation_type": data.get("participation_type", ""),
+        "preferred_schedule": data.get("preferred_schedule", ""),
+        "available_time_slots": data.get("available_time_slots", []),
+        "region": data.get("region", ""),
+        "main_device": data.get("main_device", ""),
+        "can_code": data.get("can_code", False),
+        "can_present": data.get("can_present", False),
+        "skills": data.get("skills") or data.get("preparedness") or "",
+        "contribution": data.get("contribution", ""),
+        "participation_grade": data.get("participation_grade", "🌱 새싹"),
+        "consent_personal": data.get("consent_personal", True),
+        "consent_marketing": data.get("consent_marketing", False),
+        "consent_at": data.get("consent_at", _now()),
+        "consent_version": data.get("consent_version", "lead-upgrade-v1"),
+        "status": "pending",
+        "rejection_reason": None,
+        "access_code": None,
+        "code_expires_at": None,
+        "code_issued_at": None,
+        "code_fail_count": 0,
+        "code_locked_until": None,
+        "approved_at": None,
+    }
+    normalized = {}
+    for key, value in updates.items():
+        if key in list_fields and isinstance(value, list):
+            value = json.dumps(value, ensure_ascii=False)
+        if key in bool_fields:
+            value = 1 if value else 0
+        normalized[key] = value
+    fields = list(normalized.keys())
+    sql = ", ".join(f"{field}=?" for field in fields)
+    conn = get_conn()
+    try:
+        cur = conn.execute(f"UPDATE members SET {sql} WHERE id=?", [*(normalized[field] for field in fields), member_id])
+        conn.execute(
+            """
+            UPDATE consultations
+            SET status='closed',
+                admin_note=COALESCE(admin_note, '강의 신청으로 전환됨'),
+                updated_at=?
+            WHERE member_id=? AND status NOT IN ('closed', 'spam')
+            """,
+            (_now(), member_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def get_member(member_id: str) -> dict | None:
     conn = get_conn()
     cur = conn.cursor()
     row = cur.execute("SELECT * FROM members WHERE id=?", (member_id,)).fetchone()
+    data = dict(row) if row else None
+    if data:
+        _attach_member_admin_fields(conn, [data])
     conn.close()
-    return dict(row) if row else None
+    return data
+
+
+def get_member_by_kakao_id(kakao_id: str) -> dict | None:
+    kakao_id = str(kakao_id or "").strip()
+    if not kakao_id:
+        return None
+    conn = get_conn()
+    cur = conn.cursor()
+    row = cur.execute(
+        "SELECT * FROM members WHERE kakao_id=? AND status!='erased' ORDER BY kakao_connected_at DESC LIMIT 1",
+        (kakao_id,),
+    ).fetchone()
+    data = dict(row) if row else None
+    if data:
+        _attach_member_admin_fields(conn, [data])
+    conn.close()
+    return data
+
+
+def link_member_kakao(member_id: str, kakao_id: str, profile: dict | None = None) -> bool:
+    kakao_id = str(kakao_id or "").strip()
+    if not member_id or not kakao_id:
+        return False
+    profile_json = json.dumps(profile or {}, ensure_ascii=False, sort_keys=True)
+    conn = get_conn()
+    cur = conn.execute(
+        """
+        UPDATE members
+        SET kakao_id=?,
+            kakao_profile=?,
+            kakao_connected_at=?
+        WHERE id=?
+        """,
+        (kakao_id, profile_json, _now(), member_id),
+    )
+    conn.commit()
+    changed = cur.rowcount > 0
+    conn.close()
+    return changed
+
+
+def unlink_member_kakao(member_id: str) -> bool:
+    if not member_id:
+        return False
+    conn = get_conn()
+    cur = conn.execute(
+        """
+        UPDATE members
+        SET kakao_id=NULL,
+            kakao_profile=NULL,
+            kakao_connected_at=NULL
+        WHERE id=?
+        """,
+        (member_id,),
+    )
+    conn.commit()
+    changed = cur.rowcount > 0
+    conn.close()
+    return changed
 
 
 def get_latest_member_by_phone_hash(phone_hash: str) -> dict | None:
@@ -157,8 +294,239 @@ def list_members(status: str = None, grade: str = None) -> list:
         params.append(grade)
     query += " ORDER BY created_at DESC"
     rows = cur.execute(query, params).fetchall()
+    data = [dict(r) for r in rows]
+    _attach_member_admin_fields(conn, data)
     conn.close()
-    return [dict(r) for r in rows]
+    return data
+
+
+def _booking_kind_expr() -> str:
+    return """
+        CASE
+          WHEN COALESCE(s.program_type, '') LIKE '%free%'
+            OR COALESCE(s.price_krw, b.payment_amount_krw, 0)=0
+            OR b.payment_status='waived'
+          THEN 'free'
+          ELSE 'paid'
+        END
+    """
+
+
+def _member_class_summaries(conn: sqlite3.Connection, member_ids: list[str]) -> dict[str, dict]:
+    if not member_ids:
+        return {}
+    placeholders = ",".join("?" for _ in member_ids)
+    kind_expr = _booking_kind_expr()
+    attended_expr = """
+        (
+          b.status='completed'
+          OR (
+            b.status='confirmed'
+            AND COALESCE(s.starts_at, b.confirmed_at, b.updated_at, b.created_at) <= ?
+          )
+        )
+    """
+    rows = conn.execute(
+        f"""
+        SELECT
+            b.member_id,
+            SUM(CASE WHEN {attended_expr} AND {kind_expr}='free' THEN 1 ELSE 0 END) AS free_completed,
+            SUM(CASE WHEN {attended_expr} AND {kind_expr}='paid' THEN 1 ELSE 0 END) AS paid_completed,
+            SUM(CASE WHEN b.status IN ('requested','payment_guide_sent','payment_pending','payment_confirmed','confirmed','waitlisted') AND NOT {attended_expr} AND {kind_expr}='free' THEN 1 ELSE 0 END) AS free_scheduled,
+            SUM(CASE WHEN b.status IN ('requested','payment_guide_sent','payment_pending','payment_confirmed','confirmed','waitlisted') AND NOT {attended_expr} AND {kind_expr}='paid' THEN 1 ELSE 0 END) AS paid_scheduled
+        FROM bookings b
+        LEFT JOIN sessions s ON s.id=b.session_id
+        WHERE b.member_id IN ({placeholders})
+        GROUP BY b.member_id
+        """,
+        [_now(), _now(), _now(), _now(), *member_ids],
+    ).fetchall()
+    result: dict[str, dict] = {}
+    for row in rows:
+        free_completed = int(row["free_completed"] or 0)
+        paid_completed = int(row["paid_completed"] or 0)
+        free_scheduled = int(row["free_scheduled"] or 0)
+        paid_scheduled = int(row["paid_scheduled"] or 0)
+        result[row["member_id"]] = {
+            "free_completed": free_completed,
+            "paid_completed": paid_completed,
+            "free_scheduled": free_scheduled,
+            "paid_scheduled": paid_scheduled,
+            "total_completed": free_completed + paid_completed,
+            "total_scheduled": free_scheduled + paid_scheduled,
+        }
+    return result
+
+
+def _member_contact_registration(conn: sqlite3.Connection, member_ids: list[str]) -> dict[str, dict]:
+    if not member_ids:
+        return {}
+    placeholders = ",".join("?" for _ in member_ids)
+    rows = conn.execute(
+        f"""
+        SELECT member_id, detail, created_at
+        FROM member_logs
+        WHERE action='contact_registered'
+          AND member_id IN ({placeholders})
+        ORDER BY created_at ASC
+        """,
+        member_ids,
+    ).fetchall()
+    result: dict[str, dict] = {}
+    for row in rows:
+        detail = {}
+        try:
+            detail = json.loads(row["detail"] or "{}")
+        except json.JSONDecodeError:
+            detail = {}
+        result[row["member_id"]] = {
+            "registered": bool(detail.get("registered", True)),
+            "note": str(detail.get("note") or ""),
+            "created_at": row["created_at"],
+        }
+    return result
+
+
+def _parse_duplicate_detail(detail_text: str | None) -> dict:
+    text = str(detail_text or "").strip()
+    if not text:
+        return {}
+    try:
+        parsed = json.loads(text)
+        return parsed if isinstance(parsed, dict) else {"note": text}
+    except json.JSONDecodeError:
+        result = {"note": text}
+        for part in text.split(","):
+            if "=" not in part:
+                continue
+            key, value = part.split("=", 1)
+            result[key.strip()] = value.strip()
+        return result
+
+
+def _member_duplicate_activity(conn: sqlite3.Connection, member_ids: list[str]) -> dict[str, dict]:
+    if not member_ids:
+        return {}
+    placeholders = ",".join("?" for _ in member_ids)
+    rows = conn.execute(
+        f"""
+        SELECT member_id, detail, created_at
+        FROM member_logs
+        WHERE action='duplicate_apply'
+          AND member_id IN ({placeholders})
+        ORDER BY created_at DESC
+        """,
+        member_ids,
+    ).fetchall()
+    result: dict[str, dict] = {}
+    for row in rows:
+        member_id = row["member_id"]
+        detail = _parse_duplicate_detail(row["detail"])
+        bucket = result.setdefault(member_id, {"count": 0, "logs": []})
+        bucket["count"] += 1
+        if len(bucket["logs"]) < 5:
+            bucket["logs"].append({
+                "created_at": row["created_at"],
+                "source": detail.get("source") or detail.get("duplicate_source") or "",
+                "attempt_name": detail.get("attempt_name") or detail.get("name") or "",
+                "attempt_phone_masked": detail.get("attempt_phone_masked") or "",
+                "attempt_plan_type": detail.get("attempt_plan_type") or "",
+                "attempt_session_id": detail.get("attempt_session_id") or "",
+                "note": detail.get("note") or "",
+            })
+    for activity in result.values():
+        latest = activity["logs"][0] if activity["logs"] else {}
+        source_label = {"phone": "전화번호", "email": "이메일"}.get(latest.get("source"), latest.get("source") or "중복 기준")
+        attempt_name = latest.get("attempt_name") or "이름 미기록"
+        activity["last_at"] = latest.get("created_at")
+        activity["last_source"] = latest.get("source") or ""
+        activity["last_attempt_name"] = latest.get("attempt_name") or ""
+        activity["summary_text"] = f"중복 감지 {activity['count']}회 · 최근 {source_label} · {attempt_name}"
+    return result
+
+
+def _attach_member_admin_fields(conn: sqlite3.Connection, members: list[dict]) -> None:
+    member_ids = [str(item.get("id") or "") for item in members if item.get("id")]
+    summaries = _member_class_summaries(conn, member_ids)
+    registrations = _member_contact_registration(conn, member_ids)
+    duplicate_activity = _member_duplicate_activity(conn, member_ids)
+    for member in members:
+        summary = summaries.get(member.get("id"), {
+            "free_completed": 0,
+            "paid_completed": 0,
+            "free_scheduled": 0,
+            "paid_scheduled": 0,
+            "total_completed": 0,
+            "total_scheduled": 0,
+        })
+        registration = registrations.get(member.get("id"), {})
+        member["class_summary"] = summary
+        member["class_summary_text"] = (
+            f"무료 {summary['free_completed']}회 · 유료 {summary['paid_completed']}회"
+            + (f" · 예정 {summary['total_scheduled']}건" if summary["total_scheduled"] else "")
+        )
+        member["contact_registered"] = bool(registration.get("registered", False))
+        member["contact_registered_at"] = registration.get("created_at")
+        member["contact_registered_note"] = registration.get("note", "")
+        duplicate = duplicate_activity.get(member.get("id"), {"count": 0, "logs": [], "summary_text": ""})
+        member["duplicate_apply_count"] = int(duplicate.get("count") or 0)
+        member["duplicate_apply_last_at"] = duplicate.get("last_at")
+        member["duplicate_apply_last_source"] = duplicate.get("last_source", "")
+        member["duplicate_apply_last_attempt_name"] = duplicate.get("last_attempt_name", "")
+        member["duplicate_apply_summary_text"] = duplicate.get("summary_text", "")
+        member["duplicate_apply_logs"] = duplicate.get("logs", [])
+
+
+def update_member(member_id: str, updates: dict) -> bool:
+    allowed = {
+        "name",
+        "gender",
+        "age",
+        "job",
+        "referral_source",
+        "reason",
+        "ai_level",
+        "plan_type",
+        "ai_tools",
+        "ai_subscription",
+        "ai_weekly_hours",
+        "ai_use_cases",
+        "group_goals",
+        "short_term_goal",
+        "participation_type",
+        "preferred_schedule",
+        "available_time_slots",
+        "region",
+        "main_device",
+        "can_code",
+        "can_present",
+        "skills",
+        "contribution",
+        "participation_grade",
+        "consent_marketing",
+        "status",
+        "rejection_reason",
+    }
+    fields = [key for key in updates if key in allowed]
+    if not fields:
+        return False
+    values = []
+    for key in fields:
+        value = updates[key]
+        if key in {"ai_tools", "ai_use_cases", "group_goals", "available_time_slots"} and isinstance(value, list):
+            value = json.dumps(value, ensure_ascii=False)
+        if key in {"can_code", "can_present", "consent_marketing"}:
+            value = 1 if value else 0
+        if key == "age" and value not in (None, ""):
+            value = int(value)
+        values.append(value)
+    sql = ", ".join(f"{key}=?" for key in fields)
+    conn = get_conn()
+    cur = conn.execute(f"UPDATE members SET {sql} WHERE id=?", [*values, member_id])
+    conn.commit()
+    changed = cur.rowcount > 0
+    conn.close()
+    return changed
 
 
 def update_status(member_id: str, status: str, reason: str = None):
@@ -344,8 +712,12 @@ def get_stats() -> dict:
     rejected = cur.execute("SELECT COUNT(*) FROM members WHERE status='rejected'").fetchone()[0]
     blacklist = cur.execute("SELECT COUNT(*) FROM members WHERE status='blacklist'").fetchone()[0]
     erased = cur.execute("SELECT COUNT(*) FROM members WHERE status='erased'").fetchone()[0]
+    free = cur.execute("SELECT COUNT(*) FROM members WHERE plan_type='free' AND status!='erased'").fetchone()[0]
     basic = cur.execute("SELECT COUNT(*) FROM members WHERE plan_type='basic' AND status!='erased'").fetchone()[0]
     full = cur.execute("SELECT COUNT(*) FROM members WHERE plan_type='full' AND status!='erased'").fetchone()[0]
+    consultation = cur.execute("SELECT COUNT(*) FROM members WHERE plan_type='consultation' AND status!='erased'").fetchone()[0]
+    lead_email = cur.execute("SELECT COUNT(*) FROM members WHERE plan_type='lead_email' AND status!='erased'").fetchone()[0]
+    lead_phone = cur.execute("SELECT COUNT(*) FROM members WHERE plan_type='lead_phone' AND status!='erased'").fetchone()[0]
 
     grade_rows = cur.execute(
         """
@@ -365,8 +737,12 @@ def get_stats() -> dict:
         "rejected": rejected,
         "blacklist": blacklist,
         "erased": erased,
+        "free": free,
         "basic": basic,
         "full": full,
+        "consultation": consultation,
+        "lead_email": lead_email,
+        "lead_phone": lead_phone,
         "grades": grade_stats,
     }
 

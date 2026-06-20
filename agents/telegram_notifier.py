@@ -317,16 +317,25 @@ def notify_admin_new_apply(
     storage_status: dict | None = None,
     stats: dict | None = None,
     raw_application: dict | None = None,
+    lead_upgrade_from: str | None = None,
 ) -> str:
     plan_label = _plan_type_label((raw_application or {}).get("plan_type") or member.get("plan_type"))
     booking_id = booking.get("id") if booking else "-"
     booking_status = booking.get("status") if booking else "not_requested"
+    source_label = "소식받기" if str(lead_upgrade_from or "").startswith("lead_") else _plan_type_label(lead_upgrade_from)
+    heading = (
+        f"<b>ARSEN {_html(source_label)}에서 {_html(plan_label)} 신청으로 변경</b>"
+        if lead_upgrade_from
+        else f"<b>ARSEN 신규 {_html(plan_label)} 신청</b>"
+    )
     lines = [
-        f"<b>ARSEN 신규 {_html(plan_label)} 신청</b>",
+        heading,
         *_application_lines(member, raw_application=raw_application),
         f"예약ID: {_html(booking_id)}",
         f"예약상태: {_html(booking_status)}",
     ]
+    if lead_upgrade_from:
+        lines.insert(1, f"전환 안내: 기존 {_html(source_label)} 리드를 신청자/멤버 목록의 {_html(plan_label)} 신청으로 승격했습니다.")
     if storage_status:
         lines.extend([
             "저장 상태:",

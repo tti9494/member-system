@@ -34,7 +34,10 @@
   .program-item { background: #F4F7FB; border: 1px solid var(--border); border-radius: 11px; padding: 14px 15px; }
   .program-item strong { display: block; color: var(--text); font-size: 0.98rem; margin-bottom: 4px; }
   .program-item span { display: block; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
-  .program-result { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--text); font-weight: 750; font-size: 0.98rem; }
+	  .program-result { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--text); font-weight: 750; font-size: 0.98rem; }
+  .session-choice { border: 1.5px solid var(--border); border-radius: 12px; padding: 16px; background: #F4F7FB; margin-bottom: 24px; }
+  .session-choice-title { color: var(--text); font-size: 1.02rem; font-weight: 850; margin-bottom: 8px; }
+  .session-choice-meta { color: var(--muted); font-size: 0.95rem; line-height: 1.55; margin-top: 8px; }
 
   /* 진행률 */
   .progress-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
@@ -135,10 +138,11 @@
   .consent-box:has(input:checked) {
     background: #18345d;
   }
-  .grade-badge .grade-bar-wrap,
-  .consent-box,
-  .privacy-full,
-  .btn-skip:hover,
+	  .grade-badge .grade-bar-wrap,
+	  .consent-box,
+	  .privacy-full,
+  .session-choice,
+	  .btn-skip:hover,
   .btn-secondary:hover {
     background: #182235;
   }
@@ -181,7 +185,7 @@
   }
 </style>
 <link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css">
-<script src="assets/theme-loader.js?v=20260614-modern-bundle"></script>
+<script src="assets/theme-loader.js?v=member-newsletter-dark-v5"></script>
 </head>
 <body>
 <div class="container">
@@ -343,10 +347,17 @@
 
   <!-- ══ 3단계: 모임 참여 정보 ══ -->
   <div class="step" id="step3">
-    <div class="card">
-      <div class="section-title">🤝 무료강의 참여 희망 정보</div>
-      <div class="field">
-        <label>모임 참여 목적 <span class="optional">(복수 선택)</span></label>
+	    <div class="card">
+	      <div class="section-title">🤝 무료강의 참여 희망 정보</div>
+      <div class="session-choice" aria-label="무료강의 일정 선택">
+        <div class="session-choice-title">신청 가능한 무료강의 일정</div>
+        <select id="session_id" aria-label="무료강의 일정 선택">
+          <option value="">공개 무료강의 일정 불러오는 중...</option>
+        </select>
+        <div class="session-choice-meta" id="session-choice-meta">일정이 열려 있으면 선택한 일정에 바로 신청됩니다. 일정이 없거나 선택하지 않으면 기존처럼 참여 희망 정보만 접수됩니다.</div>
+      </div>
+	      <div class="field">
+	        <label>모임 참여 목적 <span class="optional">(복수 선택)</span></label>
         <div class="checkbox-grid" id="group_goals">
           <label><input type="checkbox" value="배움"><span>배움</span></label>
           <label><input type="checkbox" value="네트워킹"><span>네트워킹</span></label>
@@ -484,7 +495,7 @@
       <h2>무료 강의 신청이 접수되었습니다</h2>
       <p>운영자가 신청 내용을 확인한 뒤 가능한 무료강의가 있을 때 연락드립니다.</p>
       <p id="success-grade" style="margin-top:12px;font-size:1.1rem;font-weight:700;"></p>
-      <p style="margin-top:10px;font-size:1rem;color:#46546A;">보통 1-3일 내로 연락드립니다.</p>
+      <p style="margin-top:10px;font-size:1rem;color:var(--muted);">보통 1-3일 내로 연락드립니다.</p>
       <div class="success-actions" aria-label="신청 완료 후 바로가기">
         <a class="success-action primary" href="https://arsen-ai.com/">홈페이지로 돌아가기</a>
         <a class="success-action kakao" href="https://open.kakao.com/o/gm9tRoJh" target="_blank" rel="noopener noreferrer">카카오톡 정보방</a>
@@ -637,6 +648,47 @@ function getChecked(containerId) {
   return Array.from(el.querySelectorAll('input:checked')).map(cb => cb.value);
 }
 
+function isFreeSession(session) {
+  return String(session?.program_type || '').toLowerCase().includes('free')
+    || Number(session?.price_krw || 0) === 0
+    || String(session?.title || '').includes('무료');
+}
+
+function formatSessionOption(session) {
+  const starts = session.starts_at ? new Date(session.starts_at) : null;
+  const dateText = starts && !Number.isNaN(starts.getTime())
+    ? starts.toLocaleString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })
+    : '일시 미정';
+  const remaining = Number(session.remaining_capacity ?? session.capacity_max ?? 0);
+  return `${dateText} · ${session.title || '무료 AI 강의'} · ${session.location || '장소 미정'} · 잔여 ${remaining}명`;
+}
+
+async function loadFreeSessions() {
+  const select = document.getElementById('session_id');
+  const meta = document.getElementById('session-choice-meta');
+  if (!select) return;
+  try {
+    const res = await fetch('/sessions');
+    const data = await res.json();
+    const sessions = (data.data || [])
+      .filter((session) => session.status === 'open' && isFreeSession(session))
+      .sort((a, b) => String(a.starts_at || '').localeCompare(String(b.starts_at || '')));
+    select.innerHTML = '<option value="">일정 선택 안 함 · 정보만 접수</option>';
+    for (const session of sessions) {
+      const option = document.createElement('option');
+      option.value = session.id;
+      option.textContent = formatSessionOption(session);
+      select.appendChild(option);
+    }
+    meta.textContent = sessions.length
+      ? '원하는 일정을 선택하면 무료강의 신청과 일정 예약이 함께 접수됩니다.'
+      : '현재 공개된 무료강의 일정이 없습니다. 정보만 접수하면 가능한 일정이 열렸을 때 운영자가 연락드립니다.';
+  } catch (_) {
+    select.innerHTML = '<option value="">일정 목록을 불러오지 못했습니다 · 정보만 접수</option>';
+    meta.textContent = '일정 목록을 불러오지 못했습니다. 신청은 정보 접수로 진행할 수 있습니다.';
+  }
+}
+
 async function submitForm() {
   if (!document.getElementById('consent_personal').checked) {
     showErrors(['개인정보 수집·이용 동의는 필수입니다.']);
@@ -669,8 +721,9 @@ async function submitForm() {
     job: document.getElementById('job').value.trim(),
     referral_source: document.getElementById('referral_source').value,
     reason: document.getElementById('reason').value.trim(),
-    ai_level: document.getElementById('ai_level').value,
-    plan_type: 'free',
+	    ai_level: document.getElementById('ai_level').value,
+	    plan_type: 'free',
+    session_id: document.getElementById('session_id')?.value || null,
     // 선택 항목
     ai_tools: getChecked('ai_tools'),
     ai_subscription: document.getElementById('ai_subscription').value.trim() || null,
@@ -701,23 +754,28 @@ async function submitForm() {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (data.ok) {
-      const duplicateTitle = data.duplicate ? '이미 신청이 접수되어 있습니다' : '무료 강의 신청이 접수되었습니다';
-      const duplicateLead = data.duplicate
-        ? '새 신청서를 만들지 않고 기존 신청 상태를 확인했습니다.'
-        : '운영자가 신청 내용을 확인한 뒤 가능한 무료강의가 있을 때 연락드립니다.';
-      const duplicateNext = data.duplicate
-        ? '이미 남겨주신 참여 가능 정보가 접수되어 있습니다.'
-        : '무료강의는 매번 내용, 장소, 시간이 달라질 수 있습니다.';
+	    if (data.ok) {
+      const hasReservation = Boolean(data.reservation || data.booking_id);
+	      const duplicateTitle = data.duplicate ? '이미 신청이 접수되어 있습니다' : '무료 강의 신청이 접수되었습니다';
+	      const duplicateLead = hasReservation
+	        ? '선택한 무료강의 일정 신청까지 함께 접수되었습니다.'
+	        : data.duplicate
+	        ? '새 신청서를 만들지 않고 기존 신청 상태를 확인했습니다.'
+	        : '운영자가 신청 내용을 확인한 뒤 가능한 무료강의가 있을 때 연락드립니다.';
+	      const duplicateNext = hasReservation
+	        ? '운영자가 무료강의 안내 멘트를 확인해 개별 안내드립니다.'
+	        : data.duplicate
+	        ? '이미 남겨주신 참여 가능 정보가 접수되어 있습니다.'
+	        : '무료강의는 매번 내용, 장소, 시간이 달라질 수 있습니다.';
       document.querySelector('.container').innerHTML = `
         <div class="success-msg">
           <h2>${duplicateTitle}</h2>
           <p>${duplicateLead}</p>
           <p style="margin-top:16px;font-size:1.3rem;font-weight:700;">${getGrade(countOptional())}</p>
-          <p style="margin-top:6px;font-size:1rem;color:#46546A;">선택 항목 ${countOptional()} / 17개 입력</p>
-          <p style="margin-top:12px;font-size:1rem;color:#46546A;">${duplicateNext}</p>
-          <p style="margin-top:10px;font-size:1rem;color:#46546A;">이 폼은 정보 접수용이며, 날짜나 장소를 확정하는 화면이 아닙니다.</p>
-          <p style="margin-top:14px;font-size:1rem;color:#46546A;">보통 1-3일 내로 연락드립니다.</p>
+	          <p style="margin-top:6px;font-size:1rem;color:var(--muted);">선택 항목 ${countOptional()} / 17개 입력</p>
+	          <p style="margin-top:12px;font-size:1rem;color:var(--muted);">${duplicateNext}</p>
+	          <p style="margin-top:10px;font-size:1rem;color:var(--muted);">${hasReservation ? '선택한 일정 기준으로 접수되었고, 최종 안내는 운영자 확인 후 발송됩니다.' : '이 폼은 정보 접수용이며, 날짜나 장소를 확정하는 화면이 아닙니다.'}</p>
+	          <p style="margin-top:14px;font-size:1rem;color:var(--muted);">보통 1-3일 내로 연락드립니다.</p>
           <div class="success-actions" aria-label="신청 완료 후 바로가기">
             <a class="success-action primary" href="https://arsen-ai.com/">홈페이지로 돌아가기</a>
             <a class="success-action kakao" href="https://open.kakao.com/o/gm9tRoJh" target="_blank" rel="noopener noreferrer">카카오톡 정보방</a>
@@ -756,6 +814,7 @@ document.getElementById('reason').addEventListener('input', function() {
 // 초기화
 updateProgress(1);
 attachGradeListeners();
+loadFreeSessions();
 </script>
 </body>
 </html>

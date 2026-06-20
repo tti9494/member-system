@@ -651,6 +651,44 @@ class BookingPaymentFlowTest(unittest.TestCase):
         self.assertEqual(moved["status"], "confirmed")
         self.assertEqual(moved["payment_status"], "paid")
 
+    def test_free_session_keeps_zero_price_and_counts_completed_history(self):
+        now = datetime.now(timezone.utc)
+        session_id = booking_manager.create_session(
+            {
+                "title": "TEST Free Class",
+                "program_type": "free_class",
+                "starts_at": (now + timedelta(days=3)).isoformat(),
+                "ends_at": (now + timedelta(days=3, hours=1)).isoformat(),
+                "location": "TEST Free Room",
+                "status": "open",
+                "capacity_min": 1,
+                "capacity_max": 3,
+                "price_krw": 0,
+            }
+        )
+        session = booking_manager.get_session(session_id)
+        self.assertEqual(session["price_krw"], 0)
+
+        booking_id = booking_manager.create_booking(
+            {
+                "session_id": session_id,
+                "member_id": "member-1",
+                "applicant_name": "TEST Member 1",
+                "phone_masked": "010-****-0001",
+                "status": "confirmed",
+                "payment_status": "waived",
+                "payment_amount_krw": 0,
+                "payment_note": "무료강의 신청",
+                "confirmed_at": now.isoformat(),
+            }
+        )
+        booking_manager.set_booking_state(booking_id, status="completed", payment_status="waived")
+        member = db_manager.get_member("member-1")
+
+        self.assertEqual(member["class_summary"]["free_completed"], 1)
+        self.assertEqual(member["class_summary"]["paid_completed"], 0)
+        self.assertIn("무료 1회", member["class_summary_text"])
+
 
 if __name__ == "__main__":
     unittest.main()

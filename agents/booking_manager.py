@@ -56,7 +56,7 @@ def create_session(data: dict) -> str:
             int(data.get("capacity_min") or DEFAULT_CAPACITY_MIN),
             int(data.get("capacity_max") or DEFAULT_CAPACITY_MAX),
             0,
-            int(data.get("price_krw") or DEFAULT_PRICE),
+            int(DEFAULT_PRICE if data.get("price_krw") in (None, "") else data.get("price_krw")),
             data.get("location") or DEFAULT_LOCATION,
             data.get("materials") or DEFAULT_MATERIALS,
             data.get("status") or "open",
@@ -259,7 +259,8 @@ def _with_capacity_fields(session: dict) -> dict:
 def create_booking(data: dict) -> str:
     booking_id = str(uuid.uuid4())
     now = _now()
-    amount = int(data.get("payment_amount_krw") or DEFAULT_PRICE)
+    raw_amount = data.get("payment_amount_krw")
+    amount = int(DEFAULT_PRICE if raw_amount in (None, "") else raw_amount)
     conn = get_conn()
     conn.execute(
         """
@@ -788,6 +789,34 @@ def default_location_guide(booking: dict | None) -> str:
             "오시기 전 확인",
             "준비물: 노트북, 충전기, 사용 중인 AI 계정 정보, 자동화하고 싶은 업무 예시",
             "도착 전 문의가 있으면 1:1 문의방으로 편하게 남겨주세요.",
+        ]
+    ).strip()
+
+
+def default_free_class_guide(booking: dict | None) -> str:
+    booking = booking or {}
+    title = booking.get("session_title") or DEFAULT_TITLE
+    starts = booking.get("session_starts_at") or ""
+    ends = booking.get("session_ends_at") or ""
+    date_text, time_text = _format_korean_datetime_range(starts, ends)
+    location = booking.get("session_location") or DEFAULT_LOCATION
+    name = booking.get("applicant_name") or booking.get("member_name") or "신청자"
+    return "\n".join(
+        [
+            "[무료강의 안내]",
+            "",
+            f"{name}님, 무료강의 신청이 확인되었습니다.",
+            "",
+            "강의 정보",
+            f"과정: {title}",
+            f"일정: {date_text}",
+            f"시간: {time_text or '-'}",
+            f"장소: {location}",
+            "",
+            "참여 전 확인",
+            "참석 가능 여부를 답장으로 알려주세요.",
+            "준비물: 노트북 또는 태블릿, 사용 중인 AI 계정, 궁금한 자동화 주제",
+            "변경이 필요하면 1:1 문의방으로 편하게 남겨주세요.",
         ]
     ).strip()
 

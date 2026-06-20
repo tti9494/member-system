@@ -34,12 +34,83 @@ def test_admin_member_group_tab_and_download_contracts():
     assert "admin-tab-member-groups" in html
     assert "멤버 그룹" in html
     assert "member-group-plan-filter" in html
+    assert '<option value="consultation">상담</option>' in html
+    assert '<option value="lead_email">소식(이메일)</option>' in html
+    assert '<option value="lead_phone">소식(번호)</option>' in html
     assert "member-group-status-filter" in html
     assert "member-group-search-input" in html
     assert "Google CSV" in html
     assert "memberGroupExportQuery" in html
     assert 'plan_type", planType' in html
     assert "Google 연락처용" in html
+
+
+def test_admin_member_modal_free_schedule_and_attendance_contracts():
+    html = ADMIN_HTML.read_text(encoding="utf-8")
+    main_py = MAIN_PY.read_text(encoding="utf-8")
+    worker_js = WORKER_JS.read_text(encoding="utf-8")
+    join_free_html = (ROOT / "frontend" / "join-free.html").read_text(encoding="utf-8")
+
+    for token in [
+        "openMemberDetailModal",
+        "renderMemberModal",
+        "markContactRegistered",
+        "contact-registered",
+        "kickMemberFromClasses",
+        "kakaoLinkedPill",
+        "unlinkMemberKakao",
+        "카카오 연결 해제",
+        "memberClassHistorySection",
+        "new-session-program-type",
+        "무료 참여자로 추가",
+        "showFreeClassGuide",
+        "markAttendance",
+        "참여 완료",
+        "불참",
+    ]:
+        assert token in html
+
+    assert '@app.put("/admin/members/{member_id}")' in main_py
+    assert '@app.post("/admin/members/{member_id}/contact-registered")' in main_py
+    assert '@app.post("/admin/members/{member_id}/kakao-unlink")' in main_py
+    assert '@app.post("/admin/members/{member_id}/kick")' in main_py
+    assert '@app.post("/admin/bookings/{booking_id}/free-guide")' in main_py
+    assert 'parts[1] === "members"' in worker_js
+    assert 'parts[3] === "kakao-unlink"' in worker_js
+    assert 'parts[3] === "free-guide"' in worker_js
+    assert "contact_registered" in worker_js
+    assert "kakao_unlinked_by_admin" in worker_js
+
+    assert "loadFreeSessions" in join_free_html
+    assert 'id="session_id"' in join_free_html
+    assert "선택한 무료강의 일정 신청까지 함께 접수되었습니다." in join_free_html
+
+
+def test_admin_applicant_detail_panel_and_copy_name_contracts():
+    html = ADMIN_HTML.read_text(encoding="utf-8")
+    worker_js = WORKER_JS.read_text(encoding="utf-8")
+    db_manager = (ROOT / "agents" / "db_manager.py").read_text(encoding="utf-8")
+    deploy_script = (ROOT / "cloudflare" / "scripts" / "deploy-cloudflare.mjs").read_text(encoding="utf-8")
+
+    assert "selectMember(member.id);" in html
+    assert "openMemberDetailModal(member.id);" not in html
+    assert 'actionButton("이름 양식 복사", "green", isErased, () => copyMemberArchiveName(member))' in html
+    assert "regionCopyToken" in html
+    assert "looksLikeEncryptedAccessCode" in html
+    assert "approvalCodeCopyToken" in html
+    assert "year.slice(-2).padStart(2" in html
+    assert "if (code) parts.push(code);" in html
+
+    assert "readableAccessCode" in worker_js
+    assert "accessCodeMatches" in worker_js
+    assert 'decryptValue(stored, env, "CODE_SECRET_KEY")' in worker_js
+    assert "member.access_code !== String(body.code" not in worker_js
+    assert "code_exists: Boolean(code)" in worker_js
+    assert "CODE_SECRET_KEY" in deploy_script
+
+    assert "b.status='completed'" in db_manager
+    assert "b.status='confirmed'" in db_manager
+    assert "COALESCE(s.starts_at, b.confirmed_at, b.updated_at, b.created_at) <= ?" in db_manager
 
 
 def test_admin_local_preview_db_is_visibly_labeled():
@@ -61,13 +132,23 @@ def test_admin_theme_manager_contracts():
     assert "site-theme-select" in html
     assert "site-theme-preview-btn" in html
     assert "site-theme-apply-btn" in html
+    assert "theme-change-warning" in html
+    assert "테마 적용 전 확인" in html
+    assert "전체 백업" in html
+    assert "data-consultation-form" in html
     assert "홈페이지 공개 페이지" in html
     assert 'value="/index.html" data-public-preview="true"' in html
     assert 'value="/education.html" data-public-preview="true"' in html
+    assert 'value="/frontend/class-dashboard.html"' in html
+    assert "수업용 대시보드" in html
+    assert "YOONBOT 공개 상세" in html
+    assert "YOONBOT 운영 상세" in html
     assert 'function publicSitePreviewOrigin' in html
     assert 'https://arsen-ai.com' in html
     assert "function renderSiteTheme" in html
     assert "function applySiteTheme" in html
+    assert "function siteThemeApplyWarning" in html
+    assert "function warnThemeSelectionChange" in html
     assert "/admin/site-theme" in html
     assert "assets/theme-loader.js" in html
 
@@ -94,6 +175,32 @@ def test_public_entry_points_include_free_application_link():
     assert "무료 강의 신청" in build_pages
     assert "/frontend/class-stories.html" in build_pages
     assert "공개 후기 보기" in build_pages
+    assert "class-dashboard.html" in build_pages
+
+
+def test_class_dashboard_archive_contracts():
+    admin_html = ADMIN_HTML.read_text(encoding="utf-8")
+    dashboard_html = (ROOT / "frontend" / "class-dashboard.html").read_text(encoding="utf-8")
+    education_html = (ROOT / "frontend" / "education.html").read_text(encoding="utf-8")
+    main_py = MAIN_PY.read_text(encoding="utf-8")
+
+    assert "/frontend/class-dashboard.html" in admin_html
+    assert "수업용 대시보드" in admin_html
+    assert "/frontend/class-dashboard.html" in education_html
+
+    assert "ARSEN class dashboard" in dashboard_html
+    assert '<body class="ops-tool-page class-dashboard-page">' in dashboard_html
+    assert "body.class-dashboard-page .btn.green" in dashboard_html
+    assert "body.class-dashboard-page .archive-card" in dashboard_html
+    assert "/api/education?include_hidden=true" in dashboard_html
+    assert "JSON 백업" in dashboard_html
+    assert "백업 불러오기" in dashboard_html
+    assert "분류 추천" in dashboard_html
+    for label in ["영상생성", "스토리보드", "인물 프롬프트", "문서자동화", "앱 만들기", "알면 좋은 팁"]:
+        assert label in dashboard_html
+    for field in ["category", "kind", "image_url", "tags", "created_at", "updated_at"]:
+        assert field in main_py
+    assert ".arsen-work-bus" in main_py
 
 
 def test_review_board_frontend_contracts():
@@ -135,6 +242,76 @@ def test_review_board_frontend_contracts():
     assert 'path.startsWith("/api/review-board/submit/")' in worker_js
     assert 'path === "/admin/review-board"' in worker_js
     assert 'path === "/admin/review-board/invites"' in worker_js
+
+
+def test_public_consultation_contracts():
+    admin_html = ADMIN_HTML.read_text(encoding="utf-8")
+    worker_js = WORKER_JS.read_text(encoding="utf-8")
+    schema_sql = (ROOT / "cloudflare" / "schema.sql").read_text(encoding="utf-8")
+    admin_theme = (ROOT / "frontend" / "assets" / "arsen-theme.css").read_text(encoding="utf-8")
+    modern_theme = (ROOT / "frontend" / "assets" / "themes" / "arsen-modern.css").read_text(encoding="utf-8")
+    public_root = Path("/Users/yoon/arsen-ai-web")
+
+    assert "admin-tab-consultations" in admin_html
+    assert "admin-tab-newsletter" in admin_html
+    assert "consultations-panel" in admin_html
+    assert "newsletter-panel" in admin_html
+    assert "consultations-list" in admin_html
+    assert "newsletter-list" in admin_html
+    assert "/admin/consultations?status=active" in admin_html
+    assert "kind=consultation" in admin_html
+    assert "kind=newsletter" in admin_html
+    assert "showConsultationContact" in admin_html
+    assert "updateConsultationStatus" in admin_html
+    assert "stat-consultation" in admin_html
+    assert '<option value="consultation">상담</option>' in admin_html
+
+    assert "CREATE TABLE IF NOT EXISTS consultations" in schema_sql
+    assert 'path === "/api/consultations"' in worker_js
+    assert 'path === "/admin/consultations"' in worker_js
+    assert "consultationMessage" in worker_js
+    assert "consultation_contact_view" in worker_js
+    assert 'memberPlanType' in worker_js
+    assert '"consultation"' in worker_js
+    assert '"lead_email"' in worker_js
+    assert '"lead_phone"' in worker_js
+    assert "consultation_mirror" in worker_js
+    assert "canUpgradeLeadToApplication" in worker_js
+    assert "upgradeLeadToApplication" in worker_js
+    assert "upgraded_from_lead" in worker_js
+    assert "lead_upgraded_to_apply" in worker_js
+    assert "리드를 신청자/멤버 목록" in worker_js
+    assert '@app.post("/api/consultations")' in MAIN_PY.read_text(encoding="utf-8")
+    assert "upgrade_lead_to_application" in MAIN_PY.read_text(encoding="utf-8")
+    assert '"plan_type": plan_type' in MAIN_PY.read_text(encoding="utf-8")
+    assert '"lead_email"' in MAIN_PY.read_text(encoding="utf-8")
+    assert '"lead_phone"' in MAIN_PY.read_text(encoding="utf-8")
+
+    index_page = (public_root / "index.html").read_text(encoding="utf-8")
+    site_js = (public_root / "assets" / "site.js").read_text(encoding="utf-8")
+    assert "전화번호 입력" in index_page
+    assert 'name="name"' in index_page
+    assert "lead-capture-message" in index_page
+    assert "novalidate" in index_page
+    assert 'name="contact"' in index_page
+    assert 'payload.contact_type = "phone"' in site_js
+    assert "이름을 입력해주세요." in site_js
+    assert "전화번호를 입력해주세요." in site_js
+
+    for theme in [admin_theme, modern_theme]:
+        assert "#newsletter-panel .review-board-panel" in theme
+        assert "#newsletter-panel .consultation-row" in theme
+        assert "#newsletter-panel .consultation-row-head" in theme
+        assert "#newsletter-panel .consultation-row:not(.consultation-row-head):hover" in theme
+        assert "rgba(16, 27, 42, 0.92)" in theme
+        assert "rgba(8, 17, 29, 0.96)" in theme
+        assert "background: #ffffff !important" not in theme[theme.rfind("Admin consultation/newsletter guard:"):]
+
+    for page_name in ["index.html", "consulting.html", "store.html", "yoonbot.html"]:
+        page = (public_root / page_name).read_text(encoding="utf-8")
+        assert "data-consultation-form" in page
+        assert "data-error" in page
+        assert "실제 외부 전송 없이" not in page
 
 
 def test_cloudflare_contacts_export_contract_matches_fastapi():

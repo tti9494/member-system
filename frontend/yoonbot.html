@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>YOONBOT 카카오톡 자동 프로그램</title>
   <link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css">
-  <script src="assets/theme-loader.js?v=20260614-modern-bundle"></script>
+  <script src="assets/theme-loader.js?v=member-newsletter-dark-v5"></script>
   <style>
     :root {
       color-scheme: light;
@@ -300,15 +300,15 @@
       <div>YOONBOT</div>
       <div class="nav-links">
         <a href="#plans">요금제</a>
-        <a href="#order">구매 신청</a>
+        <a href="#order">파일럿 신청</a>
       </div>
     </nav>
     <div class="hero-inner">
       <p class="eyebrow">카카오톡 자동 프로그램</p>
       <h1>YOONBOT</h1>
-      <p class="lead">카카오톡 반복 업무를 자동으로 처리하고, 서버 라이선스로 안전하게 운영하는 Windows 자동화 프로그램입니다.</p>
+      <p class="lead">카카오톡 반복 업무를 자동으로 처리하고, 서버 라이선스로 안전하게 운영하는 Windows 자동화 프로그램입니다. 현재는 초기 파일럿 제공 단계입니다.</p>
       <div class="hero-actions">
-        <a class="btn primary" href="#order">구매 신청</a>
+        <a class="btn primary" href="#order">파일럿 신청</a>
         <a class="btn" href="#flow">발급 방식 보기</a>
       </div>
     </div>
@@ -326,7 +326,7 @@
 
     <section id="plans">
       <h2>요금제</h2>
-      <p>초기 MVP는 수동 계좌이체와 관리자 결제 확인 방식으로 운영합니다. 실제 PG 자동 결제는 별도 공지 후 연결됩니다.</p>
+      <p>초기 파일럿 MVP는 수동 계좌이체와 관리자 결제 확인 방식으로 운영합니다. 실제 PG 자동 결제는 별도 공지 후 연결됩니다.</p>
       <div class="plan-grid" id="plan-grid" style="margin-top:14px;">
         <label class="plan selected">
           <input type="radio" name="plan" value="monthly" checked>
@@ -354,10 +354,10 @@
 
     <section class="band" id="order">
       <div>
-        <h2>구매 신청</h2>
-        <p>신청이 접수되면 운영자가 결제 안내를 확인한 뒤 라이선스를 발급합니다. 라이선스 키는 발급 순간 한 번만 표시되며, 고객에게 직접 안내합니다.</p>
+        <h2>윤봇 파일럿 구매 접수</h2>
+        <p>정식 공개 판매 전 초기 제공 신청입니다. 요청이 접수되면 운영자가 결제 안내를 확인한 뒤 라이선스를 발급합니다. 라이선스 키는 발급 순간 한 번만 표시되며, 고객에게 직접 안내합니다.</p>
         <div class="steps" id="flow">
-          <div class="step"><span>1</span><p>구매 신청을 남기고 결제 안내를 확인합니다.</p></div>
+          <div class="step"><span>1</span><p>파일럿 구매 정보를 남기고 결제 안내를 확인합니다.</p></div>
           <div class="step"><span>2</span><p>관리자가 입금 또는 결제 상태를 확인합니다.</p></div>
           <div class="step"><span>3</span><p>확인된 주문에 라이선스를 발급하고 Windows YOONBOT에 입력합니다.</p></div>
           <div class="step"><span>4</span><p>처음 등록한 PC 기준으로 activate/verify가 진행됩니다.</p></div>
@@ -373,23 +373,25 @@
         <input id="buyer-phone" name="buyer_phone" inputmode="tel" autocomplete="tel" placeholder="010-0000-0000">
         <label for="customer-message">요청 메모</label>
         <textarea id="customer-message" name="customer_message" placeholder="사용 목적, 필요한 시작일, 문의사항"></textarea>
+        <label for="discount-code">할인 코드 <span style="font-weight:600; color:#516070;">(선택)</span></label>
+        <input id="discount-code" name="discount_code" autocomplete="off" placeholder="할인 코드를 입력하세요" style="text-transform:uppercase;">
         <label class="check">
           <input id="consent-privacy" type="checkbox" required>
-          <span>구매 신청 처리와 라이선스 발급을 위한 개인정보 수집에 동의합니다.</span>
+          <span>윤봇 파일럿 구매 처리와 라이선스 발급을 위한 개인정보 수집에 동의합니다.</span>
         </label>
         <label class="check">
           <input id="consent-terms" type="checkbox" required>
           <span>수동 결제 확인 후 라이선스가 발급되는 MVP 운영 방식에 동의합니다.</span>
         </label>
-        <button class="btn green" type="submit" style="width:100%; margin-top:14px;">신청 접수</button>
+        <button class="btn green" type="submit" style="width:100%; margin-top:14px;">파일럿 구매 접수</button>
         <div id="order-result" class="order-result" hidden></div>
       </form>
     </section>
 
     <section>
       <div class="notice">
-        <strong>환불, 취소, 기기 변경</strong>
-        <p>라이선스 발급 전 취소는 운영자 확인 후 처리합니다. 발급 후 환불은 사용 상태와 기간을 확인해 별도 안내합니다. PC 교체가 필요한 경우 관리자 기기 초기화 후 새 PC에서 다시 인증합니다.</p>
+        <strong>파일럿 제공, 환불, 취소, 기기 변경</strong>
+        <p>현재 제공 빌드는 초기 파일럿 단계입니다. 코드서명 완료 전에는 Windows 보안 확인 창이 표시될 수 있습니다. 라이선스 발급 전 취소는 운영자 확인 후 처리합니다. 발급 후 환불은 사용 상태와 기간을 확인해 별도 안내합니다. PC 교체가 필요한 경우 관리자 기기 초기화 후 새 PC에서 다시 인증합니다.</p>
       </div>
     </section>
 
@@ -403,12 +405,63 @@
     </section>
 
     <footer>
-      YOONBOT 카카오톡 자동 프로그램 MVP. 실제 카카오톡 자동 발송은 운영자 승인 전 실행하지 않습니다.
+      YOONBOT 카카오톡 자동 프로그램 초기 파일럿 MVP. 실제 카카오톡 자동 발송은 운영자 승인 전 실행하지 않습니다.
     </footer>
   </main>
 
   <script>
     const resultEl = document.getElementById("order-result");
+
+    // Prefill discount code from ?discount=CODE in the URL
+    (function prefillDiscountCode() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("discount");
+      if (code) {
+        const el = document.getElementById("discount-code");
+        if (el) el.value = code.trim().toUpperCase();
+      }
+    })();
+
+    // Check for Toss payment return params (success or fail)
+    (function checkPaymentReturn() {
+      const params = new URLSearchParams(window.location.search);
+      const paymentKey = params.get("paymentKey");
+      const orderId = params.get("orderId");
+      const amount = params.get("amount");
+      const paymentStatus = params.get("payment");
+
+      if (paymentStatus === "fail") {
+        resultEl.hidden = false;
+        resultEl.textContent = "결제가 취소되었거나 실패했습니다. 다시 시도해 주세요.";
+        resultEl.classList.add("error");
+        return;
+      }
+
+      if (paymentKey && orderId && amount) {
+        resultEl.hidden = false;
+        resultEl.textContent = "결제 확인 중입니다...";
+        // Toss redirects here with a Toss orderId. The server maps it to the internal order.
+        fetch(`/api/yoonbot/orders/by-toss-id/${encodeURIComponent(orderId)}/payments/toss/confirm`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ payment_key: paymentKey, order_id: orderId, amount: parseInt(amount, 10) }),
+        })
+          .then((r) => r.json())
+          .then((payload) => {
+            if (!payload.ok) throw new Error(payload.detail || "결제 확인에 실패했습니다.");
+            resultEl.textContent = [
+              "결제가 확인되었습니다.",
+              `주문번호: ${payload.data?.id || ""}`,
+              "관리자가 라이선스를 발급하면 별도로 안내드립니다.",
+            ].join("\n");
+            resultEl.classList.remove("error");
+          })
+          .catch((err) => {
+            resultEl.textContent = `결제 확인 오류: ${err.message}`;
+            resultEl.classList.add("error");
+          });
+      }
+    })();
 
     function selectedPlan() {
       return document.querySelector("input[name='plan']:checked")?.value || "monthly";
@@ -420,6 +473,19 @@
       resultEl.classList.toggle("error", isError);
     }
 
+    function discountSummaryLines(order) {
+      const lines = [];
+      if (order.discount_code && order.discount_amount_krw > 0) {
+        lines.push(`정가: ${Number(order.original_amount_krw || order.amount_krw).toLocaleString("ko-KR")}원`);
+        const label = order.discount_label || order.discount_code;
+        lines.push(`할인 (${label}): -${Number(order.discount_amount_krw).toLocaleString("ko-KR")}원`);
+        lines.push(`최종 결제 금액: ${Number(order.amount_krw).toLocaleString("ko-KR")}원`);
+      } else {
+        lines.push(`금액: ${Number(order.amount_krw).toLocaleString("ko-KR")}원`);
+      }
+      return lines;
+    }
+
     document.querySelectorAll(".plan").forEach((plan) => {
       plan.addEventListener("click", () => {
         document.querySelectorAll(".plan").forEach((item) => item.classList.remove("selected"));
@@ -428,9 +494,35 @@
       });
     });
 
+    async function startTossPayment(payment, order) {
+      // Dynamically load Toss Payments SDK v2
+      await new Promise((resolve, reject) => {
+        if (window.TossPayments) { resolve(); return; }
+        const script = document.createElement("script");
+        script.src = "https://js.tosspayments.com/v2/standard";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+      const tossPayments = TossPayments(payment.client_key);
+      const checkout = await tossPayments.payment({ customerKey: order.id });
+      await checkout.requestPayment({
+        method: "CARD",
+        amount: payment.amount,
+        orderId: payment.toss_order_id,
+        orderName: payment.order_name,
+        successUrl: payment.success_url,
+        failUrl: payment.fail_url,
+        customerName: payment.customer_name || undefined,
+        customerEmail: payment.customer_email || undefined,
+      });
+    }
+
     document.getElementById("order-form").addEventListener("submit", async (event) => {
       event.preventDefault();
-      setResult("신청을 접수하는 중입니다...");
+      setResult("파일럿 구매 접수 중입니다...");
+      const discountCodeEl = document.getElementById("discount-code");
+      const discountCode = discountCodeEl ? discountCodeEl.value.trim().toUpperCase() : "";
       const body = {
         product_code: "yoonbot",
         plan_code: selectedPlan(),
@@ -441,6 +533,7 @@
         consent_privacy: document.getElementById("consent-privacy").checked,
         consent_terms: document.getElementById("consent-terms").checked,
       };
+      if (discountCode) body.discount_code = discountCode;
       try {
         const response = await fetch("/api/yoonbot/orders", {
           method: "POST",
@@ -448,14 +541,24 @@
           body: JSON.stringify(body),
         });
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload.detail || "신청 접수에 실패했습니다.");
+        if (!response.ok) throw new Error(payload.detail || "구매 접수에 실패했습니다.");
         const order = payload.data;
+        const payment = payload.payment;
+
+        if (payment && payment.mode === "toss_payments") {
+          setResult("결제 창을 여는 중입니다...");
+          await startTossPayment(payment, order);
+          // startTossPayment redirects the page; code below only runs on error
+          return;
+        }
+
+        // Manual payment flow (default)
         setResult([
-          "신청이 접수되었습니다.",
+          "파일럿 구매 접수가 완료되었습니다.",
           `주문번호: ${order.id}`,
           `결제 메모: ${order.payment_ref}`,
           `플랜: ${order.plan_code}`,
-          `금액: ${Number(order.amount_krw).toLocaleString("ko-KR")}원`,
+          ...discountSummaryLines(order),
           "관리자가 확인 후 결제 안내와 라이선스 발급을 진행합니다.",
         ].join("\n"));
         event.target.reset();

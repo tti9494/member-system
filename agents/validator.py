@@ -7,7 +7,7 @@ load_dotenv(dotenv_path=str(__import__("pathlib").Path.home() / "member-system" 
 MIN_AGE = int(os.getenv("MIN_AGE", "14"))
 
 VALID_AI_LEVELS = {"입문", "초급", "중급", "고급"}
-VALID_PLAN_TYPES = {"basic", "full"}
+VALID_PLAN_TYPES = {"free", "basic", "full"}
 VALID_REFERRALS = {"유튜브", "지인소개", "SNS", "기타"}
 PHONE_PATTERN = re.compile(r"^01[0-9]-\d{3,4}-\d{4}$")
 EMAIL_PATTERN = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
@@ -56,7 +56,7 @@ def validate(data: dict) -> dict:
 
     # plan_type 유효값
     if data.get("plan_type") not in VALID_PLAN_TYPES:
-        errors.append(f"플랜 유형은 basic/full 중 하나여야 합니다.")
+        errors.append("플랜 유형은 free/basic/full 중 하나여야 합니다.")
 
     # gender 유효값
     if data.get("gender") not in ("남", "여"):

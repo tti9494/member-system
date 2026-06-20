@@ -1,10 +1,12 @@
 import importlib
+import json
 import sqlite3
 import sys
 import tempfile
 import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -203,6 +205,236 @@ class ContactRevealAuditTest(unittest.TestCase):
             self.assertNotIn("phone_encrypted", payload_text)
             self.assertNotIn("email_encrypted", payload_text)
 
+    def test_public_consultation_creates_consultation_member(self):
+        response = self.client.post(
+            "/api/consultations",
+            json={
+                "source": "consulting_page",
+                "topic": "자동화 상담",
+                "name": "상담 테스트",
+                "phone": "010-4444-5555",
+                "email": "consultation-local@example.com",
+                "product_interest": "YOONBOT",
+                "message": "카카오톡 자동화 상담을 받고 싶습니다.",
+                "page_url": "http://127.0.0.1:8130/consulting.html",
+                "consent_privacy": True,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        member = db_manager.get_member(payload["member_id"])
+        self.assertIsNotNone(member)
+        self.assertEqual(member["plan_type"], "consultation")
+        self.assertEqual(member["participation_type"], "상담")
+        self.assertEqual(member["participation_grade"], "상담")
+        self.assertEqual(member["status"], "pending")
+        self.assertIn("자동화 상담", member["reason"])
+        self.assertIn("YOONBOT", member["reason"])
+
+    def test_public_newsletter_requires_name_and_phone(self):
+        response = self.client.post(
+            "/api/consultations",
+            json={
+                "source": "home_newsletter",
+                "topic": "소식 받기",
+                "name": "",
+                "contact": "newsletter-local@example.com",
+                "consent_privacy": True,
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("이름", response.json()["detail"])
+
+    def test_public_newsletter_phone_creates_lead_phone_member(self):
+        response = self.client.post(
+            "/api/consultations",
+            json={
+                "source": "home_newsletter",
+                "topic": "소식 받기",
+                "name": "번호 소식 테스트",
+                "contact": "010-5555-6666",
+                "consent_privacy": True,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        member = db_manager.get_member(payload["member_id"])
+        self.assertIsNotNone(member)
+        self.assertEqual(member["plan_type"], "lead_phone")
+        self.assertEqual(member["participation_type"], "소식 받기 · 번호")
+        self.assertIn("분류: 소식 받기 · 번호", member["reason"])
+
+        conn = db_manager.get_conn()
+        try:
+            row = conn.execute("SELECT * FROM consultations WHERE member_id=?", (payload["member_id"],)).fetchone()
+        finally:
+            conn.close()
+        self.assertIsNotNone(row)
+        self.assertEqual(row["source"], "home_newsletter")
+
+    def test_newsletter_lead_upgrades_to_free_application(self):
+        lead_response = self.client.post(
+            "/api/consultations",
+            json={
+                "source": "home_newsletter",
+                "topic": "소식 받기",
+                "name": "소식 리드",
+                "contact": "010-7777-8888",
+                "consent_privacy": True,
+            },
+        )
+        self.assertEqual(lead_response.status_code, 200)
+        lead_member_id = lead_response.json()["member_id"]
+        self.assertEqual(db_manager.get_member(lead_member_id)["plan_type"], "lead_phone")
+
+        apply_payload = {
+            "name": "소식 리드",
+            "email": "lead-upgrade@example.com",
+            "phone": "010-7777-8888",
+            "gender": "여",
+            "age": 31,
+            "job": "마케터",
+            "referral_source": "홈페이지 소식받기",
+            "reason": "무료 강의 신청으로 전환해서 실제 신청자 목록에 보여야 합니다.",
+            "ai_level": "입문",
+            "plan_type": "free",
+            "ai_tools": ["ChatGPT"],
+            "ai_subscription": "무료",
+            "ai_weekly_hours": "1시간 미만",
+            "ai_use_cases": ["문서자동화"],
+            "group_goals": ["업무 자동화"],
+            "short_term_goal": "자동화 감 잡기",
+            "participation_type": "무료강의",
+            "preferred_schedule": "평일 오전",
+            "available_time_slots": ["평일 오전"],
+            "region": "서울",
+            "main_device": "노트북",
+            "can_code": False,
+            "can_present": False,
+            "skills": "초보",
+            "contribution": "후기 공유",
+            "consent_personal": True,
+            "consent_marketing": False,
+        }
+        with patch.object(self.main, "save_to_sheets", return_value=False), patch.object(
+            self.main,
+            "backup_database",
+            return_value={"ok_count": 0, "failed_count": 0, "targets": []},
+        ), patch.object(self.main, "notify_admin_new_apply", return_value="ok") as notify:
+            apply_response = self.client.post("/apply", json=apply_payload)
+
+        self.assertEqual(apply_response.status_code, 200)
+        body = apply_response.json()
+        self.assertTrue(body["ok"])
+        self.assertFalse(body["duplicate"])
+        self.assertTrue(body["upgraded_from_lead"])
+        self.assertEqual(body["member_id"], lead_member_id)
+        self.assertIn("소식받기", body["message"])
+        self.assertIn("무료강의", body["message"])
+        upgraded = db_manager.get_member(lead_member_id)
+        self.assertEqual(upgraded["plan_type"], "free")
+        self.assertEqual(upgraded["status"], "pending")
+        self.assertEqual(upgraded["name"], "소식 리드")
+        self.assertEqual(upgraded["region"], "서울")
+        self.assertEqual(upgraded["class_summary"]["free_completed"], 0)
+        notify.assert_called_once()
+        self.assertEqual(notify.call_args.kwargs["lead_upgrade_from"], "lead_phone")
+
+        conn = db_manager.get_conn()
+        try:
+            row = conn.execute("SELECT status, admin_note FROM consultations WHERE member_id=?", (lead_member_id,)).fetchone()
+            logs = conn.execute(
+                "SELECT action, detail FROM member_logs WHERE member_id=? ORDER BY created_at ASC",
+                (lead_member_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+        self.assertEqual(row["status"], "closed")
+        self.assertIn("강의 신청으로 전환", row["admin_note"])
+        self.assertTrue(any(log["action"] == "lead_upgraded_to_apply" for log in logs))
+        duplicate_log = next(log for log in logs if log["action"] == "duplicate_apply")
+        self.assertTrue(json.loads(duplicate_log["detail"])["converted"])
+
+    def test_consultation_lead_upgrades_to_paid_application(self):
+        lead_response = self.client.post(
+            "/api/consultations",
+            json={
+                "source": "consulting_page",
+                "topic": "자동화 상담",
+                "name": "상담 리드",
+                "phone": "010-8888-9999",
+                "email": "consult-lead@example.com",
+                "message": "유료 강의 상담 후 신청 예정입니다.",
+                "consent_privacy": True,
+            },
+        )
+        self.assertEqual(lead_response.status_code, 200)
+        lead_member_id = lead_response.json()["member_id"]
+        self.assertEqual(db_manager.get_member(lead_member_id)["plan_type"], "consultation")
+
+        apply_payload = {
+            "name": "상담 리드",
+            "email": "consult-lead@example.com",
+            "phone": "010-8888-9999",
+            "gender": "남",
+            "age": 39,
+            "job": "대표",
+            "referral_source": "기타",
+            "reason": "상담 이후 유료 강의 신청으로 전환하는 흐름을 검증합니다.",
+            "ai_level": "초급",
+            "plan_type": "full",
+            "ai_tools": ["ChatGPT"],
+            "ai_subscription": "유료",
+            "ai_weekly_hours": "1-3시간",
+            "ai_use_cases": ["문서자동화"],
+            "group_goals": ["사업 자동화"],
+            "short_term_goal": "카카오톡 자동화 설계",
+            "participation_type": "유료강의",
+            "preferred_schedule": "주말 오후",
+            "available_time_slots": ["주말 오후"],
+            "region": "경기 안양",
+            "main_device": "노트북",
+            "can_code": False,
+            "can_present": True,
+            "skills": "기획",
+            "contribution": "사례 공유",
+            "consent_personal": True,
+            "consent_marketing": True,
+        }
+        with patch.object(self.main, "save_to_sheets", return_value=False), patch.object(
+            self.main,
+            "backup_database",
+            return_value={"ok_count": 0, "failed_count": 0, "targets": []},
+        ), patch.object(self.main, "notify_admin_new_apply", return_value="ok") as notify:
+            apply_response = self.client.post("/apply", json=apply_payload)
+
+        self.assertEqual(apply_response.status_code, 200)
+        body = apply_response.json()
+        self.assertTrue(body["ok"])
+        self.assertFalse(body["duplicate"])
+        self.assertTrue(body["upgraded_from_lead"])
+        self.assertEqual(body["member_id"], lead_member_id)
+        self.assertIn("상담", body["message"])
+        self.assertIn("유료강의", body["message"])
+        upgraded = db_manager.get_member(lead_member_id)
+        self.assertEqual(upgraded["plan_type"], "full")
+        self.assertEqual(upgraded["status"], "pending")
+        self.assertEqual(upgraded["job"], "대표")
+        notify.assert_called_once()
+        self.assertEqual(notify.call_args.kwargs["lead_upgrade_from"], "consultation")
+
+        conn = db_manager.get_conn()
+        try:
+            row = conn.execute("SELECT status FROM consultations WHERE member_id=?", (lead_member_id,)).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row["status"], "closed")
+
     def test_member_erasure_requires_admin_anonymizes_contact_and_cancels_bookings(self):
         member_id = self._create_member()
         session_id = booking_manager.create_session(
@@ -355,6 +587,7 @@ class ContactRevealAuditTest(unittest.TestCase):
     def test_contacts_export_plan_filter_uses_group_name_prefixes(self):
         self._create_member(name="Free Applicant", plan_type="free")
         self._create_member(name="Paid Applicant", plan_type="full")
+        self._create_member(name="Consult Applicant", plan_type="consultation")
 
         free_csv = self.client.get(
             "/admin/contacts-export.csv?plan_type=free",
@@ -364,16 +597,26 @@ class ContactRevealAuditTest(unittest.TestCase):
             "/admin/contacts-export.vcf?plan_type=full",
             headers=self._admin_headers(),
         )
+        consultation_csv = self.client.get(
+            "/admin/contacts-export.csv?plan_type=consultation",
+            headers=self._admin_headers(),
+        )
 
         self.assertEqual(free_csv.status_code, 200)
         self.assertIn("[ARSEN 무료] Free Applicant", free_csv.text)
         self.assertNotIn("Paid Applicant", free_csv.text)
+        self.assertNotIn("Consult Applicant", free_csv.text)
         self.assertEqual(full_vcf.status_code, 200)
         self.assertIn("FN:[ARSEN 유료] Paid Applicant", full_vcf.text)
         self.assertNotIn("Free Applicant", full_vcf.text)
+        self.assertNotIn("Consult Applicant", full_vcf.text)
+        self.assertEqual(consultation_csv.status_code, 200)
+        self.assertIn("[ARSEN 상담] Consult Applicant", consultation_csv.text)
+        self.assertNotIn("Free Applicant", consultation_csv.text)
+        self.assertNotIn("Paid Applicant", consultation_csv.text)
 
         logs = self._system_contacts_export_logs()
-        self.assertEqual(len(logs), 2)
+        self.assertEqual(len(logs), 3)
         for _, detail in logs:
             self.assertNotIn(self.RAW_PHONE, detail)
             self.assertNotIn(self.RAW_EMAIL, detail)

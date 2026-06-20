@@ -50,7 +50,14 @@ const YOONBOT_PLANS = Object.freeze([
   },
 ]);
 const YOONBOT_ORDER_TERMINAL_STATUSES = new Set(["canceled", "refunded"]);
+const CONSULTATION_STATUSES = new Set(["new", "contacted", "on_hold", "closed", "spam"]);
 const DEFAULT_SITE_THEME_ID = "arsen-modern";
+const KAKAO_AUTHORIZE_URL = "https://kauth.kakao.com/oauth/authorize";
+const KAKAO_TOKEN_URL = "https://kauth.kakao.com/oauth/token";
+const KAKAO_USER_ME_URL = "https://kapi.kakao.com/v2/user/me";
+const KAKAO_STATE_COOKIE = "arsen_kakao_state";
+const KAKAO_SESSION_COOKIE = "arsen_kakao_session";
+const KAKAO_SESSION_MAX_AGE = 60 * 60 * 24 * 30;
 const SITE_THEME_PROFILES = Object.freeze([
   {
     id: "legacy",
@@ -69,6 +76,159 @@ const SITE_THEME_PROFILES = Object.freeze([
     enabled: true,
   },
 ]);
+const LAUNCHER_ARTIFACT_NAME = "arsen-content-launcher-0.1.0-win-x64.zip";
+const LAUNCHER_ARTIFACT_KEY = LAUNCHER_ARTIFACT_NAME;
+const LAUNCHER_ASSET_MANIFEST_PATH = `/launcher-artifacts/${LAUNCHER_ARTIFACT_NAME}.manifest.json`;
+const LAUNCHER_RELEASE_URL = "https://apply.arsen-ai.com/api/launcher/release";
+const LAUNCHER_DIRECT_DOWNLOAD_URL = `https://apply.arsen-ai.com/api/daf/launcher/artifacts/${LAUNCHER_ARTIFACT_NAME}`;
+const LAUNCHER_RELEASE = Object.freeze({
+  id: "arsen-content-launcher",
+  name: "Arsen Content Launcher",
+  version: "0.1.0",
+  latest_version: "0.1.0",
+  min_supported_version: "0.1.0",
+  platform: "win32",
+  arch: "x64",
+  package_type: "zip",
+  executable: "Arsen Content Launcher.exe",
+  artifact_name: LAUNCHER_ARTIFACT_NAME,
+  artifact_url: "",
+  artifact_download_url: "",
+  size_bytes: 147951169,
+  sha256: "3B0AB1E9A2295BC45757848C28EF96F6885CC7D5AFEA790DF8AAC8A25808FA75",
+  built_at: "2026-06-17T15:36:25+09:00",
+  release_channel: "internal",
+  update_policy: {
+    auto_download: false,
+    force_update: false,
+    show_release_notes_on_start: true,
+    show_notice_panel_on_start: true,
+  },
+  release_notes: [
+    "Windows 런처 공지/업데이트 패널을 추가했습니다.",
+    "고객용/내부용 프로그램 노출을 분리했습니다.",
+    "피드백 접수와 민감정보 마스킹을 추가했습니다.",
+    "HTTPS 다운로드와 SHA-256 검증 흐름을 준비했습니다.",
+  ],
+});
+const LAUNCHER_PROGRAMS = Object.freeze([
+  {
+    id: "blog-lite",
+    name: "Blog Studio Lite",
+    version: "0.1.0",
+    status: "public_preview",
+    runtime: "web",
+    description: "로그인 없이 키워드 발굴과 초안 맛보기를 제공하는 무료 체험 화면입니다.",
+    entrypoint: "/blog-lite",
+    expose_to_customer: true,
+    internal_only: false,
+    launcher_action: "open_url",
+    features: [
+      { id: "free_keyword_discovery", name: "키워드 발굴 10회/일", tier: "free", unlocked: true },
+      { id: "free_draft_preview", name: "초안 3회/일", tier: "free", unlocked: true },
+      { id: "save_draft", name: "초안 저장", tier: "basic", unlocked: false },
+      { id: "agency_queue", name: "대량 작업 큐", tier: "agency", unlocked: false },
+    ],
+  },
+  {
+    id: "saas-studio",
+    name: "Sales Trial Studio",
+    version: "0.1.0",
+    status: "public_preview",
+    runtime: "web",
+    description: "무료/유료 티어, 기능 잠금, 고객 체험 흐름을 확인하는 판매용 체험 화면입니다.",
+    entrypoint: "/saas-studio",
+    expose_to_customer: true,
+    internal_only: false,
+    launcher_action: "open_url",
+    features: [
+      { id: "tier_preview", name: "요금제 미리보기", tier: "free", unlocked: true },
+      { id: "feature_lock_preview", name: "기능 잠금 미리보기", tier: "free", unlocked: true },
+      { id: "billing_connection", name: "결제/라이선스 연결", tier: "pro", unlocked: false },
+    ],
+  },
+  {
+    id: "restaurant-studio",
+    name: "Restaurant Studio",
+    version: "0.1.0",
+    status: "internal_beta",
+    runtime: "web_and_local_cli",
+    description: "맛집, 장소, 카페 콘텐츠를 후보 목록과 방문 전 체크 정보 중심으로 정리합니다.",
+    entrypoint: "/restaurant-studio",
+    expose_to_customer: true,
+    internal_only: false,
+    launcher_action: "open_url",
+    features: [
+      { id: "place_candidates", name: "장소 후보 정리", tier: "basic", unlocked: false },
+      { id: "photo_context", name: "사진 기반 글쓰기", tier: "pro", unlocked: false },
+      { id: "rights_notice", name: "이미지 권리 고지", tier: "pro", unlocked: false },
+    ],
+  },
+  {
+    id: "output-studio",
+    name: "Output Studio",
+    version: "0.1.0",
+    status: "internal_beta",
+    runtime: "web",
+    description: "생성된 초안, 검증 점수, 채널별 문안, 승인 대기 목록을 확인합니다.",
+    entrypoint: "/output-studio",
+    expose_to_customer: true,
+    internal_only: false,
+    launcher_action: "open_url",
+    features: [
+      { id: "review_outputs", name: "결과물 검토", tier: "basic", unlocked: false },
+      { id: "channel_copy", name: "채널별 문안 분리", tier: "pro", unlocked: false },
+      { id: "approval_gate", name: "승인 게이트", tier: "agency", unlocked: false },
+    ],
+  },
+]);
+const LAUNCHER_NOTICES = Object.freeze([
+  {
+    id: "2026-06-17-launcher-contract",
+    type: "update",
+    level: "info",
+    pinned: true,
+    title: "웹과 Windows 런처가 함께 볼 공지/업데이트 계약을 준비했습니다.",
+    body: "런처 실행 후 최신 공지, 현재 버전, 최신 버전, 프로그램 목록, 릴리스 노트를 같은 JSON/API에서 확인할 수 있도록 구조를 고정합니다.",
+    date: "2026-06-17",
+    published_at: "2026-06-17T14:30:00+09:00",
+    show_in_launcher: true,
+    show_in_website: true,
+    dismissible: true,
+  },
+  {
+    id: "2026-06-17-no-external-publish",
+    type: "policy",
+    level: "warning",
+    pinned: true,
+    title: "외부 발행은 승인 전까지 실행하지 않습니다.",
+    body: "네이버, 워드프레스, 스레드 게시 기능은 별도 승인과 계정 보안 검토 후 연결합니다. 현재 화면은 초안 생성, 검토, 배포 준비까지를 기준으로 합니다.",
+    date: "2026-06-17",
+    published_at: "2026-06-17T14:35:00+09:00",
+    show_in_launcher: true,
+    show_in_website: true,
+    dismissible: false,
+  },
+  {
+    id: "2026-06-17-windows-handoff",
+    type: "handoff",
+    level: "info",
+    pinned: false,
+    title: "Windows Codex는 런처 실행/설치/업데이트 검증을 담당합니다.",
+    body: "맥 세션은 웹/API/문서와 공통 계약을 관리하고, Windows 세션은 실제 exe 실행, 업데이트 진행률, 보안 경고, 오류 안내를 검증합니다.",
+    date: "2026-06-17",
+    published_at: "2026-06-17T14:40:00+09:00",
+    show_in_launcher: true,
+    show_in_website: true,
+    dismissible: true,
+  },
+]);
+const LAUNCHER_TIERS = Object.freeze([
+  { id: "free", name: "무료 체험", audience: "가망 고객", internal_only: false, daily_limits: { keyword_discovery: 10, draft_generation: 3 }, enabled_features: ["키워드 발굴", "초안 일부 미리보기", "기본 품질 점수"], locked_features: ["초안 저장", "전체 본문 보기", "플랫폼별 발행 준비", "계정 연결"] },
+  { id: "basic", name: "기본", audience: "개인 블로거", internal_only: false, daily_limits: { draft_generation: 10, connected_channels: 1 }, enabled_features: ["전체 초안", "초안 저장", "기본 재작성", "복사/내보내기"], locked_features: ["대량 작업 큐", "고급 검증 루프", "여러 채널 연결"] },
+  { id: "pro", name: "전문가", audience: "파워블로거/소규모 사업자", internal_only: false, daily_limits: { draft_generation: 50, connected_channels: 5 }, enabled_features: ["고급 검증/재작성", "플랫폼별 문안", "키워드 저장", "사진 맥락 반영"], locked_features: ["고객별 작업 공간", "대행사 대량 큐"] },
+  { id: "agency", name: "대행사", audience: "대행사/팀", internal_only: false, daily_limits: { draft_generation: "unlimited", connected_channels: 30 }, enabled_features: ["대량 작업 큐", "고객별 관리", "승인 워크플로우", "결과물 관리", "팀 운영"], locked_features: [] },
+]);
 
 function now() {
   return new Date().toISOString();
@@ -84,6 +244,175 @@ function json(data, init = {}) {
 
 function fail(status, detail, extra = {}) {
   return json({ ok: false, detail, ...extra }, { status });
+}
+
+async function launcherAssetManifest(env, request) {
+  if (!env.ASSETS || typeof env.ASSETS.fetch !== "function") return null;
+  const manifestUrl = new URL(request.url);
+  manifestUrl.pathname = LAUNCHER_ASSET_MANIFEST_PATH;
+  manifestUrl.search = "";
+  const response = await env.ASSETS.fetch(new Request(manifestUrl, { method: "GET" }));
+  if (!response.ok) return null;
+  const manifest = await response.json().catch(() => null);
+  if (manifest?.artifact_name !== LAUNCHER_ARTIFACT_NAME) return null;
+  if (Number(manifest.size_bytes) !== Number(LAUNCHER_RELEASE.size_bytes)) return null;
+  if (String(manifest.sha256 || "").toUpperCase() !== LAUNCHER_RELEASE.sha256) return null;
+  if (!Array.isArray(manifest.chunks) || !manifest.chunks.length) return null;
+  return manifest;
+}
+
+async function launcherArtifactDownloadUrl(env, request) {
+  const explicit = String(env.LAUNCHER_ARTIFACT_DOWNLOAD_URL || "").trim();
+  if (explicit.startsWith("https://")) return explicit;
+  const base = String(env.LAUNCHER_ARTIFACT_BASE_URL || "").trim().replace(/\/+$/, "");
+  if (base.startsWith("https://")) {
+    const requestOrigin = new URL(request.url).origin;
+    if (base === requestOrigin) return "";
+    return `${base}/api/daf/launcher/artifacts/${LAUNCHER_ARTIFACT_NAME}`;
+  }
+  if (env.LAUNCHER_RELEASES && typeof env.LAUNCHER_RELEASES.get === "function") {
+    const url = new URL(request.url);
+    if (url.protocol === "https:") return `${url.origin}/api/daf/launcher/artifacts/${LAUNCHER_ARTIFACT_NAME}`;
+  }
+  if (await launcherAssetManifest(env, request)) {
+    const url = new URL(request.url);
+    if (url.protocol === "https:") return `${url.origin}/api/daf/launcher/artifacts/${LAUNCHER_ARTIFACT_NAME}`;
+  }
+  return "";
+}
+
+function launcherArtifactHeaders(sizeBytes) {
+  const headers = new Headers();
+  headers.set("content-type", "application/zip");
+  headers.set("content-disposition", `attachment; filename="${LAUNCHER_ARTIFACT_NAME}"`);
+  headers.set("content-length", String(sizeBytes));
+  headers.set("cache-control", "public, max-age=31536000, immutable");
+  headers.set("x-content-type-options", "nosniff");
+  return headers;
+}
+
+async function launcherAssetArtifactResponse(env, request) {
+  const manifest = await launcherAssetManifest(env, request);
+  if (!manifest) return null;
+  const headers = launcherArtifactHeaders(manifest.size_bytes);
+  if (request.method === "HEAD") return new Response(null, { headers });
+
+  const body = new ReadableStream({
+    async start(controller) {
+      try {
+        for (const chunk of manifest.chunks) {
+          const chunkUrl = new URL(request.url);
+          chunkUrl.pathname = chunk.path;
+          chunkUrl.search = "";
+          const response = await env.ASSETS.fetch(new Request(chunkUrl, { method: "GET" }));
+          if (!response.ok || !response.body) throw new Error(`launcher_artifact_chunk_missing:${chunk.path}`);
+          const reader = response.body.getReader();
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              controller.enqueue(value);
+            }
+          } finally {
+            reader.releaseLock();
+          }
+        }
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+  return new Response(body, { headers });
+}
+
+async function launcherArtifactResponse(env, request) {
+  const explicitUrl = String(env.LAUNCHER_ARTIFACT_DOWNLOAD_URL || "").trim();
+  if (explicitUrl.startsWith("https://")) return Response.redirect(explicitUrl, 302);
+
+  const base = String(env.LAUNCHER_ARTIFACT_BASE_URL || "").trim().replace(/\/+$/, "");
+  if (base.startsWith("https://") && base !== new URL(request.url).origin) {
+    return Response.redirect(`${base}/api/daf/launcher/artifacts/${LAUNCHER_ARTIFACT_NAME}`, 302);
+  }
+
+  const assetResponse = await launcherAssetArtifactResponse(env, request);
+  if (assetResponse) return assetResponse;
+
+  if (!env.LAUNCHER_RELEASES || typeof env.LAUNCHER_RELEASES.get !== "function") {
+    return fail(503, "launcher_artifact_storage_not_configured");
+  }
+
+  const object = await env.LAUNCHER_RELEASES.get(LAUNCHER_ARTIFACT_KEY);
+  if (!object) return fail(404, "launcher_artifact_missing");
+
+  const headers = new Headers();
+  if (typeof object.writeHttpMetadata === "function") object.writeHttpMetadata(headers);
+  headers.set("content-type", headers.get("content-type") || "application/zip");
+  headers.set("content-disposition", `attachment; filename="${LAUNCHER_ARTIFACT_NAME}"`);
+  headers.set("accept-ranges", "bytes");
+  if (object.size) headers.set("content-length", String(object.size));
+  if (object.httpEtag) headers.set("etag", object.httpEtag);
+  return new Response(request.method === "HEAD" ? null : object.body, { headers });
+}
+
+async function launcherReleasePayload(env, request) {
+  const artifactDownloadUrl = await launcherArtifactDownloadUrl(env, request);
+  return {
+    ...LAUNCHER_RELEASE,
+    artifact_download_url: artifactDownloadUrl,
+    artifact_url: artifactDownloadUrl,
+    artifact_endpoint: `/api/daf/launcher/artifacts/${LAUNCHER_ARTIFACT_NAME}`,
+    artifact_available: Boolean(artifactDownloadUrl),
+  };
+}
+
+function launcherNoticesPayload(params = {}) {
+  const audience = params.audience || "";
+  const level = params.level || "";
+  return LAUNCHER_NOTICES
+    .filter((notice) => !level || notice.level === level)
+    .filter((notice) => audience !== "launcher" || notice.show_in_launcher !== false)
+    .filter((notice) => audience !== "website" || notice.show_in_website !== false)
+    .sort((left, right) => {
+      const pinned = Number(Boolean(right.pinned)) - Number(Boolean(left.pinned));
+      if (pinned) return pinned;
+      return String(right.published_at || "").localeCompare(String(left.published_at || ""));
+    });
+}
+
+async function launcherManifestPayload(env, request) {
+  return {
+    schema_version: "arsen.launcher_manifest.v1",
+    updated_at: "2026-06-17T14:30:00+09:00",
+    cache_ttl_seconds: 300,
+    channels: ["internal", "preview", "stable"],
+    runtime: {
+      service_id: "arsen-blog-automation",
+      service_name: "Arsen Blog Automation",
+      mode: "public_release",
+      api_version: "2026-06-17",
+      distribution_policy: {
+        official_download_only: true,
+        external_publish_enabled: false,
+        payment_enabled: false,
+        requires_user_approval_for_publish: true,
+      },
+    },
+    product_strategy: {
+      decision: "reuse_engine_separate_customer_product",
+      summary: "내부 Blog Studio 엔진은 유지하되, 판매용 제품은 별도 고객 화면과 권한 계층으로 분리합니다.",
+      tracks: [
+        { id: "customer_saas", name: "판매용 웹 서비스", audience: "무료 체험/유료 고객", status: "preview", entrypoint: "/saas-studio", expose_to_customer: true, internal_only: false },
+        { id: "vertical_generators", name: "전용 생성기", audience: "특화 유료 고객", status: "planned", entrypoint: "/restaurant-studio", expose_to_customer: true, internal_only: false },
+      ],
+    },
+    tiers: LAUNCHER_TIERS,
+    launcher: await launcherReleasePayload(env, request),
+    programs: LAUNCHER_PROGRAMS,
+    notices: launcherNoticesPayload({ audience: "launcher" }),
+    served_at: now(),
+    source: "member-system-cloudflare",
+  };
 }
 
 function allowedOrigin(request, env) {
@@ -244,6 +573,141 @@ async function decryptValue(value, env, secretName) {
   const key = await legacySecretKey(env, secretName, "decrypt");
   const plain = await crypto.subtle.decrypt({ name: "AES-CBC", iv }, key, cipher);
   return new TextDecoder().decode(pkcs7Unpad(new Uint8Array(plain)));
+}
+
+function looksLikeLegacyEncryptedCode(value) {
+  const text = String(value || "").trim();
+  if (!text || text.length < 32 || !/[+/=]/.test(text)) return false;
+  try {
+    return base64ToBytes(text).length >= 32;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function readableAccessCode(member, env) {
+  const stored = String(member?.access_code || "").trim();
+  if (!stored) return "";
+  if (!looksLikeLegacyEncryptedCode(stored)) return stored;
+  try {
+    return await decryptValue(stored, env, "CODE_SECRET_KEY");
+  } catch (_) {
+    return "";
+  }
+}
+
+async function accessCodeMatches(member, input, env) {
+  const code = await readableAccessCode(member, env);
+  return Boolean(code) && code === String(input || "").trim();
+}
+
+function base64UrlFromBytes(bytes) {
+  return bytesToBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlFromString(value) {
+  return base64UrlFromBytes(new TextEncoder().encode(String(value || "")));
+}
+
+function stringFromBase64Url(value) {
+  const normalized = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+  return new TextDecoder().decode(base64ToBytes(padded));
+}
+
+function cookieValue(request, name) {
+  const cookie = request.headers.get("cookie") || "";
+  for (const part of cookie.split(";")) {
+    const [key, ...valueParts] = part.trim().split("=");
+    if (key === name) return valueParts.join("=");
+  }
+  return "";
+}
+
+async function kakaoCookieSignature(env, body) {
+  const secret = String(env.KAKAO_SESSION_SECRET || env.ADMIN_KEY || env.TELEGRAM_WEBHOOK_SECRET || "arsen-local-kakao-session");
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
+  return base64UrlFromBytes(new Uint8Array(signature));
+}
+
+async function signedCookie(payload, env) {
+  const body = base64UrlFromString(JSON.stringify(payload || {}));
+  return `${body}.${await kakaoCookieSignature(env, body)}`;
+}
+
+async function readSignedCookie(request, env, name) {
+  const value = cookieValue(request, name);
+  if (!value || !value.includes(".")) return null;
+  const [body, signature] = value.split(".", 2);
+  if (signature !== await kakaoCookieSignature(env, body)) return null;
+  try {
+    const payload = JSON.parse(stringFromBase64Url(body));
+    return payload && typeof payload === "object" ? payload : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function cookieHeader(name, value, maxAge, request) {
+  const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
+  return `${name}=${value}; Max-Age=${maxAge}; Path=/; HttpOnly; SameSite=Lax${secure}`;
+}
+
+function deleteCookieHeader(name) {
+  return `${name}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`;
+}
+
+function redirectWithCookies(url, cookies = []) {
+  const headers = new Headers({ location: url });
+  for (const cookie of cookies) headers.append("set-cookie", cookie);
+  return new Response(null, { status: 302, headers });
+}
+
+function safeNextPath(value) {
+  const next = String(value || "/frontend/member.html").trim();
+  if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/auth/")) return "/frontend/member.html";
+  return next;
+}
+
+function withKakaoStatus(nextPath, status) {
+  const separator = nextPath.includes("?") ? "&" : "?";
+  return `${nextPath}${separator}kakao=${encodeURIComponent(status)}`;
+}
+
+function kakaoRedirectUri(env, request) {
+  const explicit = String(env.KAKAO_REDIRECT_URI || "").trim();
+  if (explicit) return explicit;
+  const url = new URL(request.url);
+  return `${url.origin}/auth/kakao/callback`;
+}
+
+function kakaoProfilePayload(user) {
+  const account = user?.kakao_account && typeof user.kakao_account === "object" ? user.kakao_account : {};
+  const properties = user?.properties && typeof user.properties === "object" ? user.properties : {};
+  const profile = account.profile && typeof account.profile === "object" ? account.profile : {};
+  return {
+    id: String(user?.id || ""),
+    nickname: properties.nickname || profile.nickname || "",
+    email: account.email || "",
+    phone_number: account.phone_number || "",
+    connected_at: user?.connected_at || "",
+  };
+}
+
+function kakaoPublicPayload(session, member) {
+  const profile = session?.profile && typeof session.profile === "object" ? session.profile : {};
+  return {
+    connected: true,
+    linked: Boolean(session?.member_id && member),
+    nickname: profile.nickname || "",
+  };
 }
 
 function gradeCount(data) {
@@ -737,18 +1201,278 @@ function maskEmail(value) {
   return `${visible}${"*".repeat(Math.max(3, local.length - visible.length))}@${domain}`;
 }
 
+function consultationStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return CONSULTATION_STATUSES.has(normalized) ? normalized : "new";
+}
+
+function consultationPublic(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    source: row.source || "public_site",
+    topic: row.topic || "",
+    name: row.name || "",
+    email_masked: row.email_masked || "",
+    phone_masked: row.phone_masked || "",
+    product_interest: row.product_interest || "",
+    message: row.message || "",
+    status: row.status || "new",
+    admin_note: row.admin_note || "",
+    page_url: row.page_url || "",
+    referrer: row.referrer || "",
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function consultationKind(row) {
+  return row?.source === "home_newsletter" ? "newsletter" : "consultation";
+}
+
+function consultationKeyboard(env) {
+  return {
+    inline_keyboard: [[{ text: "상담 관리 열기", url: adminUrl(env) }]],
+  };
+}
+
+function consultationMessage(row, contact) {
+  const isNewsletter = consultationKind(row) === "newsletter";
+  return [
+    isNewsletter ? "<b>ARSEN 신규 소식받기 신청</b>" : "<b>ARSEN 신규 상담 신청</b>",
+    `접수ID: <code>${htmlEscape(row.id || "-")}</code>`,
+    row.member_id ? `신청자ID: <code>${htmlEscape(row.member_id)}</code>` : "",
+    `출처: ${htmlEscape(row.source || "-")}`,
+    `${isNewsletter ? "분류" : "상담 주제"}: ${htmlEscape(row.topic || "-")}`,
+    `관심 상품: ${htmlEscape(row.product_interest || "-")}`,
+    `이름: ${htmlEscape(row.name || "-")}`,
+    `전화: ${htmlEscape(contact.phone || row.phone_masked || "-")}`,
+    `이메일: ${htmlEscape(contact.email || row.email_masked || "-")}`,
+    `내용: ${displayValue(row.message || "-", 500)}`,
+    row.page_url ? `페이지: ${htmlEscape(row.page_url)}` : "",
+    row.referrer ? `유입: ${htmlEscape(row.referrer)}` : "",
+    `접수시각: ${htmlEscape(row.created_at || "-")}`,
+  ].filter(Boolean).join("\n");
+}
+
+function consultationKindWhere(kind) {
+  const normalized = String(kind || "").trim().toLowerCase();
+  if (["newsletter", "news", "lead", "leads"].includes(normalized)) return "source='home_newsletter'";
+  if (["consultation", "consult", "inquiry"].includes(normalized)) return "source!='home_newsletter'";
+  return "";
+}
+
+async function consultationSummary(env, kind = "") {
+  const kindWhere = consultationKindWhere(kind);
+  const rows = await all(
+    env,
+    `SELECT status, COUNT(*) AS count FROM consultations ${kindWhere ? `WHERE ${kindWhere}` : ""} GROUP BY status`
+  );
+  const counts = Object.fromEntries(rows.map((row) => [row.status, Number(row.count || 0)]));
+  return {
+    total: Object.values(counts).reduce((sum, value) => sum + value, 0),
+    new: counts.new || 0,
+    contacted: counts.contacted || 0,
+    on_hold: counts.on_hold || 0,
+    closed: counts.closed || 0,
+    spam: counts.spam || 0,
+  };
+}
+
+async function listConsultations(env, params = {}) {
+  const where = [];
+  const values = [];
+  const status = String(params.status || "").trim();
+  if (status === "active") {
+    where.push("status NOT IN ('closed', 'spam')");
+  } else if (status) {
+    where.push("status=?");
+    values.push(consultationStatus(status));
+  }
+  const source = String(params.source || "").trim();
+  if (source) {
+    where.push("source=?");
+    values.push(source.slice(0, 80));
+  }
+  const kindWhere = consultationKindWhere(params.kind || "");
+  if (kindWhere) where.push(kindWhere);
+  const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const rows = await all(env, `SELECT * FROM consultations ${clause} ORDER BY created_at DESC LIMIT 300`, ...values);
+  return rows.map(consultationPublic);
+}
+
+async function getConsultationRow(env, consultationId) {
+  return one(env, "SELECT * FROM consultations WHERE id=?", consultationId);
+}
+
+async function createConsultation(env, body, request) {
+  const source = String(body.source || "public_site").trim().slice(0, 80) || "public_site";
+  const rawContact = String(body.contact || body.lead_contact || "").trim();
+  const contactLooksEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawContact);
+  const contactDigits = normalizePhone(rawContact);
+  const rawEmail = body.email || body.buyer_email || (contactLooksEmail ? rawContact : "");
+  const rawPhone = String(body.phone || body.buyer_phone || (!contactLooksEmail && contactDigits.length >= 7 ? rawContact : "")).trim();
+  const phoneForStorage = normalizePhoneForStorage(rawPhone);
+  const phoneDigits = normalizePhone(phoneForStorage);
+  const email = normalizeEmail(rawEmail || "");
+  const isNewsletter = source === "home_newsletter";
+  const contactKind = isNewsletter
+    ? "phone"
+    : String(body.contact_type || "").trim().toLowerCase() || (email ? "email" : phoneDigits ? "phone" : "");
+  const newsletterLabel = contactKind === "phone" ? "번호" : "이메일";
+  const topicBase = String(body.topic || body.consult_type || body.subject || body.product_interest || "상담").trim().slice(0, 120) || "상담";
+  const topic = isNewsletter && !topicBase.includes("·") ? `${topicBase} · ${newsletterLabel}` : topicBase;
+  const name = String(body.name || body.buyer_name || "").trim().slice(0, 80);
+  const productInterest = String(body.product_interest || body.product || (isNewsletter ? `메인 소식 받기 · ${newsletterLabel}` : "")).trim().slice(0, 120) || null;
+  const message = String(body.message || body.customer_message || body.memo || "").trim().slice(0, 2000) || null;
+  if (isNewsletter && !name) return { response: fail(400, "소식받기 신청은 이름을 입력해야 합니다.") };
+  if (isNewsletter && !phoneDigits) return { response: fail(400, "소식받기 신청은 전화번호를 입력해야 합니다.") };
+  if (!phoneDigits && !email) return { response: fail(400, "연락 가능한 전화번호 또는 이메일이 필요합니다.") };
+  if (body.consent_privacy === false || body.consent_privacy === "false" || body.consent_privacy === "0") {
+    return { response: fail(400, "상담 연락을 위한 개인정보 수집 동의가 필요합니다.") };
+  }
+
+  const id = crypto.randomUUID();
+  const created = now();
+  const row = {
+    id,
+    source,
+    topic,
+    name: name || "상담 신청자",
+    email_hash: email ? await hmacHex(`consultation-email:${email}`, env, "EMAIL_SECRET_KEY") : null,
+    email_masked: maskEmail(email),
+    email_encrypted: email ? await encryptLegacyValue(email, env, "EMAIL_SECRET_KEY") : "",
+    phone_hash: phoneDigits ? await hmacHex(`consultation-phone:${phoneDigits}`, env, "PHONE_SECRET_KEY") : null,
+    phone_masked: maskPhone(phoneForStorage),
+    phone_encrypted: phoneDigits ? await encryptLegacyValue(phoneForStorage, env, "PHONE_SECRET_KEY") : "",
+    product_interest: productInterest,
+    message,
+    status: "new",
+    admin_note: null,
+    page_url: String(body.page_url || "").trim().slice(0, 500) || null,
+    referrer: String(body.referrer || "").trim().slice(0, 500) || null,
+    user_agent: String(request.headers.get("user-agent") || "").slice(0, 500) || null,
+    created_at: created,
+    updated_at: created,
+  };
+
+  await env.DB.prepare(
+    `INSERT INTO consultations (
+      id, source, topic, name, email_hash, email_masked, email_encrypted,
+      phone_hash, phone_masked, phone_encrypted, product_interest, message,
+      status, admin_note, page_url, referrer, user_agent, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(
+      row.id,
+      row.source,
+      row.topic,
+      row.name,
+      row.email_hash,
+      row.email_masked,
+      row.email_encrypted,
+      row.phone_hash,
+      row.phone_masked,
+      row.phone_encrypted,
+      row.product_interest,
+      row.message,
+      row.status,
+      row.admin_note,
+      row.page_url,
+      row.referrer,
+      row.user_agent,
+      row.created_at,
+      row.updated_at
+    )
+    .run();
+  const memberPlanType = isNewsletter
+    ? contactKind === "phone" ? "lead_phone" : "lead_email"
+    : "consultation";
+  const memberKindLabel = isNewsletter ? `소식 받기 · ${newsletterLabel}` : "상담";
+  const memberId = await createEdgeMember(env, {
+    name: name || "상담 신청자",
+    phone: phoneForStorage,
+    email,
+    job: isNewsletter ? "소식 받기 신청" : "상담 신청",
+    referral_source: source,
+    reason: [
+      `분류: ${memberKindLabel}`,
+      topic,
+      productInterest,
+      message,
+    ].filter(Boolean).join("\n"),
+    ai_level: memberKindLabel,
+    plan_type: memberPlanType,
+    group_goals: productInterest || memberKindLabel,
+    short_term_goal: message || topic,
+    participation_type: memberKindLabel,
+    preferred_schedule: "",
+    available_time_slots: "",
+    region: "",
+    main_device: "",
+    skills: "",
+    contribution: message || productInterest || memberKindLabel,
+    participation_grade: memberKindLabel,
+    consent_marketing: false,
+    consent_version: isNewsletter ? "public-newsletter-v1" : "public-consultation-v1",
+    status: "pending",
+  }, env);
+  row.member_id = memberId;
+  const hermesStatus = await sendTelegram(env, consultationMessage(row, { phone: phoneForStorage, email }), consultationKeyboard(env), "application");
+  if (memberId) await logAction(env, memberId, "consultation_mirror", JSON.stringify({ consultation_id: id, source, topic }), request);
+  await logAction(env, "system", "consultation_created", JSON.stringify({ id, member_id: memberId, source, topic, hermes_status: hermesStatus }), request);
+  return {
+    ok: true,
+    message: isNewsletter ? "소식받기 신청이 접수되었습니다. 새 소식이 준비되면 안내드리겠습니다." : "상담 신청이 접수되었습니다. 운영자가 확인 후 연락드립니다.",
+    data: { ...consultationPublic(row), member_id: memberId },
+    member_id: memberId,
+    notification: { telegram: hermesStatus },
+  };
+}
+
+async function updateConsultationStatus(env, consultationId, body) {
+  const status = consultationStatus(body.status);
+  const note = String(body.admin_note || body.note || "").trim().slice(0, 1000) || null;
+  const existing = await getConsultationRow(env, consultationId);
+  if (!existing) return { ok: false, status: 404, message: "상담 접수를 찾을 수 없습니다." };
+  const timestamp = now();
+  await env.DB.prepare(
+    "UPDATE consultations SET status=?, admin_note=COALESCE(?, admin_note), updated_at=? WHERE id=?"
+  )
+    .bind(status, note, timestamp, consultationId)
+    .run();
+  return { ok: true, data: consultationPublic(await getConsultationRow(env, consultationId)) };
+}
+
+async function consultationContact(env, consultationId) {
+  const row = await getConsultationRow(env, consultationId);
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name || "상담 신청자",
+    phone: await decryptValue(row.phone_encrypted, env, "PHONE_SECRET_KEY"),
+    email: await decryptValue(row.email_encrypted, env, "EMAIL_SECRET_KEY"),
+    phone_masked: row.phone_masked || "",
+    email_masked: row.email_masked || "",
+  };
+}
+
 function yoonbotPlan(planCode) {
   const normalized = String(planCode || "").trim().toLowerCase();
   return YOONBOT_PLANS.find((plan) => plan.code === normalized) || null;
 }
 
-function yoonbotProducts() {
+function yoonbotProducts(env) {
+  const provider = String((env && env.YOONBOT_PAYMENT_PROVIDER) || "");
+  const clientKey = String((env && env.TOSS_PAYMENTS_CLIENT_KEY) || "");
+  const secretKey = String((env && env.TOSS_PAYMENTS_SECRET_KEY) || "");
+  const tossReady = provider === "toss_payments" && !!clientKey && !!secretKey;
   return {
     product: {
       code: YOONBOT_PRODUCT_CODE,
       name: "YoonBot",
-      payment_mode: "manual_bank_transfer",
-      auto_charge: false,
+      payment_mode: tossReady ? "toss_payments" : "manual_bank_transfer",
+      auto_charge: tossReady,
     },
     plans: YOONBOT_PLANS,
   };
@@ -760,6 +1484,8 @@ function orderPaymentRef(orderId) {
 
 function orderPublic(row) {
   if (!row) return null;
+  const finalAmount = Number(row.amount_krw || 0);
+  const originalAmount = row.original_amount_krw != null ? Number(row.original_amount_krw) : finalAmount;
   return {
     id: row.id,
     buyer_name: row.buyer_name,
@@ -767,7 +1493,11 @@ function orderPublic(row) {
     buyer_phone_masked: row.buyer_phone_masked || "",
     product_code: row.product_code || YOONBOT_PRODUCT_CODE,
     plan_code: row.plan_code,
-    amount_krw: Number(row.amount_krw || 0),
+    amount_krw: finalAmount,
+    original_amount_krw: originalAmount,
+    discount_code: row.discount_code || null,
+    discount_label: row.discount_label || null,
+    discount_amount_krw: Number(row.discount_amount_krw || 0),
     status: row.status,
     payment_provider: row.payment_provider || "manual_bank_transfer",
     payment_ref: row.payment_ref || "",
@@ -790,8 +1520,178 @@ function manualPaymentPayload(orderId = "") {
     mode: "manual_bank_transfer",
     auto_charge: false,
     payment_ref: orderId ? orderPaymentRef(orderId) : "",
-    message: "관리자가 신청 내용을 확인한 뒤 입금 안내와 라이선스 발급을 수동으로 진행합니다.",
+    message: "관리자가 구매 내용을 확인한 뒤 입금 안내와 라이선스 발급을 수동으로 진행합니다.",
   };
+}
+
+function buildTossPaymentPayload(env, order, orderId) {
+  const provider = String(env.YOONBOT_PAYMENT_PROVIDER || "");
+  const clientKey = String(env.TOSS_PAYMENTS_CLIENT_KEY || "");
+  const secretKey = String(env.TOSS_PAYMENTS_SECRET_KEY || "");
+  if (provider !== "toss_payments" || !clientKey || !secretKey) {
+    if (provider === "toss_payments") {
+      return {
+        ...manualPaymentPayload(orderId),
+        message: "온라인 결제 설정 확인 중이라 수동 결제 안내로 진행합니다.",
+      };
+    }
+    return manualPaymentPayload(orderId);
+  }
+  const baseUrl = String(env.YOONBOT_PUBLIC_BASE_URL || "https://apply.arsen-ai.com").replace(/\/$/, "");
+  const tossOrderId = generateTossOrderId(orderId);
+  const planCode = String(order.plan_code || "monthly");
+  return {
+    mode: "toss_payments",
+    auto_charge: true,
+    client_key: clientKey,
+    toss_order_id: tossOrderId,
+    order_name: `YoonBot ${planCode.charAt(0).toUpperCase() + planCode.slice(1)} 라이선스`,
+    amount: { value: Number(order.amount_krw || 0), currency: "KRW" },
+    success_url: `${baseUrl}/frontend/yoonbot.html?payment=success`,
+    fail_url: `${baseUrl}/frontend/yoonbot.html?payment=fail`,
+    customer_name: order.buyer_name || "",
+    customer_email: "",
+  };
+}
+
+function generateTossOrderId(orderId) {
+  const sanitized = String(orderId || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 30);
+  return `yb-${sanitized}`;
+}
+
+async function confirmTossPaymentWithToss(env, paymentKey, tossOrderId, amount) {
+  const secretKey = String(env.TOSS_PAYMENTS_SECRET_KEY || "");
+  if (!secretKey) throw new Error("TOSS_PAYMENTS_SECRET_KEY is not configured");
+  const credentials = btoa(`${secretKey}:`);
+  const response = await fetch("https://api.tosspayments.com/v1/payments/confirm", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ paymentKey, orderId: tossOrderId, amount }),
+  });
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Toss confirm HTTP ${response.status}: ${body}`);
+  }
+  return response.json();
+}
+
+async function getYoonbotOrderByTossId(env, tossOrderId) {
+  const row = await one(
+    env,
+    `SELECT o.*, l.license_key_hint, l.status AS license_status
+     FROM orders o
+     LEFT JOIN licenses l ON l.id=o.license_id
+     WHERE o.toss_order_id=?`,
+    tossOrderId
+  );
+  return orderPublic(row);
+}
+
+async function confirmTossPayment(env, internalOrderId, body, tossConfirmFn) {
+  const order = await getYoonbotOrder(env, internalOrderId);
+  if (!order) return { ok: false, message: "주문을 찾을 수 없습니다.", status: 404 };
+  if ((order.product_code || YOONBOT_PRODUCT_CODE) !== YOONBOT_PRODUCT_CODE) {
+    return { ok: false, message: "YoonBot 주문이 아닙니다.", status: 400 };
+  }
+  if (YOONBOT_ORDER_TERMINAL_STATUSES.has(order.status)) {
+    return { ok: false, message: "취소/환불된 주문은 결제 확인할 수 없습니다.", status: 400 };
+  }
+  if (order.status === "paid" || order.status === "license_issued") {
+    if (order.payment_ref && body.payment_key && order.payment_ref === body.payment_key) {
+      return { ok: true, data: order, idempotent: true };
+    }
+    return { ok: false, message: "이미 결제 처리된 주문입니다.", status: 400 };
+  }
+  const expectedTossOrderId = generateTossOrderId(internalOrderId);
+  if (body.order_id !== expectedTossOrderId) {
+    return { ok: false, message: "orderId가 서버 값과 일치하지 않습니다.", status: 400 };
+  }
+  const serverAmount = Number(order.amount_krw || 0);
+  if (Number(body.amount) !== serverAmount) {
+    return { ok: false, message: "결제 금액이 주문 금액과 일치하지 않습니다.", status: 400 };
+  }
+  if (!String(env.TOSS_PAYMENTS_SECRET_KEY || "")) {
+    return { ok: false, message: "TOSS_PAYMENTS_SECRET_KEY가 설정되지 않았습니다.", status: 503 };
+  }
+  let tossResponse;
+  try {
+    const confirmFn = tossConfirmFn || confirmTossPaymentWithToss;
+    tossResponse = await confirmFn(env, body.payment_key, body.order_id, serverAmount);
+  } catch (err) {
+    return { ok: false, message: String(err.message || "Toss 결제 확인에 실패했습니다."), status: 502 };
+  }
+  const tossStatus = String((tossResponse || {}).status || "");
+  if (tossStatus && tossStatus !== "DONE") {
+    return { ok: false, message: `Toss 결제 상태가 완료가 아닙니다: ${tossStatus}`, status: 400 };
+  }
+  const tossTotal = (tossResponse || {}).totalAmount;
+  if (tossTotal != null && Number(tossTotal) !== serverAmount) {
+    return { ok: false, message: "Toss 응답 금액이 주문 금액과 일치하지 않습니다.", status: 400 };
+  }
+  return markYoonbotOrderPaid(env, internalOrderId, {
+    payment_provider: "toss_payments",
+    payment_ref: body.payment_key,
+    note: `toss_confirm:${body.order_id}`,
+  });
+}
+
+async function confirmTossPaymentByTossId(env, tossOrderId, body, tossConfirmFn) {
+  const order = await getYoonbotOrderByTossId(env, tossOrderId);
+  if (!order) return { ok: false, message: "주문을 찾을 수 없습니다.", status: 404 };
+  return confirmTossPayment(env, order.id, body, tossConfirmFn);
+}
+
+const DISCOUNT_CODE_RE = /^[A-Z0-9_\-]{1,64}$/;
+
+function normalizeDiscountCode(code) {
+  if (!code) return "";
+  return String(code).trim().toUpperCase();
+}
+
+async function validateAndApplyDiscount(env, planCode, originalAmount, codeRaw, nowIso) {
+  const code = normalizeDiscountCode(codeRaw);
+  if (!code) return { finalAmount: originalAmount, discountAmount: 0, code: null, label: null };
+  if (!DISCOUNT_CODE_RE.test(code)) {
+    return { error: "할인 코드 형식이 올바르지 않습니다." };
+  }
+  const row = await one(env, "SELECT * FROM yoonbot_discount_codes WHERE code=?", code);
+  if (!row) return { error: "유효하지 않은 할인 코드입니다." };
+  if (!row.enabled) return { error: "사용 중지된 할인 코드입니다." };
+  if (row.starts_at && nowIso < row.starts_at) return { error: "아직 사용 기간이 시작되지 않은 할인 코드입니다." };
+  if (row.expires_at && nowIso > row.expires_at) return { error: "만료된 할인 코드입니다." };
+  if (row.plan_code && row.plan_code !== planCode) return { error: "이 플랜에는 적용할 수 없는 할인 코드입니다." };
+  const maxRed = row.max_redemptions;
+  const redeemed = Number(row.redeemed_count || 0);
+  if (maxRed != null && maxRed > 0 && redeemed >= maxRed) return { error: "이미 사용 횟수가 소진된 할인 코드입니다." };
+
+  const dtype = String(row.discount_type || "").trim().toLowerCase();
+  const dvalue = Number(row.discount_value || 0);
+  const label = String(row.label || code).trim().slice(0, 120);
+  let discountAmount = 0;
+  if (dtype === "percent") {
+    const pct = Math.max(1, Math.min(100, dvalue));
+    discountAmount = Math.floor(originalAmount * pct / 100);
+  } else if (dtype === "amount") {
+    discountAmount = Math.min(dvalue, originalAmount);
+  } else if (dtype === "override_amount") {
+    discountAmount = Math.max(0, originalAmount - dvalue);
+  } else {
+    return { error: "지원하지 않는 할인 유형입니다." };
+  }
+  const finalAmount = Math.max(0, originalAmount - discountAmount);
+  const updateResult = await env.DB.prepare(
+    `UPDATE yoonbot_discount_codes
+     SET redeemed_count=redeemed_count+1, updated_at=?
+     WHERE code=?
+       AND enabled=1
+       AND (max_redemptions IS NULL OR max_redemptions <= 0 OR redeemed_count < max_redemptions)`
+  ).bind(nowIso, code).run();
+  const changed = Number(updateResult?.meta?.changes ?? updateResult?.changes ?? 0);
+  if (changed !== 1) return { error: "이미 사용 횟수가 소진된 할인 코드입니다." };
+  return { finalAmount, discountAmount, code, label };
 }
 
 async function createYoonbotOrder(env, body) {
@@ -809,14 +1709,25 @@ async function createYoonbotOrder(env, body) {
   }
 
   const orderId = crypto.randomUUID();
+  const tossOrderId = generateTossOrderId(orderId);
   const created = licenseIso();
+  const originalAmount = plan.amount_krw;
+
+  const discountResult = await validateAndApplyDiscount(
+    env, plan.code, originalAmount, body.discount_code || null, created
+  );
+  if (discountResult.error) return { response: fail(400, discountResult.error) };
+
+  const { finalAmount, discountAmount, code: dCode, label: dLabel } = discountResult;
+
   await env.DB.prepare(
     `INSERT INTO orders (
       id, buyer_name, buyer_email_hash, buyer_email_masked,
       buyer_phone_hash, buyer_phone_masked, product_code, plan_code,
-      amount_krw, status, payment_provider, payment_ref,
-      customer_message, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'payment_pending', 'manual_bank_transfer', ?, ?, ?, ?)`
+      amount_krw, original_amount_krw, discount_code, discount_label,
+      discount_amount_krw, status, payment_provider, payment_ref,
+      toss_order_id, customer_message, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'payment_pending', 'manual_bank_transfer', ?, ?, ?, ?, ?)`
   )
     .bind(
       orderId,
@@ -827,15 +1738,85 @@ async function createYoonbotOrder(env, body) {
       maskPhone(phone),
       YOONBOT_PRODUCT_CODE,
       plan.code,
-      plan.amount_krw,
+      finalAmount,
+      originalAmount,
+      dCode,
+      dLabel,
+      discountAmount,
       orderPaymentRef(orderId),
+      tossOrderId,
       String(body.customer_message || "").trim().slice(0, 1000) || null,
       created,
       created
     )
     .run();
   const order = await getYoonbotOrder(env, orderId);
-  return { ok: true, data: order, payment: manualPaymentPayload(orderId) };
+  const paymentPayload = buildTossPaymentPayload(env, order, orderId);
+  return { ok: true, data: order, payment: paymentPayload };
+}
+
+function discountRowPublic(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    code: row.code,
+    label: row.label || "",
+    plan_code: row.plan_code || null,
+    discount_type: row.discount_type,
+    discount_value: Number(row.discount_value || 0),
+    max_redemptions: row.max_redemptions != null ? Number(row.max_redemptions) : null,
+    redeemed_count: Number(row.redeemed_count || 0),
+    starts_at: row.starts_at || null,
+    expires_at: row.expires_at || null,
+    enabled: !!row.enabled,
+    note: row.note || "",
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+const ALLOWED_DISCOUNT_TYPES_WORKER = new Set(["percent", "amount", "override_amount"]);
+
+async function createDiscountCode(env, body) {
+  const normalized = normalizeDiscountCode(body.code);
+  if (!normalized || !DISCOUNT_CODE_RE.test(normalized)) {
+    return { error: "할인 코드는 영문 대소문자, 숫자, 하이픈(-), 언더스코어(_)만 허용됩니다." };
+  }
+  const dtype = String(body.discount_type || "percent").trim().toLowerCase();
+  if (!ALLOWED_DISCOUNT_TYPES_WORKER.has(dtype)) {
+    return { error: `지원하지 않는 할인 유형입니다. 허용: ${[...ALLOWED_DISCOUNT_TYPES_WORKER].join(", ")}` };
+  }
+  const dvalue = Number(body.discount_value);
+  if (dtype === "percent" && !(dvalue >= 1 && dvalue <= 100)) {
+    return { error: "퍼센트 할인은 1~100 사이여야 합니다." };
+  }
+  if (dvalue < 0) return { error: "할인 값은 0 이상이어야 합니다." };
+  const existing = await one(env, "SELECT id FROM yoonbot_discount_codes WHERE code=?", normalized);
+  if (existing) return { error: "이미 존재하는 할인 코드입니다." };
+  const created = licenseIso();
+  const id = crypto.randomUUID();
+  const maxRed = body.max_redemptions != null ? Number(body.max_redemptions) : 1;
+  await env.DB.prepare(
+    `INSERT INTO yoonbot_discount_codes
+     (id, code, label, plan_code, discount_type, discount_value,
+      max_redemptions, redeemed_count, starts_at, expires_at, enabled, note, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 1, ?, ?, ?)`
+  ).bind(
+    id,
+    normalized,
+    String(body.label || "").trim().slice(0, 120) || null,
+    String(body.plan_code || "").trim().toLowerCase() || null,
+    dtype,
+    dvalue,
+    maxRed,
+    String(body.starts_at || "").trim() || null,
+    String(body.expires_at || "").trim() || null,
+    String(body.note || "").trim().slice(0, 500) || null,
+    created,
+    created
+  ).run();
+  const row = await one(env, "SELECT * FROM yoonbot_discount_codes WHERE id=?", id);
+  return { data: discountRowPublic(row) };
 }
 
 async function orderSummary(env) {
@@ -934,8 +1915,20 @@ function yoonbotCustomerLicenseMessage(licenseKey, licenseItem) {
     "[YoonBot 라이선스 안내]",
     `라이선스 키: ${licenseKey}`,
     `만료일: ${licenseItem.expires_at}`,
-    "Windows YoonBot 실행 후 라이선스 인증 창에 위 키를 입력하세요.",
-    "처음 등록한 PC에 기기가 묶입니다. PC 변경이 필요하면 운영자에게 기기 초기화를 요청해주세요.",
+    "",
+    "▶ Windows 런처 다운로드",
+    LAUNCHER_DIRECT_DOWNLOAD_URL,
+    `최신 버전 정보: ${LAUNCHER_RELEASE_URL}`,
+    "",
+    "▶ 설치 방법",
+    "1. 다운로드한 zip 파일의 압축을 원하는 폴더에 해제하세요.",
+    "2. 'Arsen Content Launcher.exe'를 실행하세요.",
+    "3. 라이선스 인증 창에 위 라이선스 키를 입력하세요.",
+    "4. 처음 등록한 PC에 기기가 묶입니다. PC 변경이 필요하면 운영자에게 기기 초기화를 요청해주세요.",
+    "",
+    "▶ 안내",
+    "현재 초기 파일럿/베타 단계로 기능이 순차적으로 확장되고 있습니다.",
+    "사용 중 문의사항이나 피드백은 카카오톡 채널 또는 운영자에게 직접 연락해 주세요.",
   ].join("\n");
 }
 
@@ -1046,7 +2039,26 @@ function planTypeLabel(planType) {
     free: "무료강의",
     full: "유료강의",
     basic: "기본강의",
+    consultation: "상담",
+    lead_email: "소식(이메일)",
+    lead_phone: "소식(번호)",
   }[normalized] || planType || "-";
+}
+
+const APPLICATION_PLAN_TYPES = new Set(["free", "basic", "full"]);
+const LEAD_PLAN_TYPES = new Set(["consultation", "lead_email", "lead_phone"]);
+
+function leadSourceLabel(planType) {
+  const normalized = String(planType || "").toLowerCase();
+  if (normalized.startsWith("lead_")) return "소식받기";
+  if (normalized === "consultation") return "상담";
+  return planTypeLabel(normalized);
+}
+
+function canUpgradeLeadToApplication(existing, attempted) {
+  const existingPlan = String(existing?.plan_type || "").toLowerCase();
+  const attemptedPlan = String(attempted?.plan_type || "").toLowerCase();
+  return LEAD_PLAN_TYPES.has(existingPlan) && APPLICATION_PLAN_TYPES.has(attemptedPlan);
 }
 
 function contactPlanLabel(planType) {
@@ -1055,6 +2067,9 @@ function contactPlanLabel(planType) {
     free: "무료",
     full: "유료",
     basic: "기본",
+    consultation: "상담",
+    lead_email: "소식 이메일",
+    lead_phone: "소식 번호",
   }[normalized] || "기본";
 }
 
@@ -1137,10 +2152,18 @@ function statsLines(data) {
 
 function applicationMessage(member, counts, duplicate = false, attempted = null) {
   const planLabel = planTypeLabel(attempted?.plan_type || member?.plan_type);
-  const base = [
-    duplicate
+  const upgradeFrom = attempted?.lead_upgrade_from || attempted?.upgrade_from_plan_type || "";
+  const sourceLabel = leadSourceLabel(upgradeFrom);
+  const title = upgradeFrom
+    ? `<b>ARSEN ${htmlEscape(sourceLabel)}에서 ${htmlEscape(planLabel)} 신청으로 변경</b>`
+    : duplicate
       ? `<b>ARSEN 중복 신청 감지 - ${htmlEscape(planLabel)}</b>`
-      : `<b>ARSEN 신규 ${htmlEscape(planLabel)} 신청</b>`,
+      : `<b>ARSEN 신규 ${htmlEscape(planLabel)} 신청</b>`;
+  const base = [
+    title,
+    upgradeFrom
+      ? `전환 안내: 기존 ${htmlEscape(sourceLabel)} 리드를 신청자/멤버 목록의 ${htmlEscape(planLabel)} 신청으로 승격했습니다.`
+      : "",
     `이름: ${displayValue(attempted?.name || member?.name)}`,
     `이메일: ${displayValue(attempted?.email)}`,
     `연락처: ${displayValue(attempted?.phone || member?.phone_masked || attempted?.phone_masked)}`,
@@ -1171,7 +2194,7 @@ function applicationMessage(member, counts, duplicate = false, attempted = null)
     `강의에서 해보고 싶은 내용: ${displayValue(attempted?.desired_outcome || member?.desired_outcome)}`,
     `준비 상태: ${displayValue(attempted?.preparedness || member?.preparedness)}`,
     `마케팅 동의: ${yesNo(attempted?.consent_marketing ?? member?.consent_marketing)}`,
-  ];
+  ].filter(Boolean);
   if (duplicate) {
     base.push(`중복 기준: ${htmlEscape(member?.duplicate_source || "-")}`);
     base.push(`이번 입력 이름: ${htmlEscape(attempted?.name || "-")}`);
@@ -1348,6 +2371,27 @@ function defaultLocationGuide(booking) {
   ].join("\n").trim();
 }
 
+function defaultFreeClassGuide(booking) {
+  const [dateText, timeText] = formatKoreanDateTimeRange(booking?.session_starts_at, booking?.session_ends_at);
+  const name = booking?.applicant_name || booking?.member_name || "신청자";
+  return [
+    "[무료강의 안내]",
+    "",
+    `${name}님, 무료강의 신청이 확인되었습니다.`,
+    "",
+    "강의 정보",
+    `과정: ${booking?.session_title || DEFAULT_TITLE}`,
+    `일정: ${dateText}`,
+    `시간: ${timeText || "-"}`,
+    `장소: ${booking?.session_location || booking?.location || DEFAULT_LOCATION}`,
+    "",
+    "참여 전 확인",
+    "참석 가능 여부를 답장으로 알려주세요.",
+    "준비물: 노트북 또는 태블릿, 사용 중인 AI 계정, 궁금한 자동화 주제",
+    "변경이 필요하면 1:1 문의방으로 편하게 남겨주세요.",
+  ].join("\n").trim();
+}
+
 function defaultRefundGuide(booking) {
   const amount = Number(booking?.payment_amount_krw || DEFAULT_PRICE);
   return [
@@ -1366,13 +2410,21 @@ function isApiPath(path) {
     path === "/apply" ||
     path === "/stats" ||
     path === "/api/site-theme" ||
+    path === "/api/daf/manifest" ||
+    path === "/api/daf/programs" ||
+    path === "/api/daf/notices" ||
+    path === "/api/daf/launcher/release" ||
+    path === "/api/launcher/release" ||
+    path.startsWith("/api/daf/launcher/artifacts/") ||
     path === "/api/education" ||
+    path === "/api/consultations" ||
     path === "/api/license/activate" ||
     path === "/api/license/verify" ||
     path.startsWith("/api/yoonbot/") ||
     path === "/api/review-board" ||
     path.startsWith("/api/review-board/submit/") ||
     path === "/telegram/webhook" ||
+    path.startsWith("/auth/kakao") ||
     path.startsWith("/admin/") ||
     path.startsWith("/member/") ||
     path.startsWith("/members") ||
@@ -1450,7 +2502,204 @@ function safeMember(row) {
   const copy = { ...row };
   delete copy.email_encrypted;
   delete copy.phone_encrypted;
+  delete copy.kakao_profile;
   return copy;
+}
+
+function safePublicMember(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    phone_masked: row.phone_masked,
+    status: row.status,
+    plan_type: row.plan_type,
+    participation_grade: row.participation_grade,
+    approved_at: row.approved_at,
+    code_expires_at: null,
+    code_expiry_label: "기한 없음",
+  };
+}
+
+function classSummaryText(summary) {
+  const free = Number(summary?.free_completed || 0);
+  const paid = Number(summary?.paid_completed || 0);
+  const scheduled = Number(summary?.total_scheduled || 0);
+  return `무료 ${free}회 · 유료 ${paid}회${scheduled ? ` · 예정 ${scheduled}건` : ""}`;
+}
+
+async function memberClassSummaries(env, memberIds) {
+  if (!memberIds.length) return new Map();
+  const placeholders = memberIds.map(() => "?").join(",");
+  const attendedExpr = `(
+    b.status='completed'
+    OR (
+      b.status='confirmed'
+      AND COALESCE(s.starts_at, b.confirmed_at, b.updated_at, b.created_at) <= ?
+    )
+  )`;
+  const rows = await all(
+    env,
+    `SELECT
+       b.member_id,
+       SUM(CASE WHEN ${attendedExpr} AND (
+         COALESCE(s.program_type, '') LIKE '%free%' OR COALESCE(s.price_krw, b.payment_amount_krw, 0)=0 OR b.payment_status='waived'
+       ) THEN 1 ELSE 0 END) AS free_completed,
+       SUM(CASE WHEN ${attendedExpr} AND NOT (
+         COALESCE(s.program_type, '') LIKE '%free%' OR COALESCE(s.price_krw, b.payment_amount_krw, 0)=0 OR b.payment_status='waived'
+       ) THEN 1 ELSE 0 END) AS paid_completed,
+       SUM(CASE WHEN b.status IN ('requested','payment_guide_sent','payment_pending','payment_confirmed','confirmed','waitlisted') AND NOT ${attendedExpr} AND (
+         COALESCE(s.program_type, '') LIKE '%free%' OR COALESCE(s.price_krw, b.payment_amount_krw, 0)=0 OR b.payment_status='waived'
+       ) THEN 1 ELSE 0 END) AS free_scheduled,
+       SUM(CASE WHEN b.status IN ('requested','payment_guide_sent','payment_pending','payment_confirmed','confirmed','waitlisted') AND NOT ${attendedExpr} AND NOT (
+         COALESCE(s.program_type, '') LIKE '%free%' OR COALESCE(s.price_krw, b.payment_amount_krw, 0)=0 OR b.payment_status='waived'
+       ) THEN 1 ELSE 0 END) AS paid_scheduled
+     FROM bookings b
+     LEFT JOIN sessions s ON s.id=b.session_id
+     WHERE b.member_id IN (${placeholders})
+     GROUP BY b.member_id`,
+    now(),
+    now(),
+    now(),
+    now(),
+    ...memberIds
+  );
+  const result = new Map();
+  for (const row of rows) {
+    const freeCompleted = Number(row.free_completed || 0);
+    const paidCompleted = Number(row.paid_completed || 0);
+    const freeScheduled = Number(row.free_scheduled || 0);
+    const paidScheduled = Number(row.paid_scheduled || 0);
+    result.set(row.member_id, {
+      free_completed: freeCompleted,
+      paid_completed: paidCompleted,
+      free_scheduled: freeScheduled,
+      paid_scheduled: paidScheduled,
+      total_completed: freeCompleted + paidCompleted,
+      total_scheduled: freeScheduled + paidScheduled,
+    });
+  }
+  return result;
+}
+
+async function memberContactRegistrations(env, memberIds) {
+  if (!memberIds.length) return new Map();
+  const placeholders = memberIds.map(() => "?").join(",");
+  const rows = await all(
+    env,
+    `SELECT member_id, detail, created_at
+     FROM member_logs
+     WHERE action='contact_registered'
+       AND member_id IN (${placeholders})
+     ORDER BY created_at ASC`,
+    ...memberIds
+  );
+  const result = new Map();
+  for (const row of rows) {
+    let detail = {};
+    try {
+      detail = JSON.parse(row.detail || "{}");
+    } catch (_) {
+      detail = {};
+    }
+    result.set(row.member_id, {
+      registered: Boolean(detail.registered ?? true),
+      note: String(detail.note || ""),
+      created_at: row.created_at,
+    });
+  }
+  return result;
+}
+
+function parseDuplicateDetail(detailText) {
+  const text = String(detailText || "").trim();
+  if (!text) return {};
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" ? parsed : { note: text };
+  } catch (_) {
+    const result = { note: text };
+    for (const part of text.split(",")) {
+      if (!part.includes("=")) continue;
+      const [key, ...rest] = part.split("=");
+      result[key.trim()] = rest.join("=").trim();
+    }
+    return result;
+  }
+}
+
+async function memberDuplicateActivity(env, memberIds) {
+  if (!memberIds.length) return new Map();
+  const placeholders = memberIds.map(() => "?").join(",");
+  const rows = await all(
+    env,
+    `SELECT member_id, detail, created_at
+     FROM member_logs
+     WHERE action='duplicate_apply'
+       AND member_id IN (${placeholders})
+     ORDER BY created_at DESC`,
+    ...memberIds
+  );
+  const result = new Map();
+  for (const row of rows) {
+    const detail = parseDuplicateDetail(row.detail);
+    const bucket = result.get(row.member_id) || { count: 0, logs: [] };
+    bucket.count += 1;
+    if (bucket.logs.length < 5) {
+      bucket.logs.push({
+        created_at: row.created_at,
+        source: detail.source || detail.duplicate_source || "",
+        attempt_name: detail.attempt_name || detail.name || "",
+        attempt_phone_masked: detail.attempt_phone_masked || "",
+        attempt_plan_type: detail.attempt_plan_type || "",
+        attempt_session_id: detail.attempt_session_id || "",
+        note: detail.note || "",
+      });
+    }
+    result.set(row.member_id, bucket);
+  }
+  for (const activity of result.values()) {
+    const latest = activity.logs[0] || {};
+    const sourceLabel = { phone: "전화번호", email: "이메일" }[latest.source] || latest.source || "중복 기준";
+    const attemptName = latest.attempt_name || "이름 미기록";
+    activity.last_at = latest.created_at || null;
+    activity.last_source = latest.source || "";
+    activity.last_attempt_name = latest.attempt_name || "";
+    activity.summary_text = `중복 감지 ${activity.count}회 · 최근 ${sourceLabel} · ${attemptName}`;
+  }
+  return result;
+}
+
+async function membersWithAdminFields(env, rows) {
+  const members = rows.map(safeMember).filter(Boolean);
+  const ids = members.map((member) => member.id).filter(Boolean);
+  const summaries = await memberClassSummaries(env, ids);
+  const registrations = await memberContactRegistrations(env, ids);
+  const duplicateActivity = await memberDuplicateActivity(env, ids);
+  for (const member of members) {
+    const summary = summaries.get(member.id) || {
+      free_completed: 0,
+      paid_completed: 0,
+      free_scheduled: 0,
+      paid_scheduled: 0,
+      total_completed: 0,
+      total_scheduled: 0,
+    };
+    const registration = registrations.get(member.id) || {};
+    member.class_summary = summary;
+    member.class_summary_text = classSummaryText(summary);
+    member.contact_registered = Boolean(registration.registered);
+    member.contact_registered_at = registration.created_at || null;
+    member.contact_registered_note = registration.note || "";
+    const duplicate = duplicateActivity.get(member.id) || { count: 0, logs: [], summary_text: "" };
+    member.duplicate_apply_count = Number(duplicate.count || 0);
+    member.duplicate_apply_last_at = duplicate.last_at || null;
+    member.duplicate_apply_last_source = duplicate.last_source || "";
+    member.duplicate_apply_last_attempt_name = duplicate.last_attempt_name || "";
+    member.duplicate_apply_summary_text = duplicate.summary_text || "";
+    member.duplicate_apply_logs = duplicate.logs || [];
+  }
+  return members;
 }
 
 function withCapacityFields(row) {
@@ -1659,10 +2908,16 @@ function safePublicBooking(row) {
     session_title: row.session_title,
     session_starts_at: row.session_starts_at,
     session_ends_at: row.session_ends_at,
+    session_location: row.session_location || row.location,
+    session_price_krw: row.session_price_krw,
     location: row.location,
     status: row.status,
     payment_status: row.payment_status,
     payment_amount_krw: row.payment_amount_krw,
+    confirmed_at: row.confirmed_at,
+    request_rank: row.request_rank,
+    paid_rank: row.paid_rank,
+    waitlist_rank: row.waitlist_rank,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -1814,7 +3069,7 @@ async function createBooking(env, data) {
       data.preparedness || "",
       data.status || "requested",
       data.payment_status || "not_sent",
-      Number(data.payment_amount_krw || DEFAULT_PRICE),
+      Number(data.payment_amount_krw == null || data.payment_amount_krw === "" ? DEFAULT_PRICE : data.payment_amount_krw),
       data.payment_note || "",
       data.confirmed_at || null,
       data.canceled_at || null,
@@ -1824,6 +3079,53 @@ async function createBooking(env, data) {
     .run();
   await refreshSessionCount(env, data.session_id);
   return id;
+}
+
+function isFreeSession(session) {
+  if (!session) return false;
+  return String(session.program_type || "").toLowerCase().includes("free") || Number(session.price_krw || 0) === 0;
+}
+
+async function maybeCreateFreeSessionBooking(env, member, sessionId, request) {
+  if (!sessionId) return null;
+  const session = await getSession(env, sessionId);
+  if (!isFreeSession(session)) return { error: "무료강의 일정만 무료 신청에서 바로 예약할 수 있습니다.", status: 400 };
+  const existing = await one(
+    env,
+    "SELECT id FROM bookings WHERE member_id=? AND session_id=? AND status NOT IN ('canceled','rejected','no_show') LIMIT 1",
+    member.id,
+    sessionId
+  );
+  if (existing) {
+    return {
+      booking: await getBooking(env, existing.id),
+      booking_id: existing.id,
+      duplicate_booking: true,
+      message: "이미 선택한 무료강의 일정에 신청되어 있습니다.",
+    };
+  }
+  const [ok, reason] = sessionAcceptance(session);
+  if (!ok) return { error: reason, status: 400 };
+  const bookingId = await createBooking(env, {
+    session_id: sessionId,
+    member_id: member.id,
+    applicant_name: member.name || "신청자",
+    phone_masked: member.phone_masked || "",
+    desired_outcome: member.short_term_goal || member.reason || "",
+    preparedness: member.skills || "",
+    status: "confirmed",
+    payment_status: "waived",
+    payment_amount_krw: 0,
+    payment_note: "무료강의 신청: 입금 없음",
+    confirmed_at: now(),
+  });
+  await logAction(env, member.id, "free_booking_created", `booking_id=${bookingId}`, request);
+  return {
+    booking: await getBooking(env, bookingId),
+    booking_id: bookingId,
+    duplicate_booking: false,
+    message: "무료강의 일정 신청이 함께 접수되었습니다.",
+  };
 }
 
 async function createEdgeMember(env, data, envSource = env) {
@@ -1886,6 +3188,104 @@ async function createEdgeMember(env, data, envSource = env) {
   return id;
 }
 
+async function upgradeLeadToApplication(env, memberId, data, envSource = env) {
+  const timestamp = now();
+  const phone = normalizePhoneForStorage(data.phone || "");
+  const email = String(data.email || "").trim().toLowerCase();
+  const result = await env.DB.prepare(
+    `UPDATE members
+     SET name=?,
+         email_encrypted=?,
+         email_hash=?,
+         phone_hash=?,
+         phone_masked=?,
+         phone_encrypted=?,
+         gender=?,
+         age=?,
+         job=?,
+         referral_source=?,
+         reason=?,
+         ai_level=?,
+         plan_type=?,
+         ai_tools=?,
+         ai_subscription=?,
+         ai_weekly_hours=?,
+         ai_use_cases=?,
+         group_goals=?,
+         short_term_goal=?,
+         participation_type=?,
+         preferred_schedule=?,
+         available_time_slots=?,
+         region=?,
+         main_device=?,
+         can_code=?,
+         can_present=?,
+         skills=?,
+         contribution=?,
+         participation_grade=?,
+         consent_personal=?,
+         consent_marketing=?,
+         consent_at=?,
+         consent_version=?,
+         status='pending',
+         rejection_reason=NULL,
+         access_code=NULL,
+         code_expires_at=NULL,
+         code_issued_at=NULL,
+         code_fail_count=0,
+         code_locked_until=NULL,
+         approved_at=NULL
+     WHERE id=?`
+  )
+    .bind(
+      data.name || "신청자",
+      await encryptLegacyValue(email, envSource, "EMAIL_SECRET_KEY"),
+      email ? await hmacHex(email, envSource, "EMAIL_SECRET_KEY") : "",
+      phone ? await hmacHex(phone, envSource, "PHONE_SECRET_KEY") : "",
+      maskPhone(phone),
+      await encryptLegacyValue(phone, envSource, "PHONE_SECRET_KEY"),
+      data.gender || "",
+      Number(data.age || 0),
+      data.job || "",
+      data.referral_source || "",
+      data.reason || data.desired_outcome || "",
+      data.ai_level || "",
+      data.plan_type || "full",
+      Array.isArray(data.ai_tools) ? JSON.stringify(data.ai_tools) : data.ai_tools || "",
+      data.ai_subscription || "",
+      data.ai_weekly_hours || "",
+      Array.isArray(data.ai_use_cases) ? JSON.stringify(data.ai_use_cases) : data.ai_use_cases || "",
+      Array.isArray(data.group_goals) ? JSON.stringify(data.group_goals) : data.group_goals || "",
+      data.short_term_goal || data.desired_outcome || "",
+      data.participation_type || "",
+      data.preferred_schedule || "",
+      Array.isArray(data.available_time_slots) ? JSON.stringify(data.available_time_slots) : data.available_time_slots || "",
+      data.region || "",
+      data.main_device || "",
+      data.can_code ? 1 : 0,
+      data.can_present ? 1 : 0,
+      data.skills || data.preparedness || "",
+      data.contribution || "",
+      data.participation_grade || gradeCount(data),
+      data.consent_personal ? 1 : 0,
+      data.consent_marketing ? 1 : 0,
+      timestamp,
+      data.consent_version || "lead-upgrade-cloudflare-v1",
+      memberId
+    )
+    .run();
+  await env.DB.prepare(
+    `UPDATE consultations
+     SET status='closed',
+         admin_note=COALESCE(admin_note, '강의 신청으로 전환됨'),
+         updated_at=?
+     WHERE member_id=? AND status NOT IN ('closed', 'spam')`
+  )
+    .bind(timestamp, memberId)
+    .run();
+  return Number(result?.meta?.changes || result?.changes || 0) > 0;
+}
+
 async function findMemberByPhone(env, phone) {
   for (const candidate of phoneCandidates(phone)) {
     const phoneHash = await hmacHex(candidate, env, "PHONE_SECRET_KEY");
@@ -1893,6 +3293,21 @@ async function findMemberByPhone(env, phone) {
     if (member) return member;
   }
   return null;
+}
+
+async function findMemberByKakaoId(env, kakaoId) {
+  const id = String(kakaoId || "").trim();
+  if (!id) return null;
+  return one(env, "SELECT * FROM members WHERE kakao_id=? AND status!='erased' ORDER BY kakao_connected_at DESC LIMIT 1", id);
+}
+
+async function linkMemberKakao(env, memberId, kakaoId, profile = {}) {
+  const result = await env.DB.prepare(
+    "UPDATE members SET kakao_id=?, kakao_profile=?, kakao_connected_at=? WHERE id=?"
+  )
+    .bind(String(kakaoId || ""), JSON.stringify(profile || {}), now(), memberId)
+    .run();
+  return Number(result?.meta?.changes || result?.changes || 0) > 0;
 }
 
 async function findDuplicateMember(env, { phone = "", email = "" } = {}) {
@@ -1926,10 +3341,85 @@ async function handleApply(request, env) {
   if (!data.consent_personal) return fail(400, "개인정보 동의가 필요합니다.");
 
   const email = String(data.email || "").trim().toLowerCase();
+  const selectedSession = data.session_id ? await getSession(env, data.session_id) : null;
+  if (selectedSession && !data.preferred_schedule) {
+    data.preferred_schedule = [selectedSession.starts_at, selectedSession.location].filter(Boolean).join(" / ");
+  }
+  if (data.desired_outcome && !data.short_term_goal) data.short_term_goal = data.desired_outcome;
+  if (data.preparedness && !data.skills) data.skills = data.preparedness;
   const duplicate = await findDuplicateMember(env, { phone: data.phone || phone, email });
   if (duplicate) {
     if (duplicate.status === "blacklist") return fail(409, "현재 신청할 수 없는 연락처입니다.");
-    await logAction(env, duplicate.id, "duplicate_apply", `source=${duplicate.duplicate_source}`, request);
+    if (canUpgradeLeadToApplication(duplicate, data)) {
+      data.participation_grade = gradeCount(data);
+      data.consent_version = data.consent_version || "lead-upgrade-cloudflare-v1";
+      const previousPlan = duplicate.plan_type || "";
+      const upgraded = await upgradeLeadToApplication(env, duplicate.id, data);
+      if (!upgraded) return fail(500, "기존 리드를 강의 신청으로 전환하지 못했습니다.");
+      const upgradedMember = await one(env, "SELECT * FROM members WHERE id=?", duplicate.id);
+      await logAction(env, duplicate.id, "duplicate_apply", JSON.stringify({
+        source: duplicate.duplicate_source,
+        converted: true,
+        from_plan_type: previousPlan,
+        to_plan_type: data.plan_type || "",
+        attempt_name: data.name || "",
+        attempt_phone_masked: maskPhone(phone),
+        attempt_plan_type: data.plan_type || "",
+        attempt_session_id: data.session_id || "",
+      }), request);
+      await logAction(env, duplicate.id, "lead_upgraded_to_apply", JSON.stringify({
+        from_plan_type: previousPlan,
+        to_plan_type: data.plan_type || "",
+        from_label: leadSourceLabel(previousPlan),
+        to_label: planTypeLabel(data.plan_type),
+      }), request);
+      let freeBooking = null;
+      if (data.plan_type === "free" && data.session_id) {
+        freeBooking = await maybeCreateFreeSessionBooking(env, upgradedMember, data.session_id, request);
+        if (freeBooking?.error) return fail(freeBooking.status || 400, freeBooking.error);
+      }
+      const counts = await stats(env);
+      const hermesStatus = await sendTelegram(
+        env,
+        applicationMessage(upgradedMember, counts, false, {
+          ...data,
+          phone_masked: maskPhone(phone),
+          lead_upgrade_from: previousPlan,
+        }),
+        memberKeyboard(env, duplicate.id),
+        "application"
+      );
+      await logAction(env, duplicate.id, "hermes_notify", hermesStatus, request);
+      return json({
+        ok: true,
+        duplicate: false,
+        upgraded_from_lead: true,
+        previous_plan_type: previousPlan,
+        message: `${leadSourceLabel(previousPlan)} 내역을 ${planTypeLabel(data.plan_type)} 신청으로 변경해 접수했습니다.`,
+        member_id: duplicate.id,
+        status: upgradedMember?.status || "pending",
+        next_steps: [
+          "운영자가 신청 내용을 확인한 뒤 승인 코드를 발급합니다.",
+          "관리자 신청자/멤버 목록에서는 강의 신청자로 표시됩니다.",
+          "무료강의 일정을 선택했다면 해당 일정 신청도 함께 연결됩니다.",
+        ],
+        booking_id: freeBooking?.booking_id || null,
+        reservation: freeBooking?.booking ? safePublicBooking(freeBooking.booking) : null,
+        payment: null,
+      });
+    }
+    let freeBooking = null;
+    if (data.plan_type === "free" && data.session_id) {
+      freeBooking = await maybeCreateFreeSessionBooking(env, duplicate, data.session_id, request);
+      if (freeBooking?.error) return fail(freeBooking.status || 400, freeBooking.error);
+    }
+    await logAction(env, duplicate.id, "duplicate_apply", JSON.stringify({
+      source: duplicate.duplicate_source,
+      attempt_name: data.name || "",
+      attempt_phone_masked: maskPhone(phone),
+      attempt_plan_type: data.plan_type || "",
+      attempt_session_id: data.session_id || "",
+    }), request);
     const counts = await stats(env);
     const hermesStatus = await sendTelegram(
       env,
@@ -1946,10 +3436,11 @@ async function handleApply(request, env) {
       status: duplicate.status,
       next_steps: [
         "기존 신청이 대기 중이면 운영자가 순서대로 확인합니다.",
-        "이미 승인된 경우 예약자 확인 페이지에서 기존 연락처와 코드를 사용해 수강 신청을 진행하세요.",
-        "코드를 잊었다면 운영자에게 재발급을 요청해주세요.",
+        "무료강의 일정을 선택했다면 같은 일정에 중복 예약 없이 연결합니다.",
+        "유료강의는 승인 코드 받은 뒤 예약자 확인 페이지에서 진행하세요.",
       ],
-      reservation: null,
+      booking_id: freeBooking?.booking_id || null,
+      reservation: freeBooking?.booking ? safePublicBooking(freeBooking.booking) : null,
       payment: null,
     });
   }
@@ -1959,7 +3450,6 @@ async function handleApply(request, env) {
 
   const id = crypto.randomUUID();
   const created = now();
-  const selectedSession = data.session_id ? await getSession(env, data.session_id) : null;
   const member = {
     ...data,
     preferred_schedule:
@@ -2016,6 +3506,11 @@ async function handleApply(request, env) {
     .run();
   await logAction(env, id, "apply", `plan=${member.plan_type || "full"}`, request);
   const createdMember = await one(env, "SELECT * FROM members WHERE id=?", id);
+  let freeBooking = null;
+  if (member.plan_type === "free" && member.session_id) {
+    freeBooking = await maybeCreateFreeSessionBooking(env, createdMember, member.session_id, request);
+    if (freeBooking?.error) return fail(freeBooking.status || 400, freeBooking.error);
+  }
   const hermesStatus = await sendTelegram(
     env,
     applicationMessage(createdMember, await stats(env), false, member),
@@ -2025,15 +3520,19 @@ async function handleApply(request, env) {
   await logAction(env, id, "hermes_notify", hermesStatus, request);
   return json({
     ok: true,
-    message: "신청이 접수되었습니다.",
+    message: freeBooking?.message || "신청이 접수되었습니다.",
     member_id: id,
-    booking_id: null,
-    next_steps: [
+    booking_id: freeBooking?.booking_id || null,
+    next_steps: freeBooking ? [
+      "선택한 무료강의 일정에 신청이 접수되었습니다.",
+      "운영자가 무료강의 안내 멘트를 복사해 개별 안내할 수 있습니다.",
+      "수업 후 운영자가 참여 완료/불참을 표시해 수강 이력에 반영합니다.",
+    ] : [
       "운영자가 신청 내용을 확인한 뒤 승인 코드를 발급합니다.",
       "승인 코드를 받은 뒤 예약자 확인 페이지에서 원하는 일정을 예약합니다.",
       "입금 확인 후 자리가 확정됩니다.",
     ],
-    reservation: null,
+    reservation: freeBooking?.booking ? safePublicBooking(freeBooking.booking) : null,
     payment: null,
   });
 }
@@ -2042,13 +3541,13 @@ async function handlePublicVerify(request, env) {
   const body = await readJson(request);
   const member = await findMemberByPhone(env, body.phone || "");
   if (!member) return fail(404, "신청 정보를 찾을 수 없습니다. 신청한 전화번호를 확인해주세요.");
-  if (member.access_code !== String(body.code || "").trim()) return fail(400, "코드 확인에 실패했습니다.");
+  if (!(await accessCodeMatches(member, body.code, env))) return fail(400, "코드 확인에 실패했습니다.");
   if (member.status !== "approved") return fail(400, `현재 신청 상태는 ${member.status}입니다.`);
   const bookings = await bookingRows(env);
   return json({
     ok: true,
     data: {
-      member: safeMember(member),
+      member: safePublicMember(member),
       bookings: bookings.filter((row) => row.member_id === member.id).map(safePublicBooking),
     },
   });
@@ -2059,7 +3558,15 @@ async function handlePublicBooking(request, env) {
   const member = await one(env, "SELECT * FROM members WHERE id=?", body.member_id || "");
   if (!member) return fail(404, "신청자를 찾을 수 없습니다.");
   if (member.status !== "approved") return fail(400, "승인된 신청자만 예약할 수 있습니다.");
-  if (member.access_code !== String(body.code || "").trim()) return fail(400, "코드 확인에 실패했습니다.");
+  const kakaoSession = await readSignedCookie(request, env, KAKAO_SESSION_COOKIE);
+  const kakaoMemberOk = Boolean(kakaoSession?.member_id && kakaoSession.member_id === member.id);
+  if (body.code) {
+    if (!(await accessCodeMatches(member, body.code, env))) return fail(400, "코드 확인에 실패했습니다.");
+  } else if (kakaoMemberOk) {
+    await logAction(env, member.id, "booking_kakao_verified", "", request);
+  } else {
+    return fail(400, "승인 코드 확인 또는 카카오 회원 로그인이 필요합니다.");
+  }
   const existing = await one(
     env,
     "SELECT * FROM bookings WHERE member_id=? AND session_id=? AND status NOT IN ('canceled','rejected','no_show') LIMIT 1",
@@ -2088,6 +3595,136 @@ async function handlePublicBooking(request, env) {
   return json({ ok: true, message: "예약 신청이 접수되었습니다.", data: safePublicBooking(booking) });
 }
 
+async function handleKakaoStart(request, env) {
+  const url = new URL(request.url);
+  const nextPath = safeNextPath(url.searchParams.get("next"));
+  if (!String(env.KAKAO_REST_API_KEY || "").trim()) {
+    return redirectWithCookies(withKakaoStatus(nextPath, "not_configured"));
+  }
+  const state = crypto.randomUUID().replace(/-/g, "");
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: String(env.KAKAO_REST_API_KEY || "").trim(),
+    redirect_uri: kakaoRedirectUri(env, request),
+    state,
+  });
+  const stateCookie = await signedCookie({ state, next: nextPath, iat: now() }, env);
+  return redirectWithCookies(`${KAKAO_AUTHORIZE_URL}?${params.toString()}`, [
+    cookieHeader(KAKAO_STATE_COOKIE, stateCookie, 600, request),
+  ]);
+}
+
+async function handleKakaoCallback(request, env) {
+  const url = new URL(request.url);
+  const statePayload = await readSignedCookie(request, env, KAKAO_STATE_COOKIE);
+  const nextPath = safeNextPath(statePayload?.next);
+  const cleanup = [deleteCookieHeader(KAKAO_STATE_COOKIE)];
+  if (url.searchParams.get("error")) {
+    return redirectWithCookies(withKakaoStatus(nextPath, "error"), cleanup);
+  }
+  if (!statePayload || statePayload.state !== url.searchParams.get("state") || !url.searchParams.get("code")) {
+    return redirectWithCookies(withKakaoStatus(nextPath, "state_error"), cleanup);
+  }
+  if (!String(env.KAKAO_REST_API_KEY || "").trim()) {
+    return redirectWithCookies(withKakaoStatus(nextPath, "not_configured"), cleanup);
+  }
+
+  const tokenBody = new URLSearchParams({
+    grant_type: "authorization_code",
+    client_id: String(env.KAKAO_REST_API_KEY || "").trim(),
+    redirect_uri: kakaoRedirectUri(env, request),
+    code: url.searchParams.get("code"),
+  });
+  if (String(env.KAKAO_CLIENT_SECRET || "").trim()) {
+    tokenBody.set("client_secret", String(env.KAKAO_CLIENT_SECRET || "").trim());
+  }
+
+  let user;
+  try {
+    const tokenResponse = await fetch(KAKAO_TOKEN_URL, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded;charset=utf-8" },
+      body: tokenBody.toString(),
+    });
+    if (!tokenResponse.ok) throw new Error(`token_${tokenResponse.status}`);
+    const token = await tokenResponse.json();
+    if (!token.access_token) throw new Error("missing_access_token");
+    const userResponse = await fetch(KAKAO_USER_ME_URL, {
+      headers: { authorization: `Bearer ${token.access_token}` },
+    });
+    if (!userResponse.ok) throw new Error(`user_${userResponse.status}`);
+    user = await userResponse.json();
+  } catch (error) {
+    await logAction(env, "kakao", "kakao_login_failed", String(error?.message || error), request);
+    return redirectWithCookies(withKakaoStatus(nextPath, "token_error"), cleanup);
+  }
+
+  const profile = kakaoProfilePayload(user);
+  const kakaoId = profile.id || String(user?.id || "");
+  const member = await findMemberByKakaoId(env, kakaoId);
+  const sessionCookie = await signedCookie({
+    kakao_id: kakaoId,
+    member_id: member?.id || "",
+    profile,
+    iat: now(),
+  }, env);
+  await logAction(env, member?.id || "kakao", "kakao_login", member ? "linked=1" : "linked=0", request);
+  return redirectWithCookies(withKakaoStatus(nextPath, member ? "linked" : "unmatched"), [
+    ...cleanup,
+    cookieHeader(KAKAO_SESSION_COOKIE, sessionCookie, KAKAO_SESSION_MAX_AGE, request),
+  ]);
+}
+
+async function handleKakaoMe(request, env) {
+  const session = await readSignedCookie(request, env, KAKAO_SESSION_COOKIE);
+  if (!session?.kakao_id) return fail(401, "카카오 로그인이 필요합니다.");
+  const member = session.member_id ? await one(env, "SELECT * FROM members WHERE id=?", session.member_id) : null;
+  const bookings = member ? (await bookingRows(env)).filter((row) => row.member_id === member.id).map(safePublicBooking) : [];
+  return json({
+    ok: true,
+    data: {
+      kakao: kakaoPublicPayload(session, member),
+      member: member ? safePublicMember(member) : null,
+      bookings,
+    },
+  });
+}
+
+async function handleKakaoLink(request, env) {
+  const session = await readSignedCookie(request, env, KAKAO_SESSION_COOKIE);
+  if (!session?.kakao_id) return fail(401, "카카오 로그인이 필요합니다.");
+  const body = await readJson(request);
+  const member = await findMemberByPhone(env, body.phone || "");
+  if (!member) return fail(404, "신청 정보를 찾을 수 없습니다. 신청한 전화번호를 확인해주세요.");
+  if (!(await accessCodeMatches(member, body.code, env))) return fail(400, "코드 확인에 실패했습니다.");
+  if (member.status !== "approved") return fail(400, `현재 신청 상태는 ${member.status}입니다.`);
+  const existing = await findMemberByKakaoId(env, session.kakao_id);
+  if (existing && existing.id !== member.id) return fail(409, "이미 다른 회원 정보에 연결된 카카오 계정입니다.");
+  const profile = session.profile && typeof session.profile === "object" ? session.profile : {};
+  await linkMemberKakao(env, member.id, session.kakao_id, profile);
+  const linked = await one(env, "SELECT * FROM members WHERE id=?", member.id);
+  const bookings = (await bookingRows(env)).filter((row) => row.member_id === member.id).map(safePublicBooking);
+  const sessionCookie = await signedCookie({ ...session, member_id: member.id, iat: now() }, env);
+  const response = json({
+    ok: true,
+    message: "카카오 계정이 회원 정보와 연결되었습니다.",
+    data: {
+      kakao: { connected: true, linked: true, nickname: profile.nickname || "" },
+      member: safePublicMember(linked),
+      bookings,
+    },
+  });
+  response.headers.append("set-cookie", cookieHeader(KAKAO_SESSION_COOKIE, sessionCookie, KAKAO_SESSION_MAX_AGE, request));
+  await logAction(env, member.id, "kakao_linked", "", request);
+  return response;
+}
+
+function handleKakaoLogout() {
+  const response = json({ ok: true, message: "카카오 회원 세션을 종료했습니다." });
+  response.headers.append("set-cookie", deleteCookieHeader(KAKAO_SESSION_COOKIE));
+  return response;
+}
+
 async function telegramCallbackResult(env, data, request) {
   const parts = String(data || "").split(":");
   if (parts.length !== 3 || parts[0] !== "arsen") return "지원하지 않는 버튼입니다.";
@@ -2099,7 +3736,7 @@ async function telegramCallbackResult(env, data, request) {
     if (["blacklist", "erased", "rejected"].includes(member.status)) {
       return `현재 상태가 ${member.status}라 코드 발급을 중단했습니다.`;
     }
-    const code = member.access_code || accessCode();
+    const code = (await readableAccessCode(member, env)) || accessCode();
     const issuedAt = now();
     await env.DB.prepare("UPDATE members SET status='approved', access_code=?, code_issued_at=?, approved_at=COALESCE(approved_at, ?) WHERE id=?")
       .bind(code, issuedAt, issuedAt, targetId)
@@ -2226,6 +3863,12 @@ async function stats(env) {
   const bookings = await one(env, "SELECT COUNT(*) AS count FROM bookings");
   const requested = await one(env, "SELECT COUNT(*) AS count FROM bookings WHERE status='requested'");
   const active = await one(env, "SELECT COUNT(*) AS count FROM bookings WHERE status NOT IN ('canceled','rejected','no_show')");
+  const free = await one(env, "SELECT COUNT(*) AS count FROM members WHERE plan_type='free' AND status!='erased'");
+  const full = await one(env, "SELECT COUNT(*) AS count FROM members WHERE plan_type='full' AND status!='erased'");
+  const basic = await one(env, "SELECT COUNT(*) AS count FROM members WHERE plan_type='basic' AND status!='erased'");
+  const consultation = await one(env, "SELECT COUNT(*) AS count FROM members WHERE plan_type='consultation' AND status!='erased'");
+  const leadEmail = await one(env, "SELECT COUNT(*) AS count FROM members WHERE plan_type='lead_email' AND status!='erased'");
+  const leadPhone = await one(env, "SELECT COUNT(*) AS count FROM members WHERE plan_type='lead_phone' AND status!='erased'");
   return {
     total: Number(members?.count || 0),
     pending: Number(pending?.count || 0),
@@ -2236,6 +3879,12 @@ async function stats(env) {
     bookings: Number(bookings?.count || 0),
     requested_bookings: Number(requested?.count || 0),
     active_bookings: Number(active?.count || 0),
+    free: Number(free?.count || 0),
+    full: Number(full?.count || 0),
+    basic: Number(basic?.count || 0),
+    consultation: Number(consultation?.count || 0),
+    lead_email: Number(leadEmail?.count || 0),
+    lead_phone: Number(leadPhone?.count || 0),
   };
 }
 
@@ -2415,7 +4064,7 @@ function contactStatusFilter(value) {
 
 function contactPlanFilter(value) {
   const normalized = String(value || "").trim().toLowerCase();
-  return ["free", "full", "basic"].includes(normalized) ? normalized : "";
+  return ["free", "full", "basic", "consultation", "lead_email", "lead_phone"].includes(normalized) ? normalized : "";
 }
 
 async function contactsRows(env, filters = {}) {
@@ -2620,6 +4269,38 @@ async function handleAdmin(request, env, path) {
       return json(result);
     }
   }
+  if (path === "/admin/consultations" && method === "GET") {
+    const url = new URL(request.url);
+    return json({
+      ok: true,
+      summary: await consultationSummary(env, String(url.searchParams.get("kind") || "").trim()),
+      data: await listConsultations(env, {
+        status: String(url.searchParams.get("status") || "").trim(),
+        source: String(url.searchParams.get("source") || "").trim(),
+        kind: String(url.searchParams.get("kind") || "").trim(),
+      }),
+    });
+  }
+  if (parts[0] === "admin" && parts[1] === "consultations" && parts[2]) {
+    const consultationId = parts[2];
+    if (!parts[3] && method === "GET") {
+      const item = await getConsultationRow(env, consultationId);
+      if (!item) return fail(404, "상담 접수를 찾을 수 없습니다.");
+      return json({ ok: true, data: consultationPublic(item) });
+    }
+    if (parts[3] === "contact" && method === "GET") {
+      const contact = await consultationContact(env, consultationId);
+      if (!contact) return fail(404, "상담 접수를 찾을 수 없습니다.");
+      await logAction(env, "system", "consultation_contact_view", consultationId, request);
+      return json({ ok: true, data: contact });
+    }
+    if (parts[3] === "status" && method === "POST") {
+      const result = await updateConsultationStatus(env, consultationId, await readJson(request));
+      if (!result.ok) return fail(result.status || 400, result.message || "상담 상태 변경에 실패했습니다.");
+      await logAction(env, "system", "consultation_status_update", `${consultationId}:${result.data.status}`, request);
+      return json(result);
+    }
+  }
   if (path === "/admin/yoonbot/orders" && method === "GET") {
     const url = new URL(request.url);
     return json({
@@ -2665,6 +4346,34 @@ async function handleAdmin(request, env, path) {
       return json(result);
     }
   }
+
+  // ── Admin discount code routes ──────────────────────────────────────────────
+  if (path === "/admin/yoonbot/discounts" && method === "GET") {
+    const rows = await all(env, "SELECT * FROM yoonbot_discount_codes ORDER BY created_at DESC");
+    const data = rows.map(discountRowPublic);
+    return json({ ok: true, data, total: data.length });
+  }
+  if (path === "/admin/yoonbot/discounts" && method === "POST") {
+    const body = await readJson(request);
+    const result = await createDiscountCode(env, body);
+    if (result.error) return fail(400, result.error);
+    await logAction(env, "system", "yoonbot_discount_created", result.data.code, request);
+    return json({ ok: true, data: result.data });
+  }
+  if (parts[0] === "admin" && parts[1] === "yoonbot" && parts[2] === "discounts" && parts[3] && parts[4] === "disable" && method === "POST") {
+    const codeParam = normalizeDiscountCode(parts[3]);
+    if (!codeParam) return fail(400, "할인 코드를 입력하세요.");
+    const row = await one(env, "SELECT * FROM yoonbot_discount_codes WHERE code=?", codeParam);
+    if (!row) return fail(400, "할인 코드를 찾을 수 없습니다.");
+    const updated = licenseIso();
+    await env.DB.prepare(
+      "UPDATE yoonbot_discount_codes SET enabled=0, updated_at=? WHERE code=?"
+    ).bind(updated, codeParam).run();
+    const updatedRow = await one(env, "SELECT * FROM yoonbot_discount_codes WHERE code=?", codeParam);
+    await logAction(env, "system", "yoonbot_discount_disabled", codeParam, request);
+    return json({ ok: true, data: discountRowPublic(updatedRow) });
+  }
+
   if (path === "/admin/contacts-export.csv" && method === "GET") {
     const url = new URL(request.url);
     const contacts = await contactsRows(env, {
@@ -2744,7 +4453,8 @@ async function handleAdmin(request, env, path) {
 
   if (path === "/members" && method === "GET") {
     const rows = await all(env, "SELECT * FROM members ORDER BY created_at DESC");
-    return json({ ok: true, data: rows.map(safeMember), total: rows.length });
+    const data = await membersWithAdminFields(env, rows);
+    return json({ ok: true, data, total: data.length });
   }
   if (parts[0] === "admin" && parts[1] === "members" && parts[2] && parts[3] === "code-delivery-log" && method === "POST") {
     const body = await readJson(request);
@@ -2754,6 +4464,79 @@ async function handleAdmin(request, env, path) {
       no_send: true,
     }), request);
     return json({ ok: true, data: { member_id: parts[2], logged: true }, ...noSendDelivery("manual_code_delivery") });
+  }
+  if (parts[0] === "admin" && parts[1] === "members" && parts[2] && !parts[3] && method === "PUT") {
+    const body = await readJson(request);
+    const member = await one(env, "SELECT id FROM members WHERE id=?", parts[2]);
+    if (!member) return fail(404, "신청자를 찾을 수 없습니다.");
+    const allowed = [
+      "name", "gender", "age", "job", "referral_source", "reason", "ai_level", "plan_type",
+      "ai_tools", "ai_subscription", "ai_weekly_hours", "ai_use_cases", "group_goals", "short_term_goal",
+      "participation_type", "preferred_schedule", "available_time_slots", "region", "main_device",
+      "can_code", "can_present", "skills", "contribution", "participation_grade", "consent_marketing",
+      "status", "rejection_reason",
+    ];
+    if (body.status && !["pending", "approved", "rejected", "blacklist", "erased"].includes(body.status)) return fail(400, "상태 값이 올바르지 않습니다.");
+    if (body.plan_type && !["free", "full", "basic", "consultation", "lead_email", "lead_phone"].includes(body.plan_type)) return fail(400, "신청 유형 값이 올바르지 않습니다.");
+    const fields = allowed.filter((key) => body[key] !== undefined);
+    if (!fields.length) return fail(400, "변경할 값이 없습니다.");
+    const values = fields.map((key) => {
+      const value = body[key];
+      if (["ai_tools", "ai_use_cases", "group_goals", "available_time_slots"].includes(key) && Array.isArray(value)) return JSON.stringify(value);
+      if (["can_code", "can_present", "consent_marketing"].includes(key)) return value ? 1 : 0;
+      return value == null ? "" : value;
+    });
+    await env.DB.prepare(`UPDATE members SET ${fields.map((key) => `${key}=?`).join(", ")} WHERE id=?`)
+      .bind(...values, parts[2])
+      .run();
+    await logAction(env, parts[2], "member_update", JSON.stringify({ fields }), request);
+    const updated = await one(env, "SELECT * FROM members WHERE id=?", parts[2]);
+    const data = (await membersWithAdminFields(env, [updated]))[0] || safeMember(updated);
+    return json({ ok: true, data });
+  }
+  if (parts[0] === "admin" && parts[1] === "members" && parts[2] && parts[3] === "contact-registered" && method === "POST") {
+    const body = await readJson(request);
+    const member = await one(env, "SELECT id FROM members WHERE id=?", parts[2]);
+    if (!member) return fail(404, "신청자를 찾을 수 없습니다.");
+    await logAction(env, parts[2], "contact_registered", JSON.stringify({
+      registered: body.registered !== false,
+      note: String(body.note || ""),
+    }), request);
+    const updated = await one(env, "SELECT * FROM members WHERE id=?", parts[2]);
+    const data = (await membersWithAdminFields(env, [updated]))[0] || safeMember(updated);
+    return json({ ok: true, data });
+  }
+  if (parts[0] === "admin" && parts[1] === "members" && parts[2] && parts[3] === "kakao-unlink" && method === "POST") {
+    const member = await one(env, "SELECT id, kakao_id FROM members WHERE id=?", parts[2]);
+    if (!member) return fail(404, "신청자를 찾을 수 없습니다.");
+    if (!member.kakao_id) return fail(400, "연결된 카카오 계정이 없습니다.");
+    await env.DB.prepare("UPDATE members SET kakao_id=NULL, kakao_profile=NULL, kakao_connected_at=NULL WHERE id=?")
+      .bind(parts[2])
+      .run();
+    await logAction(env, parts[2], "kakao_unlinked_by_admin", "admin_manual_unlink", request);
+    const updated = await one(env, "SELECT * FROM members WHERE id=?", parts[2]);
+    const data = (await membersWithAdminFields(env, [updated]))[0] || safeMember(updated);
+    return json({ ok: true, message: "카카오 계정 연결을 해제했습니다.", data });
+  }
+  if (parts[0] === "admin" && parts[1] === "members" && parts[2] && parts[3] === "kick" && method === "POST") {
+    const body = await readJson(request);
+    const member = await one(env, "SELECT id FROM members WHERE id=?", parts[2]);
+    if (!member) return fail(404, "신청자를 찾을 수 없습니다.");
+    const reason = String(body.reason || "운영자 강의 추방 처리").trim();
+    const active = await all(
+      env,
+      "SELECT id, session_id, payment_note FROM bookings WHERE member_id=? AND status NOT IN ('canceled','rejected','no_show','completed')",
+      parts[2]
+    );
+    for (const booking of active) {
+      const note = [booking.payment_note, `[강의 추방] ${reason}`].filter(Boolean).join("\n");
+      await env.DB.prepare("UPDATE bookings SET status='canceled', canceled_at=?, payment_note=?, updated_at=? WHERE id=?")
+        .bind(now(), note, now(), booking.id)
+        .run();
+      await refreshSessionCount(env, booking.session_id);
+    }
+    await logAction(env, parts[2], "member_kicked_from_classes", JSON.stringify({ count: active.length, reason }), request);
+    return json({ ok: true, message: `활성 강의 예약 ${active.length}건을 취소 처리했습니다.`, data: { member_id: parts[2], canceled: active.length } });
   }
   if (parts[0] === "members" && parts[1] && parts[2] === "erase" && method === "POST") {
     const body = await readJson(request);
@@ -2797,20 +4580,23 @@ async function handleAdmin(request, env, path) {
     if (parts[2] === "access-code") {
       const member = await one(env, "SELECT id, name, access_code, code_issued_at FROM members WHERE id=?", parts[1]);
       if (!member) return fail(404, "신청자를 찾을 수 없습니다.");
+      const code = await readableAccessCode(member, env);
       return json({
         ok: true,
         data: {
-          code: member.access_code,
+          code,
+          code_exists: Boolean(code),
           expires_at: null,
           issued_at: member.code_issued_at,
           expiry_label: "기한 없음",
-          delivery_message: member.access_code ? codeDeliveryMessage(member, member.access_code, env) : "",
+          delivery_message: code ? codeDeliveryMessage(member, code, env) : "",
         },
       });
     }
     const member = await one(env, "SELECT * FROM members WHERE id=?", parts[1]);
     if (!member) return fail(404, "신청자를 찾을 수 없습니다.");
-    return json({ ok: true, data: safeMember(member) });
+    const data = (await membersWithAdminFields(env, [member]))[0] || safeMember(member);
+    return json({ ok: true, data });
   }
 
   if (["approve", "regen-code"].includes(parts[0]) && parts[1] && method === "POST") {
@@ -3078,7 +4864,7 @@ async function handleAdmin(request, env, path) {
         body.timezone || "Asia/Seoul",
         Number(body.capacity_min || 4),
         Number(body.capacity_max || 5),
-        Number(body.price_krw || DEFAULT_PRICE),
+        Number(body.price_krw == null || body.price_krw === "" ? DEFAULT_PRICE : body.price_krw),
         body.location || DEFAULT_LOCATION,
         body.materials || "",
         body.status || "open",
@@ -3156,12 +4942,14 @@ async function handleAdmin(request, env, path) {
         member.id,
         parts[2]
       );
+      const freeSession = isFreeSession(session);
+      const manualNote = body.payment_note || (freeSession ? "운영자 수동 추가: 무료강의 확정" : "운영자 수동 추가: 입금 확인 완료");
       if (existing) {
-        await env.DB.prepare("UPDATE bookings SET status='confirmed', payment_status='paid', payment_note=?, confirmed_at=?, updated_at=? WHERE id=?")
-          .bind(body.payment_note || "운영자 수동 추가: 입금 확인 완료", now(), now(), existing.id)
+        await env.DB.prepare("UPDATE bookings SET status='confirmed', payment_status=?, payment_note=?, confirmed_at=?, updated_at=? WHERE id=?")
+          .bind(freeSession ? "waived" : "paid", manualNote, now(), now(), existing.id)
           .run();
         await refreshSessionCount(env, parts[2]);
-        return json({ ok: true, message: "이미 연결된 예약을 입금확정으로 변경했습니다. 자동 알림은 보내지 않았습니다.", data: await getBooking(env, existing.id), member_id: member.id, reused_member: true, ...noSendDelivery("manual_booking") });
+        return json({ ok: true, message: freeSession ? "이미 연결된 무료강의 예약을 확정으로 변경했습니다. 자동 알림은 보내지 않았습니다." : "이미 연결된 예약을 입금확정으로 변경했습니다. 자동 알림은 보내지 않았습니다.", data: await getBooking(env, existing.id), member_id: member.id, reused_member: true, ...noSendDelivery("manual_booking") });
       }
       const [ok, reason] = sessionAcceptance(session);
       if (!ok) return fail(409, reason);
@@ -3173,13 +4961,13 @@ async function handleAdmin(request, env, path) {
         desired_outcome: body.desired_outcome || "",
         preparedness: "운영자 수동 추가",
         status: "confirmed",
-        payment_status: "paid",
-        payment_amount_krw: Number(body.payment_amount_krw || session.price_krw || DEFAULT_PRICE),
-        payment_note: body.payment_note || "운영자 수동 추가: 입금 확인 완료",
+        payment_status: freeSession ? "waived" : "paid",
+        payment_amount_krw: Number(body.payment_amount_krw == null || body.payment_amount_krw === "" ? session.price_krw || (freeSession ? 0 : DEFAULT_PRICE) : body.payment_amount_krw),
+        payment_note: manualNote,
         confirmed_at: now(),
       });
       await logAction(env, member.id, "manual_booking_confirmed", `booking_id=${bookingId}`, request);
-      return json({ ok: true, message: "입금확정 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다.", data: await getBooking(env, bookingId), member_id: member.id, reused_member: Boolean(body.member_id), ...noSendDelivery("manual_booking") });
+      return json({ ok: true, message: freeSession ? "무료강의 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다." : "입금확정 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다.", data: await getBooking(env, bookingId), member_id: member.id, reused_member: Boolean(body.member_id), ...noSendDelivery("manual_booking") });
     }
     const body = await readJson(request);
     const allowed = ["title", "description", "program_type", "audience_level", "starts_at", "ends_at", "timezone", "capacity_min", "capacity_max", "price_krw", "location", "materials", "status", "payment_guide"];
@@ -3305,6 +5093,17 @@ async function handleAdmin(request, env, path) {
         ...noSendDelivery("manual_copy"),
       });
     }
+    if (parts[3] === "free-guide" && method === "POST") {
+      const booking = await getBooking(env, bookingId);
+      if (!booking) return fail(404, "예약 신청을 찾을 수 없습니다.");
+      return json({
+        ok: true,
+        message: "무료강의 안내 문구를 만들었습니다. 신청자에게 자동 전송하지 않았습니다.",
+        free_guide: defaultFreeClassGuide(booking),
+        data: booking,
+        ...noSendDelivery("manual_copy"),
+      });
+    }
     if (parts[3] === "refund-guide" && method === "POST") {
       const booking = await getBooking(env, bookingId);
       if (!booking) return fail(404, "예약 신청을 찾을 수 없습니다.");
@@ -3334,6 +5133,7 @@ export async function handleRequest(request, env) {
   try {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
+    const parts = path.split("/").filter(Boolean);
     if ((request.method === "GET" || request.method === "HEAD") && !isApiPath(path) && env.ASSETS) {
       if (path === "/") {
         const indexUrl = new URL(request.url);
@@ -3345,6 +5145,30 @@ export async function handleRequest(request, env) {
     let response;
     if (path === "/health") {
       response = json({ ok: true, service: "member-system-cloudflare", time: now() });
+    } else if (path === "/api/daf/manifest" && request.method === "GET") {
+      response = json(await launcherManifestPayload(env, request));
+    } else if (path === "/api/daf/programs" && request.method === "GET") {
+      response = json({
+        schema_version: "arsen.launcher_manifest.v1",
+        updated_at: "2026-06-17T14:30:00+09:00",
+        served_at: now(),
+        programs: LAUNCHER_PROGRAMS,
+      });
+    } else if (path === "/api/daf/notices" && request.method === "GET") {
+      const audience = url.searchParams.get("audience") || "";
+      const level = url.searchParams.get("level") || "";
+      if (audience && !["launcher", "website"].includes(audience)) response = fail(422, "invalid_audience");
+      else if (level && !["info", "warning", "critical"].includes(level)) response = fail(422, "invalid_level");
+      else response = json({
+        schema_version: "arsen.launcher_manifest.v1",
+        updated_at: "2026-06-17T14:30:00+09:00",
+        served_at: now(),
+        notices: launcherNoticesPayload({ audience, level }),
+      });
+    } else if ((path === "/api/daf/launcher/release" || path === "/api/launcher/release") && request.method === "GET") {
+      response = json(await launcherReleasePayload(env, request));
+    } else if (path === `/api/daf/launcher/artifacts/${LAUNCHER_ARTIFACT_NAME}` && (request.method === "GET" || request.method === "HEAD")) {
+      response = await launcherArtifactResponse(env, request);
     } else if (path === "/sessions" && request.method === "GET") {
       const rows = await sessionRows(env, false);
       response = json({ ok: true, data: rows.map((row) => ({ ...row, payment_guide: undefined })), total: rows.length });
@@ -3354,6 +5178,16 @@ export async function handleRequest(request, env) {
       response = await handlePublicVerify(request, env);
     } else if (path === "/member/bookings" && request.method === "POST") {
       response = await handlePublicBooking(request, env);
+    } else if (path === "/auth/kakao/start" && request.method === "GET") {
+      response = await handleKakaoStart(request, env);
+    } else if (path === "/auth/kakao/callback" && request.method === "GET") {
+      response = await handleKakaoCallback(request, env);
+    } else if (path === "/auth/kakao/me" && request.method === "GET") {
+      response = await handleKakaoMe(request, env);
+    } else if (path === "/auth/kakao/link" && request.method === "POST") {
+      response = await handleKakaoLink(request, env);
+    } else if (path === "/auth/kakao/logout" && request.method === "POST") {
+      response = handleKakaoLogout();
     } else if (path === "/telegram/webhook" && request.method === "POST") {
       response = await handleTelegramWebhook(request, env);
     } else if (path === "/api/site-theme" && request.method === "GET") {
@@ -3378,6 +5212,9 @@ export async function handleRequest(request, env) {
         await saveSetting(env, "education", payload);
         response = json({ ok: true, ...payload });
       }
+    } else if (path === "/api/consultations" && request.method === "POST") {
+      const result = await createConsultation(env, await readJson(request), request);
+      response = result.response || json(result);
     } else if (path === "/api/license/activate" && request.method === "POST") {
       response = json(await activateLicense(env, await readJson(request), request));
     } else if (path === "/api/license/verify" && request.method === "POST") {
@@ -3386,12 +5223,49 @@ export async function handleRequest(request, env) {
         ? json(await verifyLicense(env, await readJson(request), request, token))
         : fail(401, "라이선스 인증 토큰이 필요합니다.");
     } else if (path === "/api/yoonbot/products" && request.method === "GET") {
-      response = json({ ok: true, ...yoonbotProducts() });
+      response = json({ ok: true, ...yoonbotProducts(env) });
     } else if (path === "/api/yoonbot/orders" && request.method === "POST") {
       const result = await createYoonbotOrder(env, await readJson(request));
       if (result.response) response = result.response;
       else {
         await logAction(env, "system", "yoonbot_order_created", result.data.id, request);
+        response = json(result);
+      }
+    } else if (
+      parts[0] === "api" &&
+      parts[1] === "yoonbot" &&
+      parts[2] === "orders" &&
+      parts[3] === "by-toss-id" &&
+      parts[4] &&
+      parts[5] === "payments" &&
+      parts[6] === "toss" &&
+      parts[7] === "confirm" &&
+      request.method === "POST"
+    ) {
+      const tossOrderId = parts[4];
+      const body = await readJson(request);
+      const result = await confirmTossPaymentByTossId(env, tossOrderId, body);
+      if (!result.ok) response = fail(result.status || 400, result.message || "결제 확인에 실패했습니다.");
+      else {
+        await logAction(env, "system", "yoonbot_toss_payment_confirmed", tossOrderId, request);
+        response = json(result);
+      }
+    } else if (
+      parts[0] === "api" &&
+      parts[1] === "yoonbot" &&
+      parts[2] === "orders" &&
+      parts[3] &&
+      parts[4] === "payments" &&
+      parts[5] === "toss" &&
+      parts[6] === "confirm" &&
+      request.method === "POST"
+    ) {
+      const internalOrderId = parts[3];
+      const body = await readJson(request);
+      const result = await confirmTossPayment(env, internalOrderId, body);
+      if (!result.ok) response = fail(result.status || 400, result.message || "결제 확인에 실패했습니다.");
+      else {
+        await logAction(env, "system", "yoonbot_toss_payment_confirmed", internalOrderId, request);
         response = json(result);
       }
     } else if (path.startsWith("/api/review-board/submit/")) {
