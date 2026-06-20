@@ -14,6 +14,15 @@ async function request(path, env = {}) {
   return { response, body };
 }
 
+async function adminRequest(path, env = {}) {
+  const response = await handleRequest(
+    new Request(`https://apply.arsen-ai.com${path}`, { headers: { "x-admin-key": "test-admin-key" } }),
+    { ADMIN_API_KEY: "test-admin-key", ...env },
+  );
+  const body = await response.json().catch(() => null);
+  return { response, body };
+}
+
 const manifest = await request("/api/daf/manifest", {
   LAUNCHER_ARTIFACT_DOWNLOAD_URL: ARTIFACT_URL,
 });
@@ -111,5 +120,14 @@ const assetHead = await handleRequest(
 assert(assetHead.status === 200, "launcher bundled asset HEAD should return 200");
 assert(assetHead.headers.get("content-type") === "application/zip", "launcher bundled asset content type mismatch");
 assert(assetHead.headers.get("content-length") === "147951169", "launcher bundled asset content length mismatch");
+
+const adminStatus = await adminRequest("/admin/launcher-status", { ASSETS: fakeAssets });
+assert(adminStatus.response.status === 200, "launcher admin status must return 200");
+assert(adminStatus.body?.ok === true, "launcher admin status must be wrapped in ok=true");
+assert(adminStatus.body?.data?.release?.version === "0.1.0", "launcher admin status release version mismatch");
+assert(adminStatus.body?.data?.metrics?.customer_programs === 4, "launcher admin status customer program count mismatch");
+assert(adminStatus.body?.data?.metrics?.notices_total === 3, "launcher admin status notice count mismatch");
+assert(adminStatus.body?.data?.checks?.artifact_available === true, "launcher admin status artifact check mismatch");
+assert(adminStatus.body?.data?.endpoints?.manifest === "/api/daf/manifest", "launcher admin status manifest endpoint mismatch");
 
 console.log("launcher release contract ok");

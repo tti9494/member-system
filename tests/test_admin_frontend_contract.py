@@ -160,6 +160,31 @@ def test_admin_theme_manager_contracts():
     assert 'path === "/admin/site-theme"' in WORKER_JS.read_text(encoding="utf-8")
 
 
+def test_admin_launcher_status_contracts():
+    html = ADMIN_HTML.read_text(encoding="utf-8")
+    main_py = MAIN_PY.read_text(encoding="utf-8")
+    worker_js = WORKER_JS.read_text(encoding="utf-8")
+    release_contract = (ROOT / "cloudflare" / "scripts" / "check-launcher-release-contract.mjs").read_text(encoding="utf-8")
+
+    assert "런처 공지 / 버전" in html
+    assert 'id="launcher-status"' in html
+    assert "/admin/launcher-status" in html
+    assert "/api/daf/manifest" in html
+    assert "/api/launcher/release" in html
+    assert "function renderLauncherStatus" in html
+    assert "state.launcherStatus" in html
+
+    assert '@app.get("/admin/launcher-status")' in main_py
+    assert "_admin_launcher_status" in main_py
+
+    assert 'path === "/admin/launcher-status"' in worker_js
+    assert "adminLauncherStatusPayload" in worker_js
+    assert "launcher_artifact_url_not_https" in worker_js
+
+    assert '"/admin/launcher-status"' in release_contract
+    assert "launcher admin status" in release_contract
+
+
 def test_public_entry_points_include_free_application_link():
     admin_html = ADMIN_HTML.read_text(encoding="utf-8")
     main_py = MAIN_PY.read_text(encoding="utf-8")

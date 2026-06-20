@@ -2757,6 +2757,22 @@
       </div>
     </section>
 
+    <section class="panel system-panel" aria-label="런처 공지와 버전 운영 상태">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">런처 공지 / 버전</div>
+          <div class="panel-caption">Windows 런처가 읽는 공지, 프로그램 목록, 최신 버전, 다운로드 artifact 상태를 한 화면에서 확인합니다.</div>
+        </div>
+        <div class="top-actions">
+          <a class="btn" href="/api/daf/manifest" target="_blank" rel="noopener">manifest</a>
+          <a class="btn" href="/api/launcher/release" target="_blank" rel="noopener">release</a>
+        </div>
+      </div>
+      <div id="launcher-status" class="storage-grid">
+        <div class="empty-state">관리자 비밀번호로 연결하면 런처 공지와 버전 상태를 확인합니다.</div>
+      </div>
+    </section>
+
     <section class="panel operator-flow" aria-label="예약 운영 흐름">
       <div class="flow-step">
         <div class="flow-step-number">STEP 1</div>
@@ -3041,6 +3057,7 @@
 	    selectedBookingDateKey: "",
 	    selectedBookingSessionId: "",
     implementation: null,
+    launcherStatus: null,
     detail: null,
     scheduler: null,
     storage: null,
@@ -3133,6 +3150,7 @@
     confirmAdminPassword: $("confirm-admin-password"),
     schedulerStatus: $("scheduler-status"),
     cloudflareStatus: $("cloudflare-status"),
+    launcherStatus: $("launcher-status"),
     todayTaskList: $("today-task-list"),
     todayTasksCaption: $("today-tasks-caption"),
     implementationStatus: $("implementation-status"),
@@ -5926,6 +5944,55 @@
     `).join("");
   }
 
+  function renderLauncherStatus() {
+    const data = state.launcherStatus || {};
+    if (!data || !data.release) {
+      fields.launcherStatus.innerHTML = '<div class="empty-state">런처 상태를 불러오지 못했습니다.</div>';
+      return;
+    }
+    const release = data.release || {};
+    const metrics = data.metrics || {};
+    const checks = data.checks || {};
+    const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+    const notices = Array.isArray(data.notices) ? data.notices : [];
+    const programs = Array.isArray(data.programs) ? data.programs : [];
+    const noticeRows = notices.slice(0, 5).map((notice) => `
+      <div class="storage-item">
+        <div class="booking-title">${escapeHtml(notice.title || notice.id || "공지")}</div>
+        <div class="storage-line">${escapeHtml(notice.level || "info")} · ${escapeHtml(notice.pinned ? "고정" : "일반")} · ${escapeHtml(notice.published_at || notice.date || "-")}</div>
+      </div>
+    `).join("");
+    const programRows = programs.map((program) => `
+      <div class="storage-line">${escapeHtml(program.name || program.id || "-")} · ${escapeHtml(program.version || "-")} · ${escapeHtml(program.status || "-")}</div>
+    `).join("");
+    fields.launcherStatus.innerHTML = `
+      <div class="storage-box">
+        <div class="storage-title">릴리즈</div>
+        <div class="storage-line">현재/최신: ${escapeHtml(release.version || "-")} / ${escapeHtml(release.latest_version || "-")}</div>
+        <div class="storage-line">채널: ${escapeHtml(release.release_channel || "-")} · artifact: ${escapeHtml(release.artifact_available ? "사용 가능" : "확인 필요")}</div>
+        <div class="storage-line">파일: ${escapeHtml(release.artifact_name || "-")}</div>
+        <div class="storage-line">크기: ${Number(release.size_bytes || 0).toLocaleString()} bytes</div>
+        <div class="storage-line">SHA-256: ${escapeHtml(release.sha256 || "-")}</div>
+      </div>
+      <div class="storage-box">
+        <div class="storage-title">런처 패널</div>
+        <div class="storage-line">공지 패널: ${escapeHtml(checks.notice_panel_enabled ? "ON" : "OFF")}</div>
+        <div class="storage-line">릴리즈 노트: ${escapeHtml(checks.release_notes_enabled ? "ON" : "OFF")}</div>
+        <div class="storage-line">공지: ${Number(metrics.notices_total || 0)}개 · 고정 ${Number(metrics.pinned_notices || 0)}개</div>
+        <div class="storage-line">프로그램: 고객 노출 ${Number(metrics.customer_programs || 0)}개 / 전체 ${Number(metrics.programs_total || 0)}개</div>
+        <div class="storage-line">경고: ${escapeHtml(warnings.length ? warnings.join(", ") : "없음")}</div>
+      </div>
+      <div class="storage-box">
+        <div class="storage-title">프로그램 목록</div>
+        <div class="storage-list">${programRows || '<div class="empty-state">노출 프로그램이 없습니다.</div>'}</div>
+      </div>
+      <div class="storage-box">
+        <div class="storage-title">최근 공지</div>
+        <div class="storage-list">${noticeRows || '<div class="empty-state">공지 없음</div>'}</div>
+      </div>
+    `;
+  }
+
   function sessionDateKey(session) {
     const date = parseDateValue(session.starts_at);
     if (!date) return "날짜 미정";
@@ -7219,7 +7286,7 @@
     if (loadingMessage) setStatus(loadingMessage);
 
     try {
-	      const [stats, members, scheduler, sessions, bookings, storage, security, implementation, paymentAccounts, preparationGuide, consultations, newsletterLeads, reviewBoard, siteTheme] = await Promise.all([
+	      const [stats, members, scheduler, sessions, bookings, storage, security, implementation, launcherStatus, paymentAccounts, preparationGuide, consultations, newsletterLeads, reviewBoard, siteTheme] = await Promise.all([
         api("/stats"),
         api(`/members${buildQuery()}`),
         api("/scheduler/status").catch(() => null),
@@ -7228,6 +7295,7 @@
         api("/admin/storage-status").catch(() => ({ data: null })),
         api("/admin/security-status").catch(() => ({ data: null })),
         api("/admin/implementation-status").catch(() => ({ data: null })),
+        api("/admin/launcher-status").catch(() => ({ data: null })),
         api("/admin/payment-accounts").catch(() => ({ data: { accounts: [], active_id: "" } })),
         api("/admin/preparation-guide").catch(() => ({ data: {} })),
 	        api("/admin/consultations?status=active&kind=consultation").catch(() => ({ data: [], summary: {} })),
@@ -7243,6 +7311,7 @@
       state.storage = storage.data || null;
       state.security = security.data || null;
       state.implementation = implementation.data || null;
+      state.launcherStatus = launcherStatus.data || null;
       state.siteTheme = siteTheme.data || null;
       state.lastRefreshAt = new Date().toISOString();
       state.paymentAccounts = paymentAccounts.data?.accounts || [];
@@ -7279,6 +7348,7 @@
       renderReviewBoard();
 	      renderApplicationFocus(stats.data || {});
       renderImplementationStatus();
+      renderLauncherStatus();
       renderPaymentAccounts();
       renderSchedulerStatus();
       renderCloudflareStatus();

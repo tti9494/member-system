@@ -87,9 +87,15 @@ if (adminKey) {
   const stats = await getJson("/stats", headers);
   const members = await getJson("/members", headers);
   const bookings = await getJson("/admin/bookings", headers);
+  const launcherStatus = await getJson("/admin/launcher-status", headers);
   assert(stats.status === 200 && stats.body?.ok, "admin stats failed");
   assert(members.status === 200 && members.body?.ok, "admin members failed");
   assert(bookings.status === 200 && bookings.body?.ok && Array.isArray(bookings.body.data), "admin bookings failed");
+  assert(launcherStatus.status === 200 && launcherStatus.body?.ok, "admin launcher status failed");
+  assert(launcherStatus.body?.data?.release?.version === "0.1.0", "admin launcher status release version mismatch");
+  assert(launcherStatus.body?.data?.metrics?.customer_programs === 4, "admin launcher status customer program count mismatch");
+  assert(launcherStatus.body?.data?.metrics?.notices_total === 3, "admin launcher status notice count mismatch");
+  assert(launcherStatus.body?.data?.checks?.artifact_available === true, "admin launcher status artifact check failed");
   const activeTestMembers = (members.body.data || []).filter(
     (member) => member.status !== "erased" && String(member.name || "").includes("테스트"),
   );
@@ -113,6 +119,10 @@ if (adminKey) {
     member_total: members.body.total,
     active_test_members: activeTestMembers.length,
     location_guide_checked: Boolean(confirmedBooking),
+    launcher_status: launcherStatus.status,
+    launcher_version: launcherStatus.body.data.release.version,
+    launcher_programs: launcherStatus.body.data.metrics.customer_programs,
+    launcher_notices: launcherStatus.body.data.metrics.notices_total,
   };
 }
 

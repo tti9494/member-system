@@ -405,6 +405,63 @@ def _public_launcher_manifest(request: Request) -> dict[str, Any]:
     data["source"] = "member-system-public-launcher-proxy"
     return data
 
+
+def _admin_launcher_status(request: Request) -> dict[str, Any]:
+    manifest = _public_launcher_manifest(request)
+    release = manifest.get("launcher") or {}
+    programs = manifest.get("programs") if isinstance(manifest.get("programs"), list) else []
+    notices = manifest.get("notices") if isinstance(manifest.get("notices"), list) else []
+    customer_programs = [
+        program for program in programs
+        if isinstance(program, dict)
+        and program.get("expose_to_customer") is True
+        and program.get("internal_only") is not True
+    ]
+    pinned_notices = [notice for notice in notices if isinstance(notice, dict) and notice.get("pinned")]
+    warnings: list[str] = []
+    if not release.get("artifact_available"):
+        warnings.append("launcher_artifact_unavailable")
+    if not str(release.get("artifact_download_url") or "").startswith("https://"):
+        warnings.append("launcher_artifact_url_not_https")
+    if not release.get("sha256"):
+        warnings.append("launcher_sha256_missing")
+    if not notices:
+        warnings.append("launcher_notices_empty")
+    return {
+        "service": "arsen-content-launcher",
+        "source": "member-system-fastapi-launcher-proxy",
+        "managed_by": "launcher_ops_json_contract",
+        "editable": False,
+        "updated_at": manifest.get("updated_at"),
+        "served_at": datetime.now(timezone.utc).isoformat(),
+        "endpoints": {
+            "manifest": "/api/daf/manifest",
+            "programs": "/api/daf/programs",
+            "notices": "/api/daf/notices",
+            "release": "/api/launcher/release",
+            "artifact": release.get("artifact_endpoint") or f"/api/daf/launcher/artifacts/{release.get('artifact_name', '')}",
+        },
+        "release": release,
+        "metrics": {
+            "programs_total": len(programs),
+            "customer_programs": len(customer_programs),
+            "notices_total": len(notices),
+            "pinned_notices": len(pinned_notices),
+            "release_notes": len(release.get("release_notes") or []),
+        },
+        "checks": {
+            "artifact_available": bool(release.get("artifact_available")),
+            "artifact_url_https": str(release.get("artifact_download_url") or "").startswith("https://"),
+            "sha256_present": bool(release.get("sha256")),
+            "notice_panel_enabled": bool((release.get("update_policy") or {}).get("show_notice_panel_on_start")),
+            "release_notes_enabled": bool((release.get("update_policy") or {}).get("show_release_notes_on_start")),
+            "customer_programs_only": len(customer_programs) == len(programs),
+        },
+        "warnings": warnings,
+        "programs": programs,
+        "notices": notices,
+    }
+
 DEFAULT_PREPARATION_GUIDE = """[강의 준비물 안내]
 입금 확인되신 분들께 공통 안내드립니다.
 
@@ -3646,6 +3703,11 @@ async def public_site_theme():
 @app.get("/admin/site-theme")
 async def admin_site_theme(_=Depends(require_admin)):
     return {"ok": True, "data": _load_site_theme()}
+
+
+@app.get("/admin/launcher-status")
+async def admin_launcher_status(request: Request, _=Depends(require_admin)):
+    return {"ok": True, "data": _admin_launcher_status(request)}
 
 
 @app.put("/admin/site-theme")

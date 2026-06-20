@@ -415,6 +415,53 @@ async function launcherManifestPayload(env, request) {
   };
 }
 
+async function adminLauncherStatusPayload(env, request) {
+  const release = await launcherReleasePayload(env, request);
+  const programs = LAUNCHER_PROGRAMS;
+  const notices = launcherNoticesPayload({ audience: "launcher" });
+  const visiblePrograms = programs.filter((program) => program.expose_to_customer && !program.internal_only);
+  const pinnedNotices = notices.filter((notice) => notice.pinned);
+  const warnings = [];
+  if (!release.artifact_available) warnings.push("launcher_artifact_unavailable");
+  if (!String(release.artifact_download_url || "").startsWith("https://")) warnings.push("launcher_artifact_url_not_https");
+  if (!release.sha256) warnings.push("launcher_sha256_missing");
+  if (!notices.length) warnings.push("launcher_notices_empty");
+  return {
+    service: "arsen-content-launcher",
+    source: "member-system-cloudflare",
+    managed_by: "cloudflare-worker-static-contract",
+    editable: false,
+    updated_at: "2026-06-17T14:30:00+09:00",
+    served_at: now(),
+    endpoints: {
+      manifest: "/api/daf/manifest",
+      programs: "/api/daf/programs",
+      notices: "/api/daf/notices",
+      release: "/api/launcher/release",
+      artifact: release.artifact_endpoint || `/api/daf/launcher/artifacts/${LAUNCHER_ARTIFACT_NAME}`,
+    },
+    release,
+    metrics: {
+      programs_total: programs.length,
+      customer_programs: visiblePrograms.length,
+      notices_total: notices.length,
+      pinned_notices: pinnedNotices.length,
+      release_notes: Array.isArray(release.release_notes) ? release.release_notes.length : 0,
+    },
+    checks: {
+      artifact_available: Boolean(release.artifact_available),
+      artifact_url_https: String(release.artifact_download_url || "").startsWith("https://"),
+      sha256_present: Boolean(release.sha256),
+      notice_panel_enabled: Boolean(release.update_policy?.show_notice_panel_on_start),
+      release_notes_enabled: Boolean(release.update_policy?.show_release_notes_on_start),
+      customer_programs_only: visiblePrograms.length === programs.length,
+    },
+    warnings,
+    programs,
+    notices,
+  };
+}
+
 function allowedOrigin(request, env) {
   const origin = request.headers.get("origin") || "";
   const configured = String(env.ALLOWED_ORIGINS || "")
@@ -4159,6 +4206,9 @@ async function handleAdmin(request, env, path) {
   if (path === "/scheduler/status" && method === "GET") return json({ ok: true, data: null, jobs: [] });
   if (path === "/admin/implementation-status" && method === "GET") {
     return json({ ok: true, data: implementationStatus() });
+  }
+  if (path === "/admin/launcher-status" && method === "GET") {
+    return json({ ok: true, data: await adminLauncherStatusPayload(env, request) });
   }
   if (path === "/admin/storage-status" && method === "GET") {
     return json({ ok: true, data: await storageStatus(env) });
