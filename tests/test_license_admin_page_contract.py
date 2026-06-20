@@ -75,6 +75,13 @@ def test_yoonbot_sales_and_payment_admin_pages_contain_order_contracts():
     assert "<h1>YOONBOT</h1>" in sales_html
     assert "/frontend/assets/yoonbot-hero.png" in sales_html
     assert "/api/yoonbot/orders" in sales_html
+    assert 'href="#download"' in sales_html
+    assert 'id="download"' in sales_html
+    assert 'id="launcher-download-link"' in sales_html
+    assert "Windows 런처 다운로드" in sales_html
+    assert "/api/daf/launcher/artifacts/arsen-content-launcher-0.1.0-win-x64.zip" in sales_html
+    assert "/api/launcher/release" in sales_html
+    assert "artifact_download_url" in sales_html
     assert "consent_privacy" in sales_html
     assert "LICENSE_API_URL" in sales_html
     assert "https://apply.arsen-ai.com" in sales_html

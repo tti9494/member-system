@@ -279,6 +279,33 @@
       color: var(--amber);
       margin-bottom: 8px;
     }
+    .download-panel {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: center;
+      background: #f8fbff;
+      border: 1px solid #bfd2f5;
+      border-radius: 8px;
+      padding: 18px;
+      box-shadow: 0 10px 28px rgba(22, 34, 51, 0.07);
+    }
+    .download-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      color: #334155;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .download-meta span {
+      display: inline-flex;
+      border: 1px solid #d8e0ea;
+      border-radius: 999px;
+      padding: 5px 9px;
+      background: #fff;
+    }
     footer {
       margin-top: 34px;
       color: var(--muted);
@@ -286,7 +313,7 @@
     }
     @media (max-width: 920px) {
       .hero { min-height: 78vh; background-position: 58% center; }
-      .band, .feature-grid, .plan-grid, .faq-grid { grid-template-columns: 1fr; }
+      .band, .download-panel, .feature-grid, .plan-grid, .faq-grid { grid-template-columns: 1fr; }
       .nav { align-items: flex-start; }
       .nav-links { gap: 6px; }
       .nav-links a { padding: 8px 9px; }
@@ -300,6 +327,7 @@
       <div>YOONBOT</div>
       <div class="nav-links">
         <a href="#plans">요금제</a>
+        <a href="#download">다운로드</a>
         <a href="#order">파일럿 신청</a>
       </div>
     </nav>
@@ -309,6 +337,7 @@
       <p class="lead">카카오톡 반복 업무를 자동으로 처리하고, 서버 라이선스로 안전하게 운영하는 Windows 자동화 프로그램입니다. 현재는 초기 파일럿 제공 단계입니다.</p>
       <div class="hero-actions">
         <a class="btn primary" href="#order">파일럿 신청</a>
+        <a class="btn" href="#download">Windows 런처 다운로드</a>
         <a class="btn" href="#flow">발급 방식 보기</a>
       </div>
     </div>
@@ -349,6 +378,28 @@
           <p>운영자 승인 후 7일 테스트</p>
           <div class="price">0원</div>
         </label>
+      </div>
+    </section>
+
+    <section id="download">
+      <div class="download-panel">
+        <div>
+          <h2>Windows 런처 다운로드</h2>
+          <p>파일럿 고객은 아래 버튼으로 최신 Windows 런처 zip을 내려받습니다. 실행하려면 구매 확인 후 발급된 라이선스 키가 필요합니다.</p>
+          <div class="download-meta">
+            <span>현재 버전 <strong id="launcher-version">0.1.0</strong></span>
+            <span>Windows x64</span>
+            <span>초기 파일럿 빌드</span>
+          </div>
+        </div>
+        <div class="hero-actions" style="margin-top:0;">
+          <a
+            class="btn primary"
+            id="launcher-download-link"
+            href="/api/daf/launcher/artifacts/arsen-content-launcher-0.1.0-win-x64.zip"
+          >Windows 런처 다운로드</a>
+          <a class="btn" href="/api/launcher/release" target="_blank" rel="noopener">버전 정보</a>
+        </div>
       </div>
     </section>
 
@@ -411,6 +462,20 @@
 
   <script>
     const resultEl = document.getElementById("order-result");
+
+    (async function loadLauncherRelease() {
+      try {
+        const response = await fetch("/api/launcher/release", { headers: { "accept": "application/json" } });
+        if (!response.ok) return;
+        const release = await response.json();
+        const versionEl = document.getElementById("launcher-version");
+        const downloadLink = document.getElementById("launcher-download-link");
+        if (versionEl && release.version) versionEl.textContent = release.version;
+        if (downloadLink && release.artifact_download_url) downloadLink.href = release.artifact_download_url;
+      } catch (_) {
+        // Static fallback link remains usable if the release check is unavailable.
+      }
+    })();
 
     // Prefill discount code from ?discount=CODE in the URL
     (function prefillDiscountCode() {
