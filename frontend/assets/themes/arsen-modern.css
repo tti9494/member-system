@@ -2205,7 +2205,9 @@ body.admin-unlocked .member-group-list,
 body.admin-unlocked .review-board-list {
   max-width: 100% !important;
   min-width: 0 !important;
-  overflow: hidden !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
 }
 
 body.admin-unlocked .member-row,
@@ -2455,7 +2457,8 @@ body.admin-unlocked ::-webkit-scrollbar-thumb:hover {
   body.admin-unlocked .member-list,
   body.admin-unlocked .member-group-list,
   body.admin-unlocked .review-board-list {
-    overflow-x: hidden !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
   }
 }
 
@@ -2980,5 +2983,188 @@ body.admin-unlocked #review-board-panel .empty-state {
 
   body.admin-unlocked #review-board-panel .review-board-list > .review-board-helper {
     padding: 14px !important;
+  }
+}
+
+/* Admin final guard: keep tabs dark on hover across all admin sections. */
+body.admin-unlocked .admin-tabs .admin-tab,
+body.admin-unlocked .admin-tabs .admin-tab:visited {
+  background: rgba(255, 255, 255, 0.035) !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-unlocked .admin-tabs .admin-tab:hover,
+body.admin-unlocked .admin-tabs .admin-tab:focus-visible {
+  background: rgba(127, 176, 240, 0.14) !important;
+  border-color: rgba(127, 176, 240, 0.38) !important;
+  color: var(--admin-ink) !important;
+}
+
+body.admin-unlocked .admin-tabs .admin-tab.active,
+body.admin-unlocked .admin-tabs .admin-tab.active:hover {
+  background: linear-gradient(135deg, rgba(127, 176, 240, 0.24), rgba(66, 212, 154, 0.18)) !important;
+  border-color: rgba(127, 176, 240, 0.48) !important;
+  color: var(--admin-ink) !important;
+}
+
+/* Admin applicant list guard: keep the 10-column applicant table readable. */
+body.admin-unlocked #members-panel .layout {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+body.admin-unlocked #members-panel .detail-panel {
+  display: block !important;
+  position: static !important;
+}
+
+body.admin-unlocked #members-panel .list-panel {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+body.admin-unlocked #members-panel .member-list {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
+
+body.admin-unlocked #members-panel .member-table {
+  width: max-content !important;
+  min-width: 1660px !important;
+  max-width: none !important;
+  overflow: visible !important;
+}
+
+body.admin-unlocked #members-panel .member-row {
+  width: 1660px !important;
+  max-width: none !important;
+  min-width: 1660px !important;
+  grid-template-columns: 40px 118px 148px 138px 104px 164px 92px 132px 118px 270px 190px !important;
+  gap: 10px !important;
+  align-items: center !important;
+  padding: 9px 12px !important;
+}
+
+body.admin-unlocked #members-panel .member-row-head {
+  display: grid !important;
+}
+
+/* Admin consultation/newsletter guard: keep lead management dark and readable. */
+body.admin-unlocked #consultations-panel .review-board-panel,
+body.admin-unlocked #newsletter-panel .review-board-panel,
+body.admin-unlocked #consultations-panel .review-board-summary,
+body.admin-unlocked #newsletter-panel .review-board-summary,
+body.admin-unlocked #consultations-panel .review-board-summary > *,
+body.admin-unlocked #newsletter-panel .review-board-summary > *,
+body.admin-unlocked #consultations-panel .review-board-helper,
+body.admin-unlocked #newsletter-panel .review-board-helper,
+body.admin-unlocked #consultations-panel .review-board-list,
+body.admin-unlocked #newsletter-panel .review-board-list,
+body.admin-unlocked #consultations-panel .consultation-row,
+body.admin-unlocked #newsletter-panel .consultation-row {
+  background: rgba(16, 27, 42, 0.92) !important;
+  border-color: var(--admin-line) !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-unlocked #consultations-panel .consultation-table,
+body.admin-unlocked #newsletter-panel .consultation-table {
+  background: transparent !important;
+  color: var(--admin-text) !important;
+  width: max-content !important;
+  min-width: 1320px !important;
+  max-width: none !important;
+  overflow: visible !important;
+}
+
+body.admin-unlocked #consultations-panel .consultation-row,
+body.admin-unlocked #newsletter-panel .consultation-row {
+  width: 1320px !important;
+  max-width: none !important;
+  min-width: 1320px !important;
+  box-sizing: border-box !important;
+}
+
+body.admin-unlocked #consultations-panel .consultation-row-head,
+body.admin-unlocked #newsletter-panel .consultation-row-head {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1 !important;
+  background: rgba(8, 17, 29, 0.96) !important;
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked #consultations-panel .consultation-row:not(.consultation-row-head):hover,
+body.admin-unlocked #newsletter-panel .consultation-row:not(.consultation-row-head):hover {
+  background: rgba(24, 39, 62, 0.98) !important;
+  border-color: rgba(203, 213, 225, 0.3) !important;
+}
+
+body.admin-unlocked #consultations-panel .consultation-row > *,
+body.admin-unlocked #newsletter-panel .consultation-row > * {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: var(--admin-text) !important;
+}
+
+body.admin-unlocked #consultations-panel .consultation-row-head > *,
+body.admin-unlocked #newsletter-panel .consultation-row-head > *,
+body.admin-unlocked #consultations-panel .review-board-helper,
+body.admin-unlocked #newsletter-panel .review-board-helper,
+body.admin-unlocked #consultations-panel .panel-caption,
+body.admin-unlocked #newsletter-panel .panel-caption {
+  color: var(--admin-muted) !important;
+}
+
+body.admin-unlocked #consultations-panel .review-board-list,
+body.admin-unlocked #newsletter-panel .review-board-list {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+}
+
+body.admin-unlocked #members-panel .member-row > * {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+body.admin-unlocked #members-panel .member-actions {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+  justify-content: flex-start !important;
+}
+
+body.admin-unlocked #members-panel .member-actions .btn {
+  width: auto !important;
+  min-width: max-content !important;
+  padding-inline: 9px !important;
+  font-size: 12px !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 760px) {
+  body.admin-unlocked #members-panel .member-table {
+    min-width: 1500px !important;
+  }
+
+  body.admin-unlocked #members-panel .member-row {
+    width: 1500px !important;
+    min-width: 1500px !important;
+    grid-template-columns: 38px 104px 132px 126px 96px 148px 88px 126px 110px 220px 160px !important;
+    border-radius: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  body.admin-unlocked #members-panel .member-row-head {
+    display: grid !important;
   }
 }

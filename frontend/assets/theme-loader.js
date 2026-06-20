@@ -2,6 +2,7 @@
   const API_URL = "/api/site-theme";
   const FALLBACK_CSS = "assets/arsen-theme.css";
   const THEME_QUERY = "theme";
+  const THEME_ASSET_VERSION = "member-selection-layout-v2";
 
   function themeLink() {
     return (
@@ -14,7 +15,7 @@
   }
 
   function withCache(path, themeId, updatedAt) {
-    const cacheKey = encodeURIComponent(`${themeId || "theme"}-${updatedAt || "local"}`);
+    const cacheKey = encodeURIComponent(`${themeId || "theme"}-${updatedAt || "local"}-${THEME_ASSET_VERSION}`);
     return `${path}${path.includes("?") ? "&" : "?"}v=${cacheKey}`;
   }
 
