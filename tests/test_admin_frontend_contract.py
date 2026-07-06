@@ -362,3 +362,25 @@ def test_cloudflare_contacts_export_contract_matches_fastapi():
     assert '"booking_status_summary"' in source
     assert 'logAction(env, "system", "contacts_export", contactExportDetail("csv", contacts), request)' in source
     assert 'logAction(env, "system", "contacts_export", contactExportDetail("vcf", contacts), request)' in source
+
+
+def test_yoonbot_brand_copy_and_theme_button_state_contracts():
+    yoonbot_html = (ROOT / "frontend" / "yoonbot.html").read_text(encoding="utf-8")
+    admin_html = ADMIN_HTML.read_text(encoding="utf-8")
+    theme_css = (ROOT / "frontend" / "assets" / "arsen-theme.css").read_text(encoding="utf-8")
+    modern_css = (ROOT / "frontend" / "assets" / "themes" / "arsen-modern.css").read_text(encoding="utf-8")
+
+    # 공개 판매 페이지와 관리자 화면의 브랜드 표기는 YOONBOT으로 통일한다.
+    assert "YOONBOT 파일럿 구매 접수" in yoonbot_html
+    assert "윤봇" not in yoonbot_html
+    assert "YoonBot" not in admin_html
+
+    # 공개 판매 페이지에 내부 개발 용어(MVP)를 노출하지 않는다.
+    assert "MVP" not in yoonbot_html
+
+    # !important 색상 속성을 transition 대상으로 두면 Chromium에서 버튼이
+    # disabled 해제 후에도 저대비 회색 상태로 고정되는 문제가 있어 transform만 전환한다.
+    for css in (theme_css, modern_css):
+        assert "transition: transform 0.18s ease;" in css
+        assert "background 0.18s" not in css
+        assert "opacity 0.18s" not in css

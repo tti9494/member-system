@@ -441,7 +441,9 @@ button,
   font-weight: 850 !important;
   text-decoration: none !important;
   box-shadow: none !important;
-  transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  /* opacity/background/border-color는 !important 선언과 함께 transition 대상이 되면
+     Chromium에서 disabled 해제 후 값이 고정되는 문제가 있어 transform만 전환한다. */
+  transition: transform 0.18s ease;
 }
 
 button:hover,
