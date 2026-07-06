@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS members (
   kakao_id TEXT,
   kakao_profile TEXT,
   kakao_connected_at TEXT,
+  openchat_nickname TEXT NOT NULL DEFAULT '',
   gender TEXT NOT NULL DEFAULT '',
   age INTEGER NOT NULL DEFAULT 0,
   job TEXT NOT NULL DEFAULT '',
@@ -115,6 +116,8 @@ CREATE TABLE IF NOT EXISTS review_instructors (
 
 CREATE TABLE IF NOT EXISTS review_entries (
   id TEXT PRIMARY KEY,
+  member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
+  booking_id TEXT REFERENCES bookings(id) ON DELETE SET NULL,
   instructor_id TEXT REFERENCES review_instructors(id) ON DELETE SET NULL,
   class_title TEXT NOT NULL,
   class_date TEXT,
@@ -281,6 +284,8 @@ CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
 CREATE INDEX IF NOT EXISTS idx_review_instructors_status_sort ON review_instructors(status, sort_order);
 CREATE INDEX IF NOT EXISTS idx_review_entries_status_date ON review_entries(status, class_date);
 CREATE INDEX IF NOT EXISTS idx_review_entries_instructor ON review_entries(instructor_id);
+CREATE INDEX IF NOT EXISTS idx_review_entries_member ON review_entries(member_id);
+CREATE INDEX IF NOT EXISTS idx_review_entries_booking ON review_entries(booking_id);
 CREATE INDEX IF NOT EXISTS idx_review_invites_status_created ON review_invites(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_review_invites_token ON review_invites(token_hash);
 CREATE INDEX IF NOT EXISTS idx_licenses_member ON licenses(member_id);

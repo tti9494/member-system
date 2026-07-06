@@ -35,6 +35,10 @@
   .program-item strong { display: block; color: var(--text); font-size: 0.98rem; margin-bottom: 4px; }
   .program-item span { display: block; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
   .program-result { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--text); font-weight: 750; font-size: 0.98rem; }
+  .program-type-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 16px 0 18px; }
+  .program-type-chip { border: 1.5px solid var(--border); border-radius: 11px; padding: 13px 14px; background: #F4F7FB; color: #0E1726; }
+  .program-type-chip strong { display: block; color: #0E1726; font-size: 0.94rem; margin-bottom: 3px; }
+  .program-type-chip span { display: block; color: #3A485F; font-size: 0.86rem; line-height: 1.45; }
 
   /* 진행률 */
   .progress-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
@@ -135,6 +139,16 @@
   .consent-box:has(input:checked) {
     background: #18345d;
   }
+  .program-type-chip {
+    background: #18345d;
+    color: #eef4ff;
+  }
+  .program-type-chip strong {
+    color: #eef4ff;
+  }
+  .program-type-chip span {
+    color: #b8c6d9;
+  }
   .grade-badge .grade-bar-wrap,
   .consent-box,
   .privacy-full,
@@ -174,6 +188,7 @@
     h1 { font-size: 1.85rem; }
     .program-head { display: block; }
     .program-pill { display: inline-flex; margin-top: 12px; }
+    .program-type-strip { grid-template-columns: 1fr; }
     .program-grid { grid-template-columns: 1fr; }
     .checkbox-grid { grid-template-columns: 1fr; }
     .step-dot { width: 36px; height: 36px; font-size: 0.92rem; }
@@ -196,7 +211,12 @@
       </div>
       <div class="program-pill">1회차 필수 · 2/3회차 후속</div>
     </div>
-    <p class="program-summary">10시 1회차는 AI 입문과 기본 세팅 필수반입니다. 13시 2회차, 16시 3회차는 후속 실습/컨설팅으로, 당일 또는 다음 일요일에 이어서 들을 수 있습니다.</p>
+    <p class="program-summary">유료강의는 무료강의와 다르게 운영자 승인, 코드 안내, 입금 확인 후 정식 일정에 참여하는 소수정예 실습 과정입니다. 일정과 정원은 관리자 확정 기준으로 관리됩니다.</p>
+    <div class="program-type-strip" aria-label="유료강의 특징">
+      <div class="program-type-chip"><strong>승인 코드 필요</strong><span>신청 검토 후 운영자가 승인 코드와 안내 멘트를 전달합니다.</span></div>
+      <div class="program-type-chip"><strong>입금 확인 후 확정</strong><span>입금 안내, 입금 확인, 장소 안내를 거쳐 예약이 확정됩니다.</span></div>
+      <div class="program-type-chip"><strong>소수정예 실습</strong><span>정원과 시간표를 기준으로 1:4 실습/컨설팅 형태로 운영합니다.</span></div>
+    </div>
     <div class="program-grid">
       <div class="program-item"><strong>1회차 · 10:00-12:00 필수</strong><span>AI 설명, ChatGPT/Claude/Gemini 차이, 모델 선택 기준, 계정/결제/기본 설정을 끝냅니다.</span></div>
       <div class="program-item"><strong>2회차 · 13:00-15:00 후속</strong><span>유저 저니맵으로 사용 흐름을 잡고, 프롬프트 구조와 문서 정리, 고객 응대, 콘텐츠 초안을 실습합니다.</span></div>

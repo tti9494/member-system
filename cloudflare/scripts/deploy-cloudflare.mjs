@@ -101,6 +101,21 @@ async function tryD1Migration(command, ignoredErrorText) {
   }
 }
 
+async function applySchemaFile() {
+  try {
+    await wrangler(["d1", "execute", dbName, "--remote", "--yes", "--file", "schema.sql"]);
+  } catch (error) {
+    const detail = `${error.stderr || ""}\n${error.message || ""}`.toLowerCase();
+    const existingDbSchemaGap = detail.includes("no such column: member_id") || detail.includes("no such column: booking_id");
+    if (!detail.includes("d1_reset_do") && !existingDbSchemaGap) throw error;
+    console.warn("schema import returned an existing-DB migration warning; continuing with idempotent migrations after base table check.");
+    const { stdout } = await wrangler(["d1", "execute", dbName, "--remote", "--yes", "--command", "SELECT COUNT(*) AS c FROM members"]);
+    if (!String(stdout || "").includes("\"success\": true")) {
+      throw error;
+    }
+  }
+}
+
 async function ensureD1() {
   let list;
   try {
@@ -166,7 +181,7 @@ async function setTelegramWebhook(token, secret) {
     body: JSON.stringify({
       url: "https://apply.arsen-ai.com/telegram/webhook",
       secret_token: secret,
-      allowed_updates: ["callback_query"],
+      allowed_updates: ["message", "callback_query"],
       drop_pending_updates: false,
     }),
   });
@@ -214,12 +229,17 @@ async function main() {
   writeWranglerConfig(databaseId);
 
   logStep("apply schema");
-  await wrangler(["d1", "execute", dbName, "--remote", "--yes", "--file", "schema.sql"]);
+  await applySchemaFile();
   await tryD1Migration("ALTER TABLE members ADD COLUMN available_time_slots TEXT", "duplicate column name");
   await tryD1Migration("ALTER TABLE members ADD COLUMN kakao_id TEXT", "duplicate column name");
   await tryD1Migration("ALTER TABLE members ADD COLUMN kakao_profile TEXT", "duplicate column name");
   await tryD1Migration("ALTER TABLE members ADD COLUMN kakao_connected_at TEXT", "duplicate column name");
+  await tryD1Migration("ALTER TABLE members ADD COLUMN openchat_nickname TEXT NOT NULL DEFAULT ''", "duplicate column name");
   await wrangler(["d1", "execute", dbName, "--remote", "--yes", "--command", "CREATE INDEX IF NOT EXISTS idx_members_kakao_id ON members(kakao_id)"]);
+  await tryD1Migration("ALTER TABLE review_entries ADD COLUMN member_id TEXT", "duplicate column name");
+  await tryD1Migration("ALTER TABLE review_entries ADD COLUMN booking_id TEXT", "duplicate column name");
+  await wrangler(["d1", "execute", dbName, "--remote", "--yes", "--command", "CREATE INDEX IF NOT EXISTS idx_review_entries_member ON review_entries(member_id)"]);
+  await wrangler(["d1", "execute", dbName, "--remote", "--yes", "--command", "CREATE INDEX IF NOT EXISTS idx_review_entries_booking ON review_entries(booking_id)"]);
   await tryD1Migration("ALTER TABLE orders ADD COLUMN toss_order_id TEXT", "duplicate column name");
   await tryD1Migration("ALTER TABLE orders ADD COLUMN original_amount_krw INTEGER", "duplicate column name");
   await tryD1Migration("ALTER TABLE orders ADD COLUMN discount_code TEXT", "duplicate column name");

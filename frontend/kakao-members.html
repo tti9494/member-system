@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARSEN 카카오 회원 관리</title>
+<link rel="stylesheet" href="assets/arsen-theme.css">
+<style>
+  :root {
+    --page-bg: #f7f8fb;
+    --card-bg: #ffffff;
+    --ink: #0a0a0a;
+    --muted: #475467;
+    --line: #e5e7eb;
+    --line-strong: #cfd5df;
+    --blue: #355f92;
+    --green: #087451;
+    --amber: #7a4300;
+    --red: #b42318;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 88% 0%, rgba(53, 95, 146, 0.1), transparent 24rem),
+      linear-gradient(180deg, #ffffff 0%, var(--page-bg) 45%, #ffffff 100%);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    line-height: 1.55;
+  }
+  button, input, select { font: inherit; }
+  button { cursor: pointer; }
+  .shell { width: min(1280px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 64px; }
+  .topbar, .panel-head, .toolbar, .detail-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; color: inherit; font-weight: 900; text-decoration: none; }
+  .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 8px; background: #0a0a0a; color: #ffffff; }
+  .top-links { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+  .top-links a, .button {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: #ffffff;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 850;
+    text-decoration: none;
+  }
+  .hero {
+    margin-top: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 16px;
+    padding: clamp(24px, 4vw, 42px);
+    background:
+      radial-gradient(circle at 92% 10%, rgba(88, 141, 207, 0.28), transparent 18rem),
+      linear-gradient(115deg, #101820 0%, #203853 48%, #121925 100%);
+    color: #ffffff;
+    box-shadow: 0 22px 56px rgba(15, 23, 42, 0.16);
+  }
+  .eyebrow { margin: 0 0 12px; color: #9ff2c8; font-size: 12px; font-weight: 950; text-transform: uppercase; }
+  h1 { margin: 0; font-size: clamp(2rem, 5vw, 4rem); line-height: 1.05; letter-spacing: 0; }
+  .hero p { max-width: 780px; margin: 16px 0 0; color: rgba(255, 255, 255, 0.82); font-weight: 700; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; margin-top: 18px; }
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+    padding: 18px;
+    min-width: 0;
+  }
+  .panel-title { margin: 0; font-size: 1.15rem; font-weight: 950; letter-spacing: 0; }
+  .caption { margin: 4px 0 0; color: var(--muted); font-size: 13px; font-weight: 760; }
+  .auth-grid, .stats-grid { display: grid; gap: 10px; }
+  .auth-grid { grid-template-columns: 1fr auto auto; margin-top: 14px; align-items: end; }
+  label { display: block; margin-bottom: 7px; color: #182230; font-size: 13px; font-weight: 900; }
+  input, select {
+    width: 100%;
+    min-height: 44px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #ffffff;
+    color: var(--ink);
+  }
+  input:focus, select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(127, 176, 240, 0.18); }
+  .remember { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; color: var(--muted); font-size: 13px; font-weight: 850; white-space: nowrap; }
+  .remember input { width: 16px; min-height: 16px; }
+  .btn {
+    min-height: 44px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 10px 14px;
+    background: #0a0a0a;
+    color: #ffffff;
+    font-weight: 950;
+  }
+  .btn.secondary { background: #ffffff; color: var(--ink); border-color: var(--line-strong); }
+  .btn.warning { background: #fff3d8; color: var(--amber); border-color: #f5c56b; }
+  .btn:disabled { cursor: not-allowed; opacity: 0.58; }
+  .notice {
+    margin-top: 12px;
+    min-height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #f6f8fb;
+    color: var(--muted);
+    font-weight: 800;
+  }
+  .notice.ok { color: var(--green); border-color: rgba(66, 212, 154, 0.45); }
+  .notice.error { color: var(--red); border-color: rgba(255, 133, 133, 0.45); }
+  .stats-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 14px 0; }
+  .stat { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: #ffffff; min-width: 0; }
+  .stat span { display: block; color: var(--muted); font-size: 12px; font-weight: 850; }
+  .stat strong { display: block; margin-top: 4px; font-size: 1.25rem; overflow-wrap: anywhere; }
+  .toolbar { flex-wrap: wrap; align-items: end; margin: 14px 0; }
+  .toolbar .field { flex: 1 1 220px; min-width: 0; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: #ffffff; }
+  table { width: 100%; min-width: 840px; border-collapse: collapse; }
+  th, td { border-bottom: 1px solid var(--line); padding: 12px 10px; text-align: left; vertical-align: middle; font-size: 13px; }
+  th { background: #f3f5f8; color: #344054; font-size: 12px; font-weight: 950; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: #f9fbfd; }
+  .strong { font-weight: 950; color: var(--ink); }
+  .muted { color: var(--muted); }
+  .clip { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 4px 9px;
+    background: #ffffff;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+  .pill.green { color: var(--green); background: #e7f8ef; border-color: rgba(66, 212, 154, 0.55); }
+  .pill.kakao { color: #2b1800; background: #fee500; border-color: #f6d600; }
+  .pill.amber { color: var(--amber); background: #fff3d8; border-color: #f5c56b; }
+  .empty { border: 1px dashed var(--line-strong); border-radius: 12px; padding: 24px; color: var(--muted); font-weight: 850; text-align: center; }
+  .detail { position: sticky; top: 16px; }
+  .detail-body { display: grid; gap: 10px; margin-top: 14px; }
+  .detail-row { border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; background: #ffffff; min-width: 0; }
+  .detail-row span { display: block; color: var(--muted); font-size: 12px; font-weight: 850; }
+  .detail-row strong { display: block; margin-top: 4px; overflow-wrap: anywhere; }
+  .detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .hidden { display: none !important; }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+    .detail { position: static; }
+    .auth-grid, .stats-grid { grid-template-columns: 1fr; }
+    .topbar, .panel-head, .detail-head { align-items: flex-start; flex-direction: column; }
+    .top-links { justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+<main class="shell">
+  <nav class="topbar" aria-label="페이지 이동">
+    <a class="brand" href="/frontend/admin.html">
+      <span class="brand-mark">A</span>
+      <span>ARSEN 운영</span>
+    </a>
+    <div class="top-links">
+      <a href="/frontend/admin.html">전체 관리자</a>
+      <a href="/frontend/member.html">회원 페이지</a>
+      <a href="/">고객 페이지</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <p class="eyebrow">Kakao Member Console</p>
+    <h1>카카오 회원만 따로 확인합니다.</h1>
+    <p>승인된 멤버가 카카오 로그인을 연동했는지, 아직 코드 로그인만 쓰는지 빠르게 확인하는 운영자 전용 페이지입니다.</p>
+  </section>
+
+  <section class="panel" aria-label="관리자 인증">
+    <div class="panel-head">
+      <div>
+        <h2 class="panel-title">관리자 인증</h2>
+        <p class="caption">기존 관리자 비밀번호를 사용합니다. 로컬 운영 서버에서는 테스트 전용 관리자 미리보기가 적용될 수 있습니다.</p>
+      </div>
+      <button class="btn secondary" id="reload-btn" type="button">새로고침</button>
+    </div>
+    <div class="auth-grid">
+      <div>
+        <label for="admin-key">관리자 비밀번호</label>
+        <input id="admin-key" type="password" autocomplete="off" placeholder="관리자 비밀번호 입력">
+      </div>
+      <label class="remember" for="remember-key">
+        <input id="remember-key" type="checkbox">
+        이 브라우저에 보관
+      </label>
+      <button class="btn" id="load-btn" type="button">목록 불러오기</button>
+    </div>
+    <div class="notice" id="notice">관리자 인증 후 카카오 회원 목록을 불러옵니다.</div>
+  </section>
+
+  <div class="grid">
+    <section class="panel" aria-label="카카오 회원 목록">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">카카오 회원 목록</h2>
+          <p class="caption" id="list-caption">아직 불러온 회원이 없습니다.</p>
+        </div>
+      </div>
+
+      <div class="stats-grid" aria-label="카카오 회원 통계">
+        <div class="stat"><span>전체 회원</span><strong id="stat-total">0</strong></div>
+        <div class="stat"><span>카카오 연동</span><strong id="stat-linked">0</strong></div>
+        <div class="stat"><span>승인 미연동</span><strong id="stat-approved-unlinked">0</strong></div>
+        <div class="stat"><span>승인 대기</span><strong id="stat-pending">0</strong></div>
+      </div>
+
+      <div class="toolbar" aria-label="카카오 회원 필터">
+        <div class="field">
+          <label for="search-input">검색</label>
+          <input id="search-input" type="search" placeholder="이름, 연락처, 지역, 오픈톡 닉네임">
+        </div>
+        <div class="field">
+          <label for="kakao-filter">연동 상태</label>
+          <select id="kakao-filter">
+            <option value="approved-unlinked">승인 미연동</option>
+            <option value="linked">카카오 연동</option>
+            <option value="all">전체</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="table-region">
+        <div class="empty">관리자 비밀번호로 연결하면 목록을 표시합니다.</div>
+      </div>
+    </section>
+
+    <aside class="panel detail" aria-label="선택 회원 상세">
+      <div class="detail-head">
+        <div>
+          <h2 class="panel-title">회원 상세</h2>
+          <p class="caption">목록에서 회원을 선택하면 핵심 정보만 표시합니다.</p>
+        </div>
+      </div>
+      <div class="detail-body" id="detail-body">
+        <div class="empty">선택된 회원이 없습니다.</div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+  const API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8124" : "";
+  const STORAGE_KEY = "arsen_kakao_members_admin_key";
+  const state = { members: [], selectedId: "" };
+  const $ = (id) => document.getElementById(id);
+  const fields = {
+    key: $("admin-key"),
+    remember: $("remember-key"),
+    notice: $("notice"),
+    load: $("load-btn"),
+    reload: $("reload-btn"),
+    search: $("search-input"),
+    filter: $("kakao-filter"),
+    caption: $("list-caption"),
+    table: $("table-region"),
+    detail: $("detail-body"),
+    total: $("stat-total"),
+    linked: $("stat-linked"),
+    approvedUnlinked: $("stat-approved-unlinked"),
+    pending: $("stat-pending"),
+  };
+
+  function text(value, fallback = "-") {
+    const result = String(value ?? "").trim();
+    return result || fallback;
+  }
+
+  function normalize(value) {
+    return String(value ?? "").toLowerCase().replace(/\s+/g, "");
+  }
+
+  function setNotice(message, type = "") {
+    fields.notice.className = `notice ${type}`.trim();
+    fields.notice.textContent = message;
+  }
+
+  function adminHeaders() {
+    const key = fields.key.value.trim();
+    return key ? { "X-Admin-Key": key } : {};
+  }
+
+  async function api(path, options = {}) {
+    const response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        ...adminHeaders(),
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...(options.headers || {}),
+      },
+    });
+    let data = {};
+    try {
+      data = await response.json();
+    } catch (_) {
+      data = {};
+    }
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.detail || data.message || `요청 실패 (${response.status})`);
+    }
+    return data;
+  }
+
+  function planLabel(plan) {
+    return {
+      free: "무료강의",
+      full: "유료강의",
+      basic: "체험",
+      consultation: "상담",
+      lead_email: "소식 이메일",
+      lead_phone: "소식 번호",
+    }[plan] || text(plan, "미분류");
+  }
+
+  function statusLabel(status) {
+    return {
+      pending: "대기",
+      approved: "승인",
+      rejected: "반려",
+      blacklist: "차단",
+      erased: "삭제",
+    }[status] || text(status, "미확인");
+  }
+
+  function classSummary(member) {
+    if (member.class_summary_text) return member.class_summary_text;
+    const summary = member.class_summary || {};
+    const free = Number(summary.free_completed || 0);
+    const paid = Number(summary.paid_completed || 0);
+    const scheduled = Number(summary.total_scheduled || 0);
+    return `무료 ${free}회 · 유료 ${paid}회${scheduled ? ` · 예정 ${scheduled}건` : ""}`;
+  }
+
+  function pill(label, className = "") {
+    const span = document.createElement("span");
+    span.className = `pill ${className}`.trim();
+    span.textContent = label;
+    return span;
+  }
+
+  function memberMatches(member, query) {
+    if (!query) return true;
+    const haystack = [
+      member.name,
+      member.phone_masked,
+      member.region,
+      member.openchat_nickname,
+      member.reason,
+      member.short_term_goal,
+    ].map(normalize).join(" ");
+    return haystack.includes(normalize(query));
+  }
+
+  function filteredMembers() {
+    const filter = fields.filter.value;
+    const query = fields.search.value.trim();
+    return state.members.filter((member) => {
+      if (member.status === "erased") return false;
+      if (filter === "linked" && !member.kakao_id) return false;
+      if (filter === "approved-unlinked" && (member.kakao_id || member.status !== "approved")) return false;
+      return memberMatches(member, query);
+    });
+  }
+
+  function renderStats() {
+    const active = state.members.filter((member) => member.status !== "erased");
+    fields.total.textContent = String(active.length);
+    fields.linked.textContent = String(active.filter((member) => member.kakao_id).length);
+    fields.approvedUnlinked.textContent = String(active.filter((member) => !member.kakao_id && member.status === "approved").length);
+    fields.pending.textContent = String(active.filter((member) => member.status === "pending").length);
+  }
+
+  function renderTable() {
+    const members = filteredMembers();
+    renderStats();
+    fields.caption.textContent = `${members.length}명 표시 / 전체 ${state.members.filter((member) => member.status !== "erased").length}명`;
+
+    if (!members.length) {
+      fields.table.innerHTML = '<div class="empty">조건에 맞는 카카오 회원이 없습니다.</div>';
+      renderDetail();
+      return;
+    }
+
+    const wrap = document.createElement("div");
+    wrap.className = "table-wrap";
+    const table = document.createElement("table");
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>번호</th>
+          <th>이름</th>
+          <th>연락처</th>
+          <th>신청유형</th>
+          <th>상태</th>
+          <th>오픈톡 닉네임</th>
+          <th>카카오</th>
+          <th>연결일</th>
+          <th>수강</th>
+          <th>처리</th>
+        </tr>
+      </thead>
+    `;
+    const body = document.createElement("tbody");
+    members.forEach((member, index) => {
+      const row = document.createElement("tr");
+      row.tabIndex = 0;
+      row.addEventListener("click", (event) => {
+        if (event.target.closest("button")) return;
+        state.selectedId = member.id;
+        renderDetail();
+      });
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          state.selectedId = member.id;
+          renderDetail();
+        }
+      });
+      const cells = [
+        String(index + 1),
+        text(member.name, "(이름 없음)"),
+        text(member.phone_masked, "연락처 없음"),
+        planLabel(member.plan_type),
+        statusLabel(member.status),
+        text(member.openchat_nickname),
+        member.kakao_id ? "연동" : "미연동",
+        member.kakao_connected_at ? formatDate(member.kakao_connected_at) : "-",
+        classSummary(member),
+      ];
+      cells.forEach((value, cellIndex) => {
+        const td = document.createElement("td");
+        if (cellIndex === 1) td.className = "strong";
+        if ([2, 5, 8].includes(cellIndex)) td.className = "muted clip";
+        if (cellIndex === 3) td.appendChild(pill(value));
+        else if (cellIndex === 4) td.appendChild(pill(value, member.status === "approved" ? "green" : "amber"));
+        else if (cellIndex === 6) td.appendChild(pill(value, member.kakao_id ? "kakao" : ""));
+        else td.textContent = value;
+        row.appendChild(td);
+      });
+      const actions = document.createElement("td");
+      const unlink = document.createElement("button");
+      unlink.className = "btn warning";
+      unlink.type = "button";
+      unlink.textContent = "연결 해제";
+      unlink.disabled = !member.kakao_id;
+      unlink.addEventListener("click", () => unlinkKakao(member));
+      actions.appendChild(unlink);
+      row.appendChild(actions);
+      body.appendChild(row);
+    });
+    table.appendChild(body);
+    wrap.appendChild(table);
+    fields.table.replaceChildren(wrap);
+    renderDetail();
+  }
+
+  function detailRow(label, value) {
+    const row = document.createElement("div");
+    row.className = "detail-row";
+    row.innerHTML = `<span></span><strong></strong>`;
+    row.querySelector("span").textContent = label;
+    row.querySelector("strong").textContent = value;
+    return row;
+  }
+
+  function renderDetail() {
+    const member = state.members.find((item) => item.id === state.selectedId) || filteredMembers()[0];
+    if (!member) {
+      fields.detail.innerHTML = '<div class="empty">선택된 회원이 없습니다.</div>';
+      return;
+    }
+    state.selectedId = member.id;
+    const fragment = document.createDocumentFragment();
+    [
+      ["이름", text(member.name, "(이름 없음)")],
+      ["연락처", text(member.phone_masked, "연락처 없음")],
+      ["상태", statusLabel(member.status)],
+      ["신청유형", planLabel(member.plan_type)],
+      ["오픈톡 닉네임", text(member.openchat_nickname)],
+      ["카카오 연동", member.kakao_id ? `연동됨 · ${formatDate(member.kakao_connected_at)}` : "미연동"],
+      ["수강 이력", classSummary(member)],
+      ["지역", text(member.region)],
+      ["최근 활동", formatDate(member.latest_activity_at || member.created_at)],
+    ].forEach(([label, value]) => fragment.appendChild(detailRow(label, value)));
+
+    const actions = document.createElement("div");
+    actions.className = "detail-actions";
+    const adminLink = document.createElement("a");
+    adminLink.className = "button";
+    adminLink.href = `/frontend/admin.html?member=${encodeURIComponent(member.id)}`;
+    adminLink.textContent = "전체 관리자에서 보기";
+    const unlink = document.createElement("button");
+    unlink.className = "btn warning";
+    unlink.type = "button";
+    unlink.textContent = "카카오 연결 해제";
+    unlink.disabled = !member.kakao_id;
+    unlink.addEventListener("click", () => unlinkKakao(member));
+    actions.append(adminLink, unlink);
+    fragment.appendChild(actions);
+    fields.detail.replaceChildren(fragment);
+  }
+
+  function formatDate(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  }
+
+  async function loadKakaoMembers() {
+    fields.load.disabled = true;
+    fields.reload.disabled = true;
+    setNotice("카카오 회원 목록을 불러오는 중입니다.");
+    try {
+      const payload = await api("/members");
+      state.members = Array.isArray(payload.data) ? payload.data : [];
+      if (fields.remember.checked && fields.key.value.trim()) {
+        localStorage.setItem(STORAGE_KEY, fields.key.value.trim());
+      } else if (!fields.remember.checked) {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      renderTable();
+      setNotice("카카오 회원 목록을 불러왔습니다.", "ok");
+    } catch (error) {
+      setNotice(error.message || "카카오 회원 목록을 불러오지 못했습니다.", "error");
+    } finally {
+      fields.load.disabled = false;
+      fields.reload.disabled = false;
+    }
+  }
+
+  async function unlinkKakao(member) {
+    if (!member?.id || !member.kakao_id) return;
+    if (!confirm(`${member.name || "회원"}님의 카카오 연결을 해제할까요?`)) return;
+    try {
+      const payload = await api(`/admin/members/${encodeURIComponent(member.id)}/kakao-unlink`, { method: "POST", body: "{}" });
+      state.members = state.members.map((item) => item.id === member.id ? { ...item, ...(payload.data || {}), kakao_id: "", kakao_connected_at: "" } : item);
+      renderTable();
+      setNotice("카카오 연결을 해제했습니다.", "ok");
+    } catch (error) {
+      setNotice(error.message || "카카오 연결 해제에 실패했습니다.", "error");
+    }
+  }
+
+  function boot() {
+    const saved = localStorage.getItem(STORAGE_KEY) || "";
+    if (saved) {
+      fields.key.value = saved;
+      fields.remember.checked = true;
+    }
+    fields.load.addEventListener("click", loadKakaoMembers);
+    fields.reload.addEventListener("click", loadKakaoMembers);
+    fields.search.addEventListener("input", renderTable);
+    fields.filter.addEventListener("change", renderTable);
+    fields.key.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") loadKakaoMembers();
+    });
+    if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
+      loadKakaoMembers();
+    }
+  }
+
+  boot();
+</script>
+</body>
+</html>

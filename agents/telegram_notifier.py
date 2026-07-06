@@ -360,11 +360,11 @@ def notify_admin_duplicate_apply(
     attempted = attempted or {}
     plan_label = _plan_type_label(attempted.get("plan_type") or existing_member.get("plan_type"))
     lines = [
-        f"<b>ARSEN 중복 신청 감지 - {_html(plan_label)}</b>",
+        f"<b>ARSEN 재신청 - {_html(plan_label)}</b>",
         f"기존 신청ID: <code>{_html(existing_member.get('id'))}</code>",
         f"기존 신청자: {_contact_summary(existing_member.get('name'), existing_member.get('phone_masked'))}",
         f"기존 상태: {_html(existing_member.get('status'))}",
-        f"중복 기준: {_html(existing_member.get('duplicate_source'))}",
+        f"확인 기준: {_html(existing_member.get('duplicate_source'))}",
         "",
         "이번 입력:",
         *_application_lines(existing_member, raw_application=attempted),

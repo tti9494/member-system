@@ -1,9 +1,17 @@
 const DEFAULT_PRICE = 50000;
 const DEFAULT_TITLE = "AI 기초 셋팅 및 컨설팅 강의 1:4";
 const DEFAULT_LOCATION = "영등포시장역 사무실";
+const FREE_CLASS_TITLE = "무료 AI 강의";
+const FREE_CLASS_DESCRIPTION = "AI 입문자를 위한 계정 세팅, 실습 방향, 업무 활용 예시를 무료로 안내합니다.";
+const FREE_CLASS_MATERIALS = "노트북 또는 태블릿, 충전기, 사용 중인 AI 계정 정보, 궁금한 자동화 주제";
+const FREE_CLASS_LOCATION = "장소 추후 안내";
+const STUDY_PROGRAM_TYPE = "study";
 const CLOUDFLARE_VERSION = "cloudflare-v1";
 const PRODUCTION_ROUTE = "apply.arsen-ai.com/*";
 const D1_DATABASE_NAME = "arsen_member_system";
+const KAKAO_NOTICE_STATE_KEY = "kakao_notice_jobs_v1";
+const KAKAO_NOTICE_JOB_LIMIT = 20;
+const KAKAO_NOTICE_DEFAULT_MATERIALS = "노트북 또는 태블릿, 충전기, 사용 중인 AI 계정 정보, 궁금한 자동화 주제";
 const INACTIVE_BOOKING_STATUSES = new Set(["canceled", "rejected", "no_show"]);
 const NON_MOVABLE_BOOKING_STATUSES = new Set(["canceled", "rejected", "no_show", "completed"]);
 const PENDING_BOOKING_STATUSES = new Set(["requested", "payment_guide_sent", "payment_pending", "payment_confirmed"]);
@@ -2108,6 +2116,12 @@ function canUpgradeLeadToApplication(existing, attempted) {
   return LEAD_PLAN_TYPES.has(existingPlan) && APPLICATION_PLAN_TYPES.has(attemptedPlan);
 }
 
+function canRefreshDuplicateApplication(existing, attempted) {
+  const existingPlan = String(existing?.plan_type || "").toLowerCase();
+  const attemptedPlan = String(attempted?.plan_type || "").toLowerCase();
+  return APPLICATION_PLAN_TYPES.has(existingPlan) && APPLICATION_PLAN_TYPES.has(attemptedPlan);
+}
+
 function contactPlanLabel(planType) {
   const normalized = String(planType || "").toLowerCase();
   return {
@@ -2185,6 +2199,652 @@ function bookingKeyboard(env, bookingId) {
   };
 }
 
+function kakaoNoticeKeyboard(env, jobId) {
+  if (!jobId) return null;
+  return {
+    inline_keyboard: [
+      [
+        { text: "카톡 발송 승인", callback_data: `arsen:noticeok:${jobId}` },
+        { text: "취소", callback_data: `arsen:noticeno:${jobId}` },
+      ],
+      [
+        { text: "긴급정지", callback_data: `arsen:noticestop:${jobId}` },
+        { text: "관리자 열기", url: adminUrl(env) },
+      ],
+    ],
+  };
+}
+
+function kakaoNoticeReadyCount(job) {
+  return (job.recipients || []).filter((item) => item.status === "ready" || item.status === "sent").length;
+}
+
+function kakaoNoticeSentCount(job) {
+  return (job.recipients || []).filter((item) => item.status === "sent").length;
+}
+
+function kakaoNoticePendingRetryRecipients(job, includeSent = false) {
+  return (job.recipients || []).filter((item) => includeSent || item.status !== "sent");
+}
+
+function kakaoNoticeReasonLabel(recipient) {
+  const reason = String(recipient?.error || recipient?.status || "").trim();
+  const labels = {
+    blocked: "차단됨",
+    failed: "실패",
+    prepare_failed: "준비 실패",
+    pending: "미처리",
+    ready: "준비됨/미발송",
+    skipped: "제외됨",
+    stopped: "중단됨",
+    not_prepared: "준비 안 됨",
+    stop_requested: "중단 요청",
+    chat_window_not_opened: "채팅창 열기 실패",
+    osascript_timeout: "카카오톡 자동화 응답 없음",
+    target_not_found: "검색 대상 없음",
+    friend_found_no_chat: "친구 확인/채팅창 열기 실패",
+    kakao_paste_failed: "붙여넣기 실패",
+    kakao_send_failed: "전송 확인 실패",
+  };
+  return labels[reason] || reason || "-";
+}
+
+function latestRetryableKakaoNoticeJob(state, jobId = "") {
+  const jobs = (state.jobs || []).filter((job) => job.target !== "local_group_admin");
+  if (jobId) return jobs.find((job) => job.id === jobId) || null;
+  return jobs[0] || null;
+}
+
+function kakaoNoticeFailureListText(job, recipients) {
+  const total = Number(job.recipients?.length || 0);
+  const sent = kakaoNoticeSentCount(job);
+  const failed = Number(recipients.length || 0);
+  const lines = recipients.slice(0, 45).map((recipient, index) => {
+    const name = recipient.name || "-";
+    const searchName = recipient.kakao_display_name || name;
+    return `${index + 1}. ${htmlEscape(name)} → <code>${htmlEscape(searchName)}</code> / ${htmlEscape(kakaoNoticeReasonLabel(recipient))}`;
+  });
+  if (!lines.length) lines.push("미발송/실패 대상이 없습니다.");
+  if (recipients.length > 45) lines.push(`... 외 ${recipients.length - 45}명`);
+  return [
+    "<b>ARSEN 카톡 미발송/실패 목록</b>",
+    `작업ID: <code>${htmlEscape(job.id)}</code>`,
+    `상태: ${htmlEscape(job.status || "-")}`,
+    `전체: ${total}명 / 성공 기록: ${sent}명 / 미발송·실패: ${failed}명`,
+    "",
+    ...lines,
+    "",
+    `재시도: <code>카톡공지 재시도 ${htmlEscape(job.id)}</code>`,
+  ].filter(Boolean).join("\n");
+}
+
+function kakaoNoticeStopKeyboard(jobId = "") {
+  return {
+    inline_keyboard: [[{ text: "긴급정지", callback_data: `arsen:noticestop:${jobId || "active"}` }]],
+  };
+}
+
+function kakaoNoticeSearchName(memberName) {
+  return `아르센_${String(memberName || "신청자").replace(/\s+/g, "")}`;
+}
+
+function kakaoNoticeJobId() {
+  const suffix = crypto.getRandomValues(new Uint8Array(3));
+  return `kn_${Date.now().toString(36)}_${[...suffix].map((byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function safeJobForTelegram(job) {
+  const first = (job.recipients || []).find((item) => item.status === "ready") || job.recipients?.[0] || null;
+  const sample = first ? maskKakaoNoticeMessage(first.message || "") : "";
+  const ready = kakaoNoticeReadyCount(job);
+  const total = Number(job.recipients?.length || 0);
+  return [
+    "<b>ARSEN 카톡 공지 발송 승인 요청</b>",
+    `작업ID: <code>${htmlEscape(job.id)}</code>`,
+    `대상: ${htmlEscape(job.target_label || "-")}`,
+    `발송 가능: ${ready || total}명`,
+    ready && ready !== total ? `준비 실패/제외: ${total - ready}명` : "",
+    `제외: ${Number(job.skipped?.length || 0)}명`,
+    first ? `첫 대상: ${htmlEscape(first.name)} → <code>${htmlEscape(first.kakao_display_name)}</code>` : "",
+    sample ? "" : "",
+    sample ? "<b>샘플 문구(개인 코드는 마스킹)</b>" : "",
+    sample ? htmlEscape(sample) : "",
+    "",
+    "승인하면 맥에어 카톡 발송기가 준비 완료 대상만 전송합니다. 중간에 멈추려면 /arsen_stop 또는 긴급정지를 누르세요.",
+  ].filter(Boolean).join("\n");
+}
+
+function safePrepareJobForTelegram(job) {
+  const first = job.recipients?.[0] || null;
+  const total = Number(job.recipients?.length || 0);
+  const sample = first ? maskKakaoNoticeMessage(first.message || "") : job.target === "local_group" ? maskKakaoNoticeMessage(job.custom_message || "") : "";
+  const targetCount = job.target === "local_group" && total === 0 ? "맥에어에서 로컬 그룹 로딩" : `${total}명`;
+  return [
+    "<b>ARSEN 카톡 대상 준비 작업 생성</b>",
+    `작업ID: <code>${htmlEscape(job.id)}</code>`,
+    `대상: ${htmlEscape(job.target_label || "-")}`,
+    `검사 후보: ${targetCount}`,
+    `제외: ${Number(job.skipped?.length || 0)}명`,
+    first ? `첫 대상: ${htmlEscape(first.name)} → <code>${htmlEscape(first.kakao_display_name)}</code>` : "",
+    sample ? "" : "",
+    sample ? "<b>샘플 문구(개인 코드는 마스킹)</b>" : "",
+    sample ? htmlEscape(sample) : "",
+    "",
+    "먼저 맥에어가 카카오톡 대상 채팅방을 열 수 있는지 검사합니다. 준비 완료 후 발송 승인 버튼을 다시 보내드립니다.",
+  ].filter(Boolean).join("\n");
+}
+
+function maskKakaoNoticeMessage(message) {
+  return String(message || "")
+    .replace(/(코드|신청 확인 코드)\s*:\s*[A-Z0-9-]+/gi, "$1: ******")
+    .slice(0, 900);
+}
+
+function kakaoNoticeMessage(row, code, env, customMessage = "") {
+  const [dateText, timeText] = formatKoreanDateTimeRange(row.session_starts_at, row.session_ends_at);
+  const title = row.session_title || DEFAULT_TITLE;
+  const location = row.session_location || row.location || DEFAULT_LOCATION;
+  const materials = row.session_materials || KAKAO_NOTICE_DEFAULT_MATERIALS;
+  const custom = String(customMessage || "").trim();
+  const hasSession = Boolean(row.session_id || row.booking_id || row.session_title || row.session_starts_at);
+  if (!hasSession && !custom) return codeDeliveryMessage(row, code, env);
+  return [
+    `[ARSEN AI] ${row.name || "신청자"}님 안내드립니다.`,
+    "",
+    `신청 확인 코드: ${code}`,
+    hasSession ? `과정: ${title}` : "",
+    hasSession ? `일정: ${dateText}` : "",
+    hasSession ? `시간: ${timeText || "-"}` : "",
+    hasSession ? `장소: ${location}` : "",
+    hasSession ? `준비물: ${materials}` : "",
+    custom ? "" : "",
+    custom,
+    "",
+    `예약자 확인: ${publicBaseUrl(env)}/frontend/status.html`,
+    "변경이 필요하면 1:1 문의방으로 알려주세요.",
+  ].filter((line) => line !== "").join("\n").trim();
+}
+
+async function kakaoNoticeState(env) {
+  const saved = await setting(env, KAKAO_NOTICE_STATE_KEY, { jobs: [] });
+  return { jobs: Array.isArray(saved.jobs) ? saved.jobs : [] };
+}
+
+async function saveKakaoNoticeState(env, state) {
+  const jobs = Array.isArray(state.jobs) ? state.jobs : [];
+  await saveSetting(env, KAKAO_NOTICE_STATE_KEY, { jobs: jobs.slice(0, KAKAO_NOTICE_JOB_LIMIT), updated_at: now() });
+}
+
+function updateKakaoNoticeJob(state, jobId, updater) {
+  const jobs = Array.isArray(state.jobs) ? state.jobs : [];
+  const index = jobs.findIndex((job) => job.id === jobId);
+  if (index < 0) return null;
+  const next = { ...jobs[index] };
+  updater(next);
+  next.updated_at = now();
+  jobs[index] = next;
+  state.jobs = jobs;
+  return next;
+}
+
+async function latestNoticeSession(env) {
+  const upcoming = await one(
+    env,
+    "SELECT * FROM sessions WHERE status NOT IN ('draft','canceled','deleted') AND starts_at>=? ORDER BY starts_at ASC LIMIT 1",
+    now()
+  );
+  if (upcoming) return upcoming;
+  return one(env, "SELECT * FROM sessions WHERE status NOT IN ('draft','canceled','deleted') ORDER BY starts_at DESC LIMIT 1");
+}
+
+async function kakaoNoticeRowsForSession(env, sessionId) {
+  return all(
+    env,
+    `SELECT
+       m.*,
+       b.id AS booking_id,
+       b.session_id,
+       b.status AS booking_status,
+       s.title AS session_title,
+       s.starts_at AS session_starts_at,
+       s.ends_at AS session_ends_at,
+       s.location AS session_location,
+       s.location AS location,
+       s.materials AS session_materials
+     FROM bookings b
+     JOIN members m ON m.id=b.member_id
+     LEFT JOIN sessions s ON s.id=b.session_id
+     WHERE b.session_id=?
+       AND b.status NOT IN ('canceled','rejected','no_show')
+       AND m.status='approved'
+     ORDER BY b.created_at ASC, m.name ASC`,
+    sessionId
+  );
+}
+
+async function kakaoNoticeRowsForApproved(env) {
+  return all(
+    env,
+    `SELECT
+       m.*,
+       NULL AS booking_id,
+       NULL AS session_id,
+       NULL AS booking_status,
+       NULL AS session_title,
+       NULL AS session_starts_at,
+       NULL AS session_ends_at,
+       NULL AS session_location,
+       NULL AS location,
+       NULL AS session_materials
+     FROM members m
+     WHERE m.status='approved'
+     ORDER BY m.approved_at DESC, m.created_at DESC`
+  );
+}
+
+function trimCommandPrefix(line, patterns) {
+  let value = String(line || "").trim();
+  for (const pattern of patterns) value = value.replace(pattern, "").trim();
+  return value;
+}
+
+function splitGroupFriend(rest) {
+  const parts = String(rest || "").split(/\s*\/\s*/);
+  return {
+    groupName: String(parts[0] || "").trim(),
+    friendName: String(parts.slice(1).join("/")).trim(),
+  };
+}
+
+function parseKakaoGroupAdminCommand(clean, firstLine, firstToken) {
+  if (firstToken === "/kakao_groups" || /^카톡\s*그룹\s*목록$/.test(firstLine) || /^그룹\s*목록$/.test(firstLine)) {
+    return { kind: "group_admin", groupAction: "list" };
+  }
+  if (firstToken === "/kakao_group_view" || /^카톡\s*그룹\s*보기\b/.test(firstLine) || /^그룹\s*보기\b/.test(firstLine)) {
+    const groupName = trimCommandPrefix(firstLine, [/^\/kakao_group_view(?:@[A-Za-z0-9_]+)?/i, /^카톡\s*그룹\s*보기/, /^그룹\s*보기/]);
+    return { kind: "group_admin", groupAction: "view", groupName };
+  }
+  if (firstToken === "/kakao_group_create" || /^카톡\s*그룹\s*생성\b/.test(firstLine) || /^그룹\s*생성\b/.test(firstLine)) {
+    const groupName = trimCommandPrefix(firstLine, [/^\/kakao_group_create(?:@[A-Za-z0-9_]+)?/i, /^카톡\s*그룹\s*생성/, /^그룹\s*생성/]);
+    return { kind: "group_admin", groupAction: "create", groupName };
+  }
+  if (firstToken === "/kakao_group_delete" || /^카톡\s*그룹\s*삭제\b/.test(firstLine) || /^그룹\s*삭제\b/.test(firstLine)) {
+    const rest = trimCommandPrefix(firstLine, [/^\/kakao_group_delete(?:@[A-Za-z0-9_]+)?/i, /^카톡\s*그룹\s*삭제/, /^그룹\s*삭제/]);
+    const confirmed = /\s확인$/.test(rest);
+    return { kind: "group_admin", groupAction: "delete", groupName: rest.replace(/\s확인$/, "").trim(), confirmed };
+  }
+  if (firstToken === "/kakao_group_rename" || /^카톡\s*그룹\s*이름변경\b/.test(firstLine) || /^그룹\s*이름변경\b/.test(firstLine)) {
+    const rest = trimCommandPrefix(firstLine, [/^\/kakao_group_rename(?:@[A-Za-z0-9_]+)?/i, /^카톡\s*그룹\s*이름변경/, /^그룹\s*이름변경/]);
+    const confirmed = /\s확인$/.test(rest);
+    const body = rest.replace(/\s확인$/, "").trim();
+    const [groupName, ...nextParts] = body.split(/\s*->\s*/);
+    return { kind: "group_admin", groupAction: "rename", groupName: String(groupName || "").trim(), newGroupName: nextParts.join(" -> ").trim(), confirmed };
+  }
+  if (firstToken === "/kakao_group_add" || /^카톡\s*그룹\s*추가\b/.test(firstLine) || /^그룹\s*추가\b/.test(firstLine)) {
+    const rest = trimCommandPrefix(firstLine, [/^\/kakao_group_add(?:@[A-Za-z0-9_]+)?/i, /^카톡\s*그룹\s*추가/, /^그룹\s*추가/]);
+    const parsed = splitGroupFriend(rest);
+    return { kind: "group_admin", groupAction: "add_member", groupName: parsed.groupName, friendName: parsed.friendName };
+  }
+  if (firstToken === "/kakao_group_remove" || /^카톡\s*그룹\s*제거\b/.test(firstLine) || /^그룹\s*제거\b/.test(firstLine)) {
+    const rest = trimCommandPrefix(firstLine, [/^\/kakao_group_remove(?:@[A-Za-z0-9_]+)?/i, /^카톡\s*그룹\s*제거/, /^그룹\s*제거/]);
+    const confirmed = /\s확인$/.test(rest);
+    const parsed = splitGroupFriend(rest.replace(/\s확인$/, "").trim());
+    return { kind: "group_admin", groupAction: "remove_member", groupName: parsed.groupName, friendName: parsed.friendName, confirmed };
+  }
+  return null;
+}
+
+function parseKakaoNoticeCommand(text) {
+  const clean = String(text || "").trim();
+  if (!clean) return null;
+  const firstLine = clean.split(/\n+/)[0].trim();
+  const firstToken = firstLine.split(/\s+/)[0].replace(/@[A-Za-z0-9_]+$/, "");
+  if (firstToken === "/arsen_ping" || clean === "아르센핑") return { kind: "ping" };
+  if (firstToken === "/arsen_stop" || clean === "긴급정지" || clean === "멈춰") {
+    return { kind: "stop", jobId: firstLine.split(/\s+/)[1] || "active" };
+  }
+  const groupAdmin = parseKakaoGroupAdminCommand(clean, firstLine, firstToken);
+  if (groupAdmin) return groupAdmin;
+  if (firstToken === "/kakao_notice_failed" || /^카톡\s*공지\s*(실패목록|미발송목록|안된사람|안된사람들)\b/.test(firstLine)) {
+    const rest = trimCommandPrefix(firstLine, [
+      /^\/kakao_notice_failed(?:@[A-Za-z0-9_]+)?/i,
+      /^카톡\s*공지\s*(실패목록|미발송목록|안된사람|안된사람들)/,
+    ]);
+    return { kind: "notice_failed_list", jobId: rest.trim() };
+  }
+  if (firstToken === "/kakao_notice_retry" || /^카톡\s*공지\s*재시도\b/.test(firstLine)) {
+    const rest = trimCommandPrefix(firstLine, [/^\/kakao_notice_retry(?:@[A-Za-z0-9_]+)?/i, /^카톡\s*공지\s*재시도/]);
+    const tokens = rest.split(/\s+/).filter(Boolean);
+    const includeSent = tokens.some((token) => ["전체", "all", "전체재시도"].includes(token.toLowerCase()));
+    const jobId = tokens.find((token) => !["전체", "all", "전체재시도"].includes(token.toLowerCase())) || "";
+    return { kind: "notice_retry", jobId, includeSent };
+  }
+  const noticePrefix = firstToken === "/arsen_notice"
+    || /^카톡\s*공지/.test(firstLine)
+    || /^공지\s*카톡/.test(firstLine);
+  const groupPrefix = firstToken === "/arsen_group_notice"
+    || firstToken === "/kakao_group_notice"
+    || /^카톡\s*그룹/.test(firstLine)
+    || /^그룹\s*카톡/.test(firstLine);
+  if (!noticePrefix && !groupPrefix) return null;
+  const markerIndex = clean.indexOf("멘트:");
+  const commandPart = markerIndex >= 0 ? clean.slice(0, markerIndex).trim() : clean.split(/\n+/)[0].trim();
+  const customMessage = markerIndex >= 0 ? clean.slice(markerIndex + "멘트:".length).trim() : clean.split(/\n+/).slice(1).join("\n").trim();
+  if (groupPrefix) {
+    const groupName = commandPart
+      .replace(/^\/(?:arsen_group_notice|kakao_group_notice)(?:@[A-Za-z0-9_]+)?/i, "")
+      .replace(/^카톡\s*그룹|^그룹\s*카톡/, "")
+      .trim();
+    return { kind: "notice", target: "local_group", localGroupName: groupName, customMessage };
+  }
+  const tokens = commandPart.replace(/^카톡\s*공지|^공지\s*카톡/, "카톡공지").split(/\s+/).slice(1);
+  let target = "approved";
+  let sessionId = "";
+  let localGroupName = "";
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    const lowered = token.toLowerCase();
+    if (["approved", "all", "전체", "승인"].includes(lowered)) target = "approved";
+    if (["latest", "next", "다음", "최근"].includes(lowered)) target = "latest";
+    if (["group", "그룹"].includes(lowered)) {
+      target = "local_group";
+      localGroupName = tokens.slice(i + 1).join(" ").trim();
+      break;
+    }
+    if (lowered.startsWith("session:")) {
+      target = "session";
+      sessionId = token.slice("session:".length);
+    } else if (lowered === "session" && tokens[i + 1]) {
+      target = "session";
+      sessionId = tokens[i + 1];
+      i += 1;
+    }
+  }
+  return { kind: "notice", target, sessionId, localGroupName, customMessage };
+}
+
+async function stopKakaoNoticeJobs(env, jobId, request) {
+  const state = await kakaoNoticeState(env);
+  let stopped = 0;
+  state.jobs = (state.jobs || []).map((job) => {
+    const targetMatch = !jobId || jobId === "active" || job.id === jobId;
+    if (!targetMatch) return job;
+    if (!["prepare_requested", "preparing", "prepared", "pending_approval", "approved", "claimed", "stop_requested", "group_manage_requested", "group_managing"].includes(job.status)) return job;
+    stopped += 1;
+    return {
+      ...job,
+      status: job.status === "claimed" ? "stop_requested" : "stopped",
+      stop_requested_at: now(),
+      updated_at: now(),
+    };
+  });
+  await saveKakaoNoticeState(env, state);
+  await logAction(env, "system", "kakao_notice_stop_requested", `${jobId || "active"}:${stopped}`, request);
+  return stopped;
+}
+
+async function createKakaoNoticeJob(env, command, request) {
+  let targetLabel = "다음 강의";
+  let rows = [];
+  let sessionId = command.sessionId || "";
+  if (command.target === "local_group") {
+    const groupName = String(command.localGroupName || "").trim();
+    if (!groupName) return { ok: false, message: "로컬 그룹명을 입력해야 합니다. 예: 카톡그룹 그룹명 멘트: 보낼 내용" };
+    if (!String(command.customMessage || "").trim()) return { ok: false, message: "그룹 발송은 멘트가 필요합니다. 예: 카톡그룹 그룹명 멘트: 보낼 내용" };
+    targetLabel = `로컬 그룹: ${groupName}`;
+  } else if (command.target === "approved") {
+    targetLabel = "승인 회원 전체";
+    rows = await kakaoNoticeRowsForApproved(env);
+  } else {
+    if (!sessionId) {
+      const session = await latestNoticeSession(env);
+      sessionId = session?.id || "";
+      targetLabel = session?.title ? `다음 강의: ${session.title}` : "다음 강의";
+    } else {
+      targetLabel = `강의 세션: ${sessionId}`;
+    }
+    if (!sessionId) return { ok: false, message: "공지 대상 강의 세션을 찾지 못했습니다." };
+    rows = await kakaoNoticeRowsForSession(env, sessionId);
+  }
+
+  const recipients = [];
+  const skipped = [];
+  for (const row of rows) {
+    const code = await readableAccessCode(row, env);
+    if (!code) {
+      skipped.push({ member_id: row.id, name: row.name || "", reason: "missing_access_code" });
+      continue;
+    }
+    recipients.push({
+      id: crypto.randomUUID(),
+      member_id: row.id,
+      booking_id: row.booking_id || "",
+      name: row.name || "",
+      kakao_display_name: kakaoNoticeSearchName(row.name),
+      message: kakaoNoticeMessage(row, code, env, command.customMessage),
+      status: "pending",
+      error: "",
+    });
+  }
+
+  if (command.target !== "local_group" && !recipients.length) return { ok: false, message: `발송 가능한 대상이 없습니다. 제외 ${skipped.length}명` };
+
+  const job = {
+    id: kakaoNoticeJobId(),
+    status: "prepare_requested",
+    phase: "prepare",
+    target: command.target,
+    target_label: targetLabel,
+    local_group_name: String(command.localGroupName || "").trim().slice(0, 120),
+    session_id: sessionId || "",
+    custom_message: String(command.customMessage || "").trim().slice(0, 2000),
+    recipients,
+    skipped,
+    created_at: now(),
+    updated_at: now(),
+    approved_at: "",
+    claimed_at: "",
+    finished_at: "",
+  };
+  const state = await kakaoNoticeState(env);
+  state.jobs = [job, ...(state.jobs || [])];
+  await saveKakaoNoticeState(env, state);
+  await logAction(env, "system", "kakao_notice_job_created", `${job.id}:recipients=${recipients.length}:skipped=${skipped.length}`, request);
+  return { ok: true, job };
+}
+
+async function kakaoNoticeFailedList(env, command) {
+  const state = await kakaoNoticeState(env);
+  const job = latestRetryableKakaoNoticeJob(state, String(command.jobId || "").trim());
+  if (!job) return { ok: false, message: "카톡 공지 작업을 찾지 못했습니다." };
+  const recipients = kakaoNoticePendingRetryRecipients(job, false);
+  return { ok: true, job, recipients, text: kakaoNoticeFailureListText(job, recipients) };
+}
+
+async function createKakaoNoticeRetryJob(env, command, request) {
+  const state = await kakaoNoticeState(env);
+  const sourceJob = latestRetryableKakaoNoticeJob(state, String(command.jobId || "").trim());
+  if (!sourceJob) return { ok: false, message: "재시도할 카톡 공지 작업을 찾지 못했습니다." };
+  const retryRecipients = kakaoNoticePendingRetryRecipients(sourceJob, command.includeSent === true);
+  if (!retryRecipients.length) return { ok: false, message: "재시도할 미발송/실패 대상이 없습니다." };
+  const recipients = retryRecipients.map((recipient) => ({
+    id: crypto.randomUUID(),
+    member_id: String(recipient.member_id || ""),
+    booking_id: String(recipient.booking_id || ""),
+    name: String(recipient.name || "").slice(0, 120),
+    kakao_display_name: String(recipient.kakao_display_name || recipient.name || "").slice(0, 160),
+    message: String(recipient.message || "").slice(0, 4000),
+    status: "pending",
+    error: "",
+    sent_at: "",
+    retry_from_recipient_id: String(recipient.id || ""),
+  }));
+  const job = {
+    id: kakaoNoticeJobId(),
+    status: "prepare_requested",
+    phase: "prepare",
+    target: sourceJob.target || "retry",
+    target_label: `재시도: ${sourceJob.target_label || sourceJob.id}`,
+    source_job_id: sourceJob.id,
+    local_group_name: String(sourceJob.local_group_name || "").slice(0, 120),
+    session_id: String(sourceJob.session_id || ""),
+    custom_message: String(sourceJob.custom_message || "").slice(0, 2000),
+    recipients,
+    skipped: [],
+    created_at: now(),
+    updated_at: now(),
+    approved_at: "",
+    claimed_at: "",
+    finished_at: "",
+  };
+  state.jobs = [job, ...(state.jobs || [])];
+  await saveKakaoNoticeState(env, state);
+  await logAction(env, "system", "kakao_notice_retry_job_created", `${job.id}:source=${sourceJob.id}:recipients=${recipients.length}`, request);
+  return { ok: true, job, sourceJob, retryRecipients };
+}
+
+async function createKakaoGroupAdminJob(env, command, request) {
+  const action = String(command.groupAction || "").trim();
+  const groupName = String(command.groupName || "").trim();
+  const newGroupName = String(command.newGroupName || "").trim();
+  const friendName = String(command.friendName || "").trim();
+  const destructive = ["delete", "rename", "remove_member"].includes(action);
+  if (!action) return { ok: false, message: "그룹 관리 동작을 찾지 못했습니다." };
+  if (["view", "create", "delete", "rename", "add_member", "remove_member"].includes(action) && !groupName) {
+    return { ok: false, message: "그룹명을 입력해야 합니다." };
+  }
+  if (action === "rename" && !newGroupName) return { ok: false, message: "새 그룹명을 입력해야 합니다. 예: 카톡그룹이름변경 기존 -> 새이름 확인" };
+  if (["add_member", "remove_member"].includes(action) && !friendName) {
+    return { ok: false, message: "친구 이름을 입력해야 합니다. 예: 카톡그룹추가 그룹명 / 친구이름" };
+  }
+  if (destructive && command.confirmed !== true) {
+    return { ok: false, message: "삭제/이름변경/제거는 명령 끝에 '확인'을 붙여야 합니다." };
+  }
+  const labelMap = {
+    list: "그룹 목록",
+    view: "그룹 보기",
+    create: "그룹 생성",
+    delete: "그룹 삭제",
+    rename: "그룹 이름변경",
+    add_member: "그룹 멤버 추가",
+    remove_member: "그룹 멤버 제거",
+  };
+  const job = {
+    id: kakaoNoticeJobId(),
+    status: "group_manage_requested",
+    phase: "group_manage",
+    target: "local_group_admin",
+    target_label: labelMap[action] || "그룹 관리",
+    group_action: action,
+    local_group_name: groupName.slice(0, 120),
+    new_group_name: newGroupName.slice(0, 120),
+    friend_name: friendName.slice(0, 120),
+    summary: "",
+    recipients: [],
+    skipped: [],
+    created_at: now(),
+    updated_at: now(),
+    claimed_at: "",
+    finished_at: "",
+  };
+  const state = await kakaoNoticeState(env);
+  state.jobs = [job, ...(state.jobs || [])];
+  await saveKakaoNoticeState(env, state);
+  await logAction(env, "system", "kakao_group_admin_job_created", `${job.id}:${action}`, request);
+  return { ok: true, job };
+}
+
+async function handleTelegramMessage(env, message, request) {
+  const chatId = String(message?.chat?.id || "");
+  const text = String(message?.text || "").trim();
+  const command = parseKakaoNoticeCommand(text);
+  if (!command) return "ignored";
+  const threadId = String(message?.message_thread_id || "");
+  const isAdminChat = !String(env.TELEGRAM_ADMIN_CHAT_ID || "") || chatId === String(env.TELEGRAM_ADMIN_CHAT_ID);
+  if (!isAdminChat) {
+    await sendTelegramToChat(
+      env,
+      chatId,
+      [
+        "ARSEN 봇은 이 메시지를 받았지만, 이 방은 관리자 방으로 등록되어 있지 않습니다.",
+        "관리자 방에서 다시 보내거나 TELEGRAM_ADMIN_CHAT_ID 설정을 확인하세요.",
+      ].join("\n"),
+      null,
+      "button",
+      threadId
+    );
+    return "ignored_non_admin_chat_notified";
+  }
+  if (command.kind === "ping") {
+    await sendTelegramToChat(env, chatId, "ARSEN Cloudflare 텔레그램 수신 정상입니다.", null, "button", threadId);
+    return "ping_ok";
+  }
+  if (command.kind === "stop") {
+    const stopped = await stopKakaoNoticeJobs(env, command.jobId, request);
+    await sendTelegramToChat(env, chatId, `ARSEN 카톡 공지 긴급정지 요청 처리: ${stopped}개 작업`, null, "button", threadId);
+    return "stop_requested";
+  }
+  if (command.kind === "notice_failed_list") {
+    const result = await kakaoNoticeFailedList(env, command);
+    await sendTelegramToChat(
+      env,
+      chatId,
+      result.ok ? result.text : `ARSEN 카톡 실패목록 조회 실패: ${htmlEscape(result.message || "unknown")}`,
+      null,
+      "button",
+      threadId
+    );
+    return result.ok ? "notice_failed_list" : result.message || "failed";
+  }
+  if (command.kind === "notice_retry") {
+    const result = await createKakaoNoticeRetryJob(env, command, request);
+    if (!result.ok) {
+      await sendTelegramToChat(env, chatId, `ARSEN 카톡 재시도 작업 생성 실패: ${htmlEscape(result.message || "unknown")}`, null, "button", threadId);
+      return result.message || "failed";
+    }
+    await sendTelegramToChat(env, chatId, kakaoNoticeFailureListText(result.sourceJob, result.retryRecipients), null, "button", threadId);
+    await sendTelegramToChat(env, chatId, safePrepareJobForTelegram(result.job), kakaoNoticeStopKeyboard(result.job.id), "button", threadId);
+    return "notice_retry_job_created";
+  }
+  if (command.kind === "group_admin") {
+    const result = await createKakaoGroupAdminJob(env, command, request);
+    if (!result.ok) {
+      await sendTelegramToChat(env, chatId, `카톡 그룹 관리 요청 실패: ${htmlEscape(result.message || "unknown")}`, null, "button", threadId);
+      return result.message || "failed";
+    }
+    await sendTelegramToChat(
+      env,
+      chatId,
+      [
+        "<b>카톡 그룹 관리 요청 생성</b>",
+        `작업ID: <code>${htmlEscape(result.job.id)}</code>`,
+        `작업: ${htmlEscape(result.job.target_label || "-")}`,
+        result.job.local_group_name ? `그룹: ${htmlEscape(result.job.local_group_name)}` : "",
+        result.job.friend_name ? `대상: ${htmlEscape(result.job.friend_name)}` : "",
+        "맥에어가 로컬 그룹 DB를 수정/조회한 뒤 결과를 알려드립니다.",
+      ].filter(Boolean).join("\n"),
+      null,
+      "button",
+      threadId
+    );
+    return "group_admin_job_created";
+  }
+  const result = await createKakaoNoticeJob(env, command, request);
+  if (!result.ok) {
+    await sendTelegramToChat(
+      env,
+      chatId,
+      `ARSEN 카톡 공지 작업 생성 실패: ${htmlEscape(result.message || "unknown")}`,
+      null,
+      "button",
+      threadId
+    );
+    return result.message || "failed";
+  }
+  await sendTelegramToChat(env, chatId, safePrepareJobForTelegram(result.job), kakaoNoticeStopKeyboard(result.job.id), "button", threadId);
+  return "notice_job_created";
+}
+
 function statsLines(data) {
   if (!data) return [];
   return [
@@ -2204,7 +2864,7 @@ function applicationMessage(member, counts, duplicate = false, attempted = null)
   const title = upgradeFrom
     ? `<b>ARSEN ${htmlEscape(sourceLabel)}에서 ${htmlEscape(planLabel)} 신청으로 변경</b>`
     : duplicate
-      ? `<b>ARSEN 중복 신청 감지 - ${htmlEscape(planLabel)}</b>`
+      ? `<b>ARSEN 재신청 - ${htmlEscape(planLabel)}</b>`
       : `<b>ARSEN 신규 ${htmlEscape(planLabel)} 신청</b>`;
   const base = [
     title,
@@ -2278,17 +2938,26 @@ function bookingMessage(booking, counts, duplicate = false) {
 async function sendTelegram(env, text, replyMarkup = null, kind = "application") {
   if (!telegramEnabled(env, kind)) return "disabled";
   if (!telegramConfigured(env, true)) return "not_configured";
+  return sendTelegramToChat(env, env.TELEGRAM_ADMIN_CHAT_ID, text, replyMarkup, kind);
+}
+
+async function sendTelegramToChat(env, chatId, text, replyMarkup = null, kind = "application", messageThreadId = "") {
+  if (!telegramEnabled(env, kind)) return "disabled";
+  if (!telegramConfigured(env, false)) return "not_configured";
+  if (!chatId) return "missing_chat_id";
   try {
+    const body = {
+      chat_id: chatId,
+      text,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    };
+    if (messageThreadId) body.message_thread_id = messageThreadId;
     const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        chat_id: env.TELEGRAM_ADMIN_CHAT_ID,
-        text,
-        parse_mode: "HTML",
-        disable_web_page_preview: true,
-        ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
-      }),
+      body: JSON.stringify(body),
     });
     return response.ok ? "ok" : "failed";
   } catch (_) {
@@ -2452,9 +3121,10 @@ function defaultRefundGuide(booking) {
 
 function isApiPath(path) {
   return (
-    path === "/health" ||
-    path === "/sessions" ||
-    path === "/apply" ||
+	    path === "/health" ||
+	    path === "/sessions" ||
+	    path === "/study/sessions" ||
+	    path === "/apply" ||
     path === "/stats" ||
     path === "/api/site-theme" ||
     path === "/api/daf/manifest" ||
@@ -2544,6 +3214,169 @@ async function all(env, sql, ...params) {
   return result.results || [];
 }
 
+async function kakaoNoticeJobsPayload(env, status = "") {
+  const state = await kakaoNoticeState(env);
+  const jobs = (state.jobs || []).filter((job) => !status || status === "all" || job.status === status);
+  return {
+    ok: true,
+    data: jobs.map((job) => ({
+      ...job,
+      total: Number(job.recipients?.length || 0),
+      sent: (job.recipients || []).filter((item) => item.status === "sent").length,
+      failed: (job.recipients || []).filter((item) => item.status === "failed").length,
+    })),
+  };
+}
+
+async function kakaoNoticeJobPayload(env, jobId) {
+  const state = await kakaoNoticeState(env);
+  const job = (state.jobs || []).find((item) => item.id === jobId);
+  if (!job) return fail(404, "카톡 공지 작업을 찾지 못했습니다.");
+  return json({ ok: true, data: job });
+}
+
+async function claimKakaoNoticeJob(env, jobId, request) {
+  const state = await kakaoNoticeState(env);
+  const job = updateKakaoNoticeJob(state, jobId, (item) => {
+    if (item.status === "prepare_requested") {
+      item.status = "preparing";
+      item.claim_phase = "prepare";
+    } else if (item.status === "approved") {
+      item.status = "claimed";
+      item.claim_phase = "send";
+    } else if (item.status === "group_manage_requested") {
+      item.status = "group_managing";
+      item.claim_phase = "group_manage";
+    } else {
+      return;
+    }
+    item.claimed_at = now();
+  });
+  if (!job) return fail(404, "카톡 공지 작업을 찾지 못했습니다.");
+  if (!["preparing", "claimed", "group_managing"].includes(job.status)) return fail(409, `현재 작업 상태는 ${job.status}입니다.`);
+  await saveKakaoNoticeState(env, state);
+  await logAction(env, "system", "kakao_notice_job_claimed", jobId, request);
+  return json({ ok: true, data: job });
+}
+
+async function finishKakaoNoticeJob(env, jobId, body, request) {
+  const state = await kakaoNoticeState(env);
+  const incoming = Array.isArray(body.recipients) ? body.recipients : [];
+  const resultMap = new Map(incoming.map((item) => [String(item.id || item.recipient_id || ""), item]));
+  const isProgress = body.progress === true;
+  const job = updateKakaoNoticeJob(state, jobId, (item) => {
+    const seenRecipientIds = new Set();
+    item.recipients = (item.recipients || []).map((recipient) => {
+      seenRecipientIds.add(String(recipient.id || ""));
+      const result = resultMap.get(String(recipient.id || ""));
+      if (!result) return recipient;
+      return {
+        ...recipient,
+        name: result.name ? String(result.name).slice(0, 120) : recipient.name,
+        kakao_display_name: result.kakao_display_name ? String(result.kakao_display_name).slice(0, 160) : recipient.kakao_display_name,
+        message: result.message ? String(result.message).slice(0, 4000) : recipient.message,
+        status: String(result.status || recipient.status || ""),
+        error: String(result.error || "").slice(0, 240),
+        sent_at: result.sent_at || recipient.sent_at || "",
+      };
+    });
+    const appended = incoming
+      .filter((result) => String(result.id || result.recipient_id || "") && !seenRecipientIds.has(String(result.id || result.recipient_id || "")))
+      .map((result) => ({
+        id: String(result.id || result.recipient_id || crypto.randomUUID()),
+        member_id: String(result.member_id || ""),
+        booking_id: String(result.booking_id || ""),
+        name: String(result.name || "").slice(0, 120),
+        kakao_display_name: String(result.kakao_display_name || result.name || "").slice(0, 160),
+        message: String(result.message || "").slice(0, 4000),
+        status: String(result.status || "pending"),
+        error: String(result.error || "").slice(0, 240),
+        sent_at: result.sent_at || "",
+      }));
+    if (appended.length) item.recipients = [...item.recipients, ...appended].slice(0, 500);
+    const failed = item.recipients.filter((recipient) => ["failed", "blocked", "prepare_failed", "skipped"].includes(recipient.status)).length;
+    const ready = item.recipients.filter((recipient) => recipient.status === "ready" || recipient.status === "sent").length;
+    const sent = item.recipients.filter((recipient) => recipient.status === "sent").length;
+    const dryRun = item.recipients.filter((recipient) => recipient.status === "dry_run").length;
+    item.ready_count = ready;
+    item.status = isProgress ? (body.status || item.status) : body.status || (failed ? "failed" : dryRun ? "dry_run_done" : "done");
+    item.sent_count = sent;
+    item.failed_count = failed;
+    if (body.summary !== undefined) item.summary = String(body.summary || "").slice(0, 3500);
+    if (!isProgress) item.finished_at = now();
+  });
+  if (!job) return fail(404, "카톡 공지 작업을 찾지 못했습니다.");
+  await saveKakaoNoticeState(env, state);
+  if (isProgress) {
+    const done = (job.recipients || []).filter((recipient) => recipient.status && recipient.status !== "pending").length;
+    const ready = kakaoNoticeReadyCount(job);
+    const total = Number(job.recipients?.length || 0);
+    await logAction(env, "system", "kakao_notice_job_progress", `${jobId}:${done}/${total}`, request);
+    await sendTelegram(
+      env,
+      [
+        "<b>ARSEN 카톡 대상 준비 진행</b>",
+        `작업ID: <code>${htmlEscape(jobId)}</code>`,
+        `진행: ${done}/${total}명`,
+        `준비 완료: ${ready}명`,
+        `준비 실패: ${Math.max(0, done - ready)}명`,
+      ].join("\n"),
+      kakaoNoticeStopKeyboard(jobId),
+      "button"
+    );
+    return json({ ok: true, data: job });
+  }
+  await logAction(env, "system", "kakao_notice_job_finished", `${jobId}:${job.status}`, request);
+  if (job.target === "local_group_admin") {
+    await sendTelegram(
+      env,
+      [
+        "<b>카톡 그룹 관리 결과</b>",
+        `작업ID: <code>${htmlEscape(jobId)}</code>`,
+        `작업: ${htmlEscape(job.target_label || "-")}`,
+        `상태: ${htmlEscape(job.status)}`,
+        job.summary ? "" : "",
+        job.summary ? htmlEscape(job.summary) : "",
+      ].filter(Boolean).join("\n"),
+      null,
+      "button"
+    );
+    return json({ ok: true, data: job });
+  }
+  if (["prepared", "prepare_failed", "prepare_blocked"].includes(job.status)) {
+    const ready = kakaoNoticeReadyCount(job);
+    const total = Number(job.recipients?.length || 0);
+    await sendTelegram(
+      env,
+      [
+        "<b>ARSEN 카톡 대상 준비 결과</b>",
+        `작업ID: <code>${htmlEscape(jobId)}</code>`,
+        `상태: ${htmlEscape(job.status)}`,
+        `준비 완료: ${ready}명`,
+        `준비 실패/제외: ${Math.max(0, total - ready)}명`,
+        ready > 0 ? "" : "발송 가능한 대상이 없어 발송 승인을 막았습니다.",
+        ready > 0 ? "아래 승인 버튼을 누르면 준비 완료 대상만 전송합니다." : "",
+      ].filter(Boolean).join("\n"),
+      ready > 0 ? kakaoNoticeKeyboard(env, jobId) : kakaoNoticeStopKeyboard(jobId),
+      "button"
+    );
+    return json({ ok: true, data: job });
+  }
+  await sendTelegram(
+    env,
+    [
+      "<b>ARSEN 카톡 공지 결과</b>",
+      `작업ID: <code>${htmlEscape(jobId)}</code>`,
+      `상태: ${htmlEscape(job.status)}`,
+      `성공: ${Number(job.sent_count || 0)}명`,
+      `실패: ${Number(job.failed_count || 0)}명`,
+    ].join("\n"),
+    null,
+    "button"
+  );
+  return json({ ok: true, data: job });
+}
+
 function safeMember(row) {
   if (!row) return null;
   const copy = { ...row };
@@ -2559,9 +3392,11 @@ function safePublicMember(row) {
     id: row.id,
     name: row.name,
     phone_masked: row.phone_masked,
+    openchat_nickname: row.openchat_nickname || "",
     status: row.status,
     plan_type: row.plan_type,
     participation_grade: row.participation_grade,
+    paid_class_count: Number(row.paid_class_count || 0),
     approved_at: row.approved_at,
     code_expires_at: null,
     code_expiry_label: "기한 없음",
@@ -2575,9 +3410,18 @@ function classSummaryText(summary) {
   return `무료 ${free}회 · 유료 ${paid}회${scheduled ? ` · 예정 ${scheduled}건` : ""}`;
 }
 
+const MEMBER_LOOKUP_CHUNK_SIZE = 80;
+
+function chunkValues(values, size = MEMBER_LOOKUP_CHUNK_SIZE) {
+  const chunks = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
+}
+
 async function memberClassSummaries(env, memberIds) {
   if (!memberIds.length) return new Map();
-  const placeholders = memberIds.map(() => "?").join(",");
   const attendedExpr = `(
     b.status='completed'
     OR (
@@ -2585,32 +3429,37 @@ async function memberClassSummaries(env, memberIds) {
       AND COALESCE(s.starts_at, b.confirmed_at, b.updated_at, b.created_at) <= ?
     )
   )`;
-  const rows = await all(
-    env,
-    `SELECT
-       b.member_id,
-       SUM(CASE WHEN ${attendedExpr} AND (
-         COALESCE(s.program_type, '') LIKE '%free%' OR COALESCE(s.price_krw, b.payment_amount_krw, 0)=0 OR b.payment_status='waived'
-       ) THEN 1 ELSE 0 END) AS free_completed,
-       SUM(CASE WHEN ${attendedExpr} AND NOT (
-         COALESCE(s.program_type, '') LIKE '%free%' OR COALESCE(s.price_krw, b.payment_amount_krw, 0)=0 OR b.payment_status='waived'
-       ) THEN 1 ELSE 0 END) AS paid_completed,
-       SUM(CASE WHEN b.status IN ('requested','payment_guide_sent','payment_pending','payment_confirmed','confirmed','waitlisted') AND NOT ${attendedExpr} AND (
-         COALESCE(s.program_type, '') LIKE '%free%' OR COALESCE(s.price_krw, b.payment_amount_krw, 0)=0 OR b.payment_status='waived'
-       ) THEN 1 ELSE 0 END) AS free_scheduled,
-       SUM(CASE WHEN b.status IN ('requested','payment_guide_sent','payment_pending','payment_confirmed','confirmed','waitlisted') AND NOT ${attendedExpr} AND NOT (
-         COALESCE(s.program_type, '') LIKE '%free%' OR COALESCE(s.price_krw, b.payment_amount_krw, 0)=0 OR b.payment_status='waived'
-       ) THEN 1 ELSE 0 END) AS paid_scheduled
-     FROM bookings b
-     LEFT JOIN sessions s ON s.id=b.session_id
-     WHERE b.member_id IN (${placeholders})
-     GROUP BY b.member_id`,
-    now(),
-    now(),
-    now(),
-    now(),
-    ...memberIds
-  );
+  const rows = [];
+  for (const chunk of chunkValues(memberIds)) {
+    const placeholders = chunk.map(() => "?").join(",");
+    const chunkRows = await all(
+      env,
+      `SELECT
+         b.member_id,
+         SUM(CASE WHEN ${attendedExpr} AND (
+           COALESCE(s.program_type, '') LIKE '%free%' OR COALESCE(s.price_krw, b.payment_amount_krw, 0)=0 OR b.payment_status='waived'
+         ) THEN 1 ELSE 0 END) AS free_completed,
+         SUM(CASE WHEN ${attendedExpr} AND NOT (
+           COALESCE(s.program_type, '') LIKE '%free%' OR COALESCE(s.price_krw, b.payment_amount_krw, 0)=0 OR b.payment_status='waived'
+         ) THEN 1 ELSE 0 END) AS paid_completed,
+         SUM(CASE WHEN b.status IN ('requested','payment_guide_sent','payment_pending','payment_confirmed','confirmed','waitlisted') AND NOT ${attendedExpr} AND (
+           COALESCE(s.program_type, '') LIKE '%free%' OR COALESCE(s.price_krw, b.payment_amount_krw, 0)=0 OR b.payment_status='waived'
+         ) THEN 1 ELSE 0 END) AS free_scheduled,
+         SUM(CASE WHEN b.status IN ('requested','payment_guide_sent','payment_pending','payment_confirmed','confirmed','waitlisted') AND NOT ${attendedExpr} AND NOT (
+           COALESCE(s.program_type, '') LIKE '%free%' OR COALESCE(s.price_krw, b.payment_amount_krw, 0)=0 OR b.payment_status='waived'
+         ) THEN 1 ELSE 0 END) AS paid_scheduled
+       FROM bookings b
+       LEFT JOIN sessions s ON s.id=b.session_id
+       WHERE b.member_id IN (${placeholders})
+       GROUP BY b.member_id`,
+      now(),
+      now(),
+      now(),
+      now(),
+      ...chunk
+    );
+    rows.push(...chunkRows);
+  }
   const result = new Map();
   for (const row of rows) {
     const freeCompleted = Number(row.free_completed || 0);
@@ -2629,18 +3478,148 @@ async function memberClassSummaries(env, memberIds) {
   return result;
 }
 
+async function memberPaidClassCount(env, memberId) {
+  const row = await one(
+    env,
+    `SELECT COUNT(*) AS count
+     FROM bookings b
+     LEFT JOIN sessions s ON s.id=b.session_id
+     WHERE b.member_id=?
+       AND (
+         b.status='completed'
+         OR (
+           b.status='confirmed'
+           AND COALESCE(s.starts_at, b.confirmed_at, b.updated_at, b.created_at) <= ?
+         )
+       )
+       AND COALESCE(s.program_type, '') != ?
+       AND COALESCE(s.program_type, '') NOT LIKE '%free%'
+       AND COALESCE(s.price_krw, b.payment_amount_krw, 0) > 0
+       AND COALESCE(b.payment_status, '') != 'waived'`,
+    memberId,
+    now(),
+    STUDY_PROGRAM_TYPE
+  );
+  return Number(row?.count || 0);
+}
+
+async function withPublicMemberStats(env, member) {
+  if (!member) return null;
+  return { ...member, paid_class_count: await memberPaidClassCount(env, member.id) };
+}
+
+function completedBooking(row) {
+  if (!row) return false;
+  if (row.status === "completed") return true;
+  if (row.status !== "confirmed") return false;
+  const value = row.session_starts_at || row.confirmed_at || row.updated_at || row.created_at || "";
+  const date = parseKstDate(value);
+  return Boolean(date && date.getTime() <= Date.now());
+}
+
+function bookingKind(row) {
+  const program = String(row?.session_program_type || "").toLowerCase();
+  const amount = Number(row?.session_price_krw ?? row?.payment_amount_krw ?? 0);
+  if (program === STUDY_PROGRAM_TYPE) return "study";
+  if (program.includes("free") || amount === 0 || row?.payment_status === "waived") return "free";
+  return "paid";
+}
+
+function memberLevelProfile(bookings = [], reviews = []) {
+  const counts = { free: 0, paid: 0, study: 0, reviews: reviews.length };
+  for (const booking of bookings) {
+    if (!completedBooking(booking)) continue;
+    counts[bookingKind(booking)] += 1;
+  }
+  const points = counts.free * 10 + counts.paid * 30 + counts.study * 15 + counts.reviews * 5;
+  const levels = [
+    { level: 4, name: "Partner", min: 150, next: null, access: "파트너 후보" },
+    { level: 3, name: "Builder", min: 80, next: 150, access: "심화 게시판" },
+    { level: 2, name: "Member", min: 30, next: 80, access: "스터디 게시판" },
+    { level: 1, name: "Starter", min: 0, next: 30, access: "기본 게시판" },
+  ];
+  const current = levels.find((item) => points >= item.min) || levels[levels.length - 1];
+  return {
+    points,
+    level: current.level,
+    level_name: current.name,
+    next_points: current.next,
+    points_to_next: current.next ? Math.max(0, current.next - points) : 0,
+    counts,
+    access_label: current.access,
+    board_access: {
+      basic: true,
+      study: current.level >= 2,
+      advanced: current.level >= 3,
+      partner: current.level >= 4,
+    },
+  };
+}
+
+function memberReviewPublicRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    booking_id: row.booking_id || "",
+    class_title: row.class_title,
+    class_date: row.class_date,
+    title: row.title,
+    summary: row.summary,
+    status: row.status,
+    source: row.source,
+    privacy_checked: Boolean(row.privacy_checked),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+async function memberReviewRows(env, memberId) {
+  if (!memberId) return [];
+  try {
+    const rows = await all(
+      env,
+      `SELECT id, booking_id, class_title, class_date, title, summary, status, source, privacy_checked, created_at, updated_at
+       FROM review_entries
+       WHERE member_id=?
+       ORDER BY created_at DESC`,
+      memberId
+    );
+    return rows.map(memberReviewPublicRow);
+  } catch (error) {
+    if (String(error?.message || error).includes("no such column")) return [];
+    throw error;
+  }
+}
+
+async function publicMemberDashboardPayload(env, member, kakao = null) {
+  const safe = safePublicMember(await withPublicMemberStats(env, member));
+  const bookings = (await bookingRows(env)).filter((row) => row.member_id === member.id).map(safePublicBooking);
+  const reviews = await memberReviewRows(env, member.id);
+  return {
+    member: safe,
+    bookings,
+    reviews,
+    progress: memberLevelProfile(bookings, reviews),
+    ...(kakao ? { kakao } : {}),
+  };
+}
+
 async function memberContactRegistrations(env, memberIds) {
   if (!memberIds.length) return new Map();
-  const placeholders = memberIds.map(() => "?").join(",");
-  const rows = await all(
-    env,
-    `SELECT member_id, detail, created_at
-     FROM member_logs
-     WHERE action='contact_registered'
-       AND member_id IN (${placeholders})
-     ORDER BY created_at ASC`,
-    ...memberIds
-  );
+  const rows = [];
+  for (const chunk of chunkValues(memberIds)) {
+    const placeholders = chunk.map(() => "?").join(",");
+    const chunkRows = await all(
+      env,
+      `SELECT member_id, detail, created_at
+       FROM member_logs
+       WHERE action='contact_registered'
+         AND member_id IN (${placeholders})
+       ORDER BY created_at ASC`,
+      ...chunk
+    );
+    rows.push(...chunkRows);
+  }
   const result = new Map();
   for (const row of rows) {
     let detail = {};
@@ -2677,16 +3656,20 @@ function parseDuplicateDetail(detailText) {
 
 async function memberDuplicateActivity(env, memberIds) {
   if (!memberIds.length) return new Map();
-  const placeholders = memberIds.map(() => "?").join(",");
-  const rows = await all(
-    env,
-    `SELECT member_id, detail, created_at
-     FROM member_logs
-     WHERE action='duplicate_apply'
-       AND member_id IN (${placeholders})
-     ORDER BY created_at DESC`,
-    ...memberIds
-  );
+  const rows = [];
+  for (const chunk of chunkValues(memberIds)) {
+    const placeholders = chunk.map(() => "?").join(",");
+    const chunkRows = await all(
+      env,
+      `SELECT member_id, detail, created_at
+       FROM member_logs
+       WHERE action='duplicate_apply'
+         AND member_id IN (${placeholders})
+       ORDER BY created_at DESC`,
+      ...chunk
+    );
+    rows.push(...chunkRows);
+  }
   const result = new Map();
   for (const row of rows) {
     const detail = parseDuplicateDetail(row.detail);
@@ -2707,12 +3690,13 @@ async function memberDuplicateActivity(env, memberIds) {
   }
   for (const activity of result.values()) {
     const latest = activity.logs[0] || {};
-    const sourceLabel = { phone: "전화번호", email: "이메일" }[latest.source] || latest.source || "중복 기준";
+    const sourceLabel = { phone: "전화번호", email: "이메일" }[latest.source] || latest.source || "확인 기준";
     const attemptName = latest.attempt_name || "이름 미기록";
     activity.last_at = latest.created_at || null;
     activity.last_source = latest.source || "";
     activity.last_attempt_name = latest.attempt_name || "";
-    activity.summary_text = `중복 감지 ${activity.count}회 · 최근 ${sourceLabel} · ${attemptName}`;
+    activity.last_attempt_plan_type = latest.attempt_plan_type || "";
+    activity.summary_text = `재신청 ${activity.count}회 · 최근 ${sourceLabel} · ${attemptName}`;
   }
   return result;
 }
@@ -2743,8 +3727,10 @@ async function membersWithAdminFields(env, rows) {
     member.duplicate_apply_last_at = duplicate.last_at || null;
     member.duplicate_apply_last_source = duplicate.last_source || "";
     member.duplicate_apply_last_attempt_name = duplicate.last_attempt_name || "";
+    member.duplicate_apply_last_attempt_plan_type = duplicate.last_attempt_plan_type || "";
     member.duplicate_apply_summary_text = duplicate.summary_text || "";
     member.duplicate_apply_logs = duplicate.logs || [];
+    member.latest_activity_at = [member.created_at, duplicate.last_at].filter(Boolean).sort().pop() || member.created_at || null;
   }
   return members;
 }
@@ -2953,6 +3939,8 @@ function safePublicBooking(row) {
     id: row.id,
     session_id: row.session_id,
     session_title: row.session_title,
+    session_program_type: row.session_program_type,
+    session_audience_level: row.session_audience_level,
     session_starts_at: row.session_starts_at,
     session_ends_at: row.session_ends_at,
     session_location: row.session_location || row.location,
@@ -3076,7 +4064,8 @@ async function bookingRows(env, { status = "", sessionId = "" } = {}) {
      )
      SELECT b.*, s.title AS session_title, s.starts_at AS session_starts_at, s.ends_at AS session_ends_at,
       s.location AS session_location, s.location AS location, s.capacity_max AS session_capacity_max,
-      s.price_krw AS session_price_krw, s.payment_guide AS session_payment_guide,
+      s.price_krw AS session_price_krw, s.payment_guide AS session_payment_guide, s.materials AS session_materials,
+      s.program_type AS session_program_type, s.audience_level AS session_audience_level,
       bo.request_rank,
       CASE WHEN b.status='confirmed' AND b.payment_status='paid' THEN bo.paid_rank_raw END AS paid_rank,
       CASE WHEN b.status='waitlisted' THEN wo.waitlist_rank END AS waitlist_rank,
@@ -3130,7 +4119,22 @@ async function createBooking(env, data) {
 
 function isFreeSession(session) {
   if (!session) return false;
+  if (isStudySession(session)) return false;
   return String(session.program_type || "").toLowerCase().includes("free") || Number(session.price_krw || 0) === 0;
+}
+
+function isStudySession(session) {
+  return String(session?.program_type || "").toLowerCase() === STUDY_PROGRAM_TYPE;
+}
+
+async function studyMemberAcceptance(env, session, memberId) {
+  const paidCompleted = await memberPaidClassCount(env, memberId);
+  if (!isStudySession(session)) return [true, "", { paid_completed: paidCompleted }];
+  const audienceLevel = String(session?.audience_level || "approved").toLowerCase();
+  if (audienceLevel === "paid_only" && paidCompleted < 1) {
+    return [false, "이 스터디는 유료강의 수강 이력이 있는 승인 멤버만 신청할 수 있습니다.", { paid_completed: paidCompleted, audience_level: audienceLevel }];
+  }
+  return [true, "", { paid_completed: paidCompleted, audience_level: audienceLevel }];
 }
 
 async function maybeCreateFreeSessionBooking(env, member, sessionId, request) {
@@ -3333,6 +4337,89 @@ async function upgradeLeadToApplication(env, memberId, data, envSource = env) {
   return Number(result?.meta?.changes || result?.changes || 0) > 0;
 }
 
+async function refreshDuplicateApplication(env, memberId, data, envSource = env) {
+  const timestamp = now();
+  const phone = normalizePhoneForStorage(data.phone || "");
+  const email = String(data.email || "").trim().toLowerCase();
+  const result = await env.DB.prepare(
+    `UPDATE members
+     SET name=?,
+         email_encrypted=?,
+         email_hash=?,
+         phone_hash=?,
+         phone_masked=?,
+         phone_encrypted=?,
+         gender=?,
+         age=?,
+         job=?,
+         referral_source=?,
+         reason=?,
+         ai_level=?,
+         plan_type=?,
+         ai_tools=?,
+         ai_subscription=?,
+         ai_weekly_hours=?,
+         ai_use_cases=?,
+         group_goals=?,
+         short_term_goal=?,
+         participation_type=?,
+         preferred_schedule=?,
+         available_time_slots=?,
+         region=?,
+         main_device=?,
+         can_code=?,
+         can_present=?,
+         skills=?,
+         contribution=?,
+         participation_grade=?,
+         consent_personal=?,
+         consent_marketing=?,
+         consent_at=?,
+         consent_version=?,
+         status=CASE WHEN status='rejected' THEN 'pending' ELSE status END,
+         rejection_reason=CASE WHEN status='rejected' THEN NULL ELSE rejection_reason END
+     WHERE id=?`
+  )
+    .bind(
+      data.name || "신청자",
+      await encryptLegacyValue(email, envSource, "EMAIL_SECRET_KEY"),
+      email ? await hmacHex(email, envSource, "EMAIL_SECRET_KEY") : "",
+      phone ? await hmacHex(phone, envSource, "PHONE_SECRET_KEY") : "",
+      maskPhone(phone),
+      await encryptLegacyValue(phone, envSource, "PHONE_SECRET_KEY"),
+      data.gender || "",
+      Number(data.age || 0),
+      data.job || "",
+      data.referral_source || "",
+      data.reason || data.desired_outcome || "",
+      data.ai_level || "",
+      data.plan_type || "full",
+      Array.isArray(data.ai_tools) ? JSON.stringify(data.ai_tools) : data.ai_tools || "",
+      data.ai_subscription || "",
+      data.ai_weekly_hours || "",
+      Array.isArray(data.ai_use_cases) ? JSON.stringify(data.ai_use_cases) : data.ai_use_cases || "",
+      Array.isArray(data.group_goals) ? JSON.stringify(data.group_goals) : data.group_goals || "",
+      data.short_term_goal || data.desired_outcome || "",
+      data.participation_type || "",
+      data.preferred_schedule || "",
+      Array.isArray(data.available_time_slots) ? JSON.stringify(data.available_time_slots) : data.available_time_slots || "",
+      data.region || "",
+      data.main_device || "",
+      data.can_code ? 1 : 0,
+      data.can_present ? 1 : 0,
+      data.skills || data.preparedness || "",
+      data.contribution || "",
+      data.participation_grade || gradeCount(data),
+      data.consent_personal ? 1 : 0,
+      data.consent_marketing ? 1 : 0,
+      timestamp,
+      data.consent_version || "duplicate-refresh-cloudflare-v1",
+      memberId
+    )
+    .run();
+  return Number(result?.meta?.changes || result?.changes || 0) > 0;
+}
+
 async function findMemberByPhone(env, phone) {
   for (const candidate of phoneCandidates(phone)) {
     const phoneHash = await hmacHex(candidate, env, "PHONE_SECRET_KEY");
@@ -3463,13 +4550,26 @@ async function handleApply(request, env) {
         payment: null,
       });
     }
+    const previousPlan = duplicate.plan_type || "";
+    let activeMember = duplicate;
+    let refreshedApplication = false;
+    if (canRefreshDuplicateApplication(duplicate, data)) {
+      data.participation_grade = gradeCount(data);
+      data.consent_version = data.consent_version || "duplicate-refresh-cloudflare-v1";
+      refreshedApplication = await refreshDuplicateApplication(env, duplicate.id, data);
+      if (!refreshedApplication) return fail(500, "기존 신청 정보를 최신 신청으로 갱신하지 못했습니다.");
+      activeMember = await one(env, "SELECT * FROM members WHERE id=?", duplicate.id);
+    }
     let freeBooking = null;
     if (data.plan_type === "free" && data.session_id) {
-      freeBooking = await maybeCreateFreeSessionBooking(env, duplicate, data.session_id, request);
+      freeBooking = await maybeCreateFreeSessionBooking(env, activeMember, data.session_id, request);
       if (freeBooking?.error) return fail(freeBooking.status || 400, freeBooking.error);
     }
     await logAction(env, duplicate.id, "duplicate_apply", JSON.stringify({
       source: duplicate.duplicate_source,
+      refreshed: refreshedApplication,
+      from_plan_type: previousPlan,
+      to_plan_type: data.plan_type || "",
       attempt_name: data.name || "",
       attempt_phone_masked: maskPhone(phone),
       attempt_plan_type: data.plan_type || "",
@@ -3478,7 +4578,7 @@ async function handleApply(request, env) {
     const counts = await stats(env);
     const hermesStatus = await sendTelegram(
       env,
-      applicationMessage(duplicate, counts, true, { ...data, phone_masked: maskPhone(phone) }),
+      applicationMessage(activeMember, counts, true, { ...data, phone_masked: maskPhone(phone) }),
       memberKeyboard(env, duplicate.id),
       "application"
     );
@@ -3486,11 +4586,15 @@ async function handleApply(request, env) {
     return json({
       ok: true,
       duplicate: true,
-      message: "이미 신청이 접수되어 있습니다. 기존 신청 상태를 기준으로 안내드릴게요.",
+      latest_application_refreshed: refreshedApplication,
+      previous_plan_type: previousPlan,
+      message: refreshedApplication
+        ? `기존 신청 정보를 ${planTypeLabel(data.plan_type)} 기준으로 갱신했습니다.`
+        : "이미 신청이 접수되어 있습니다. 기존 신청 상태를 기준으로 안내드릴게요.",
       member_id: duplicate.id,
-      status: duplicate.status,
+      status: activeMember?.status || duplicate.status,
       next_steps: [
-        "기존 신청이 대기 중이면 운영자가 순서대로 확인합니다.",
+        "관리자 신청자 목록에서 최근 재신청 시간 기준으로 확인할 수 있습니다.",
         "무료강의 일정을 선택했다면 같은 일정에 중복 예약 없이 연결합니다.",
         "유료강의는 승인 코드 받은 뒤 예약자 확인 페이지에서 진행하세요.",
       ],
@@ -3598,13 +4702,9 @@ async function handlePublicVerify(request, env) {
   if (!member) return fail(404, "신청 정보를 찾을 수 없습니다. 신청한 전화번호를 확인해주세요.");
   if (!(await accessCodeMatches(member, body.code, env))) return fail(400, "코드 확인에 실패했습니다.");
   if (member.status !== "approved") return fail(400, `현재 신청 상태는 ${member.status}입니다.`);
-  const bookings = await bookingRows(env);
   return json({
     ok: true,
-    data: {
-      member: safePublicMember(member),
-      bookings: bookings.filter((row) => row.member_id === member.id).map(safePublicBooking),
-    },
+    data: await publicMemberDashboardPayload(env, member),
   });
 }
 
@@ -3622,6 +4722,11 @@ async function handlePublicBooking(request, env) {
   } else {
     return fail(400, "승인 코드 확인 또는 카카오 회원 로그인이 필요합니다.");
   }
+  const session = await getSession(env, body.session_id || "");
+  const [ok, reason] = sessionAcceptance(session);
+  if (!ok) return fail(400, reason);
+  const [eligible, eligibilityReason] = await studyMemberAcceptance(env, session, member.id);
+  if (!eligible) return fail(403, eligibilityReason);
   const existing = await one(
     env,
     "SELECT * FROM bookings WHERE member_id=? AND session_id=? AND status NOT IN ('canceled','rejected','no_show') LIMIT 1",
@@ -3632,9 +4737,8 @@ async function handlePublicBooking(request, env) {
     const existingBooking = await getBooking(env, existing.id);
     return json({ ok: true, duplicate: true, message: "이미 접수된 예약 신청이 있습니다.", data: safePublicBooking(existingBooking) });
   }
-  const session = await getSession(env, body.session_id || "");
-  const [ok, reason] = sessionAcceptance(session);
-  if (!ok) return fail(400, reason);
+  const studySession = isStudySession(session);
+  const amount = studySession ? Number(session.price_krw || 0) : Number(session.price_krw || DEFAULT_PRICE);
   const bookingId = await createBooking(env, {
     session_id: body.session_id,
     member_id: member.id,
@@ -3642,12 +4746,13 @@ async function handlePublicBooking(request, env) {
     phone_masked: member.phone_masked,
     desired_outcome: body.desired_outcome || member.short_term_goal || member.reason || "",
     preparedness: body.preparedness || "",
-    payment_amount_krw: Number(session.price_krw || DEFAULT_PRICE),
+    payment_status: studySession && amount === 0 ? "waived" : "not_sent",
+    payment_amount_krw: amount,
   });
   await logAction(env, member.id, "booking_requested_public", `booking_id=${bookingId}`, request);
   const booking = await getBooking(env, bookingId);
   await sendTelegram(env, bookingMessage(booking, await stats(env), false), bookingKeyboard(env, bookingId), "booking");
-  return json({ ok: true, message: "예약 신청이 접수되었습니다.", data: safePublicBooking(booking) });
+  return json({ ok: true, message: studySession ? "스터디 참가 신청이 접수되었습니다." : "예약 신청이 접수되었습니다.", data: safePublicBooking(booking) });
 }
 
 async function handleKakaoStart(request, env) {
@@ -3734,14 +4839,10 @@ async function handleKakaoMe(request, env) {
   const session = await readSignedCookie(request, env, KAKAO_SESSION_COOKIE);
   if (!session?.kakao_id) return fail(401, "카카오 로그인이 필요합니다.");
   const member = session.member_id ? await one(env, "SELECT * FROM members WHERE id=?", session.member_id) : null;
-  const bookings = member ? (await bookingRows(env)).filter((row) => row.member_id === member.id).map(safePublicBooking) : [];
+  const kakao = kakaoPublicPayload(session, member);
   return json({
     ok: true,
-    data: {
-      kakao: kakaoPublicPayload(session, member),
-      member: member ? safePublicMember(member) : null,
-      bookings,
-    },
+    data: member ? await publicMemberDashboardPayload(env, member, kakao) : { kakao, member: null, bookings: [], reviews: [], progress: memberLevelProfile([], []) },
   });
 }
 
@@ -3758,20 +4859,98 @@ async function handleKakaoLink(request, env) {
   const profile = session.profile && typeof session.profile === "object" ? session.profile : {};
   await linkMemberKakao(env, member.id, session.kakao_id, profile);
   const linked = await one(env, "SELECT * FROM members WHERE id=?", member.id);
-  const bookings = (await bookingRows(env)).filter((row) => row.member_id === member.id).map(safePublicBooking);
   const sessionCookie = await signedCookie({ ...session, member_id: member.id, iat: now() }, env);
   const response = json({
     ok: true,
     message: "카카오 계정이 회원 정보와 연결되었습니다.",
-    data: {
-      kakao: { connected: true, linked: true, nickname: profile.nickname || "" },
-      member: safePublicMember(linked),
-      bookings,
-    },
+    data: await publicMemberDashboardPayload(env, linked, { connected: true, linked: true, nickname: profile.nickname || "" }),
   });
   response.headers.append("set-cookie", cookieHeader(KAKAO_SESSION_COOKIE, sessionCookie, KAKAO_SESSION_MAX_AGE, request));
   await logAction(env, member.id, "kakao_linked", "", request);
   return response;
+}
+
+async function verifyPublicMemberAccess(request, env, body) {
+  const member = await one(env, "SELECT * FROM members WHERE id=?", body.member_id || "");
+  if (!member) return { response: fail(404, "회원 정보를 찾을 수 없습니다.") };
+  if (member.status !== "approved") return { response: fail(400, "승인된 회원만 사용할 수 있습니다.") };
+  const kakaoSession = await readSignedCookie(request, env, KAKAO_SESSION_COOKIE);
+  const kakaoMemberOk = Boolean(kakaoSession?.member_id && kakaoSession.member_id === member.id);
+  if (body.code) {
+    if (!(await accessCodeMatches(member, body.code, env))) return { response: fail(400, "코드 확인에 실패했습니다.") };
+  } else if (!kakaoMemberOk) {
+    return { response: fail(400, "승인 코드 확인 또는 카카오 회원 로그인이 필요합니다.") };
+  }
+  return { member, kakaoMemberOk };
+}
+
+function cleanOpenchatNickname(value) {
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, 40);
+}
+
+async function handleMemberProfileUpdate(request, env) {
+  const body = await readJson(request);
+  const access = await verifyPublicMemberAccess(request, env, body);
+  if (access.response) return access.response;
+  const nickname = cleanOpenchatNickname(body.openchat_nickname);
+  await env.DB.prepare("UPDATE members SET openchat_nickname=? WHERE id=?")
+    .bind(nickname, access.member.id)
+    .run();
+  await logAction(env, access.member.id, "member_profile_update", JSON.stringify({ fields: ["openchat_nickname"] }), request);
+  const updated = await one(env, "SELECT * FROM members WHERE id=?", access.member.id);
+  return json({ ok: true, message: "오픈톡 닉네임을 저장했습니다.", data: await publicMemberDashboardPayload(env, updated) });
+}
+
+async function handleMemberReviewCreate(request, env) {
+  const body = await readJson(request);
+  const access = await verifyPublicMemberAccess(request, env, body);
+  if (access.response) return access.response;
+  const booking = await getBooking(env, String(body.booking_id || ""));
+  if (!booking || booking.member_id !== access.member.id) return fail(404, "수강 이력을 찾을 수 없습니다.");
+  if (!completedBooking(booking)) return fail(400, "수강 완료된 강의만 후기를 작성할 수 있습니다.");
+  const title = String(body.title || "").trim();
+  const text = String(body.body || body.summary || "").trim();
+  if (!title || !text) return fail(400, "후기 제목과 내용을 입력하세요.");
+  const existing = await one(
+    env,
+    "SELECT id FROM review_entries WHERE member_id=? AND booking_id=? LIMIT 1",
+    access.member.id,
+    booking.id
+  ).catch((error) => {
+    if (String(error?.message || error).includes("no such column")) return null;
+    throw error;
+  });
+  if (existing) return fail(409, "이미 이 수업에 작성한 후기가 있습니다. 운영자 검수 상태를 확인해 주세요.");
+  const id = crypto.randomUUID();
+  const created = now();
+  await env.DB.prepare(
+    `INSERT INTO review_entries (
+      id, member_id, booking_id, instructor_id, class_title, class_date, title, summary, body, tags, image_urls,
+      status, source, privacy_checked, featured, created_at, updated_at
+    ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, 'draft', 'member', 0, 0, ?, ?)`
+  )
+    .bind(
+      id,
+      access.member.id,
+      booking.id,
+      booking.session_title || "ARSEN 강의",
+      String(booking.session_starts_at || booking.created_at || "").slice(0, 10),
+      title,
+      text.slice(0, 160),
+      text,
+      listText(["마이페이지", bookingKind(booking)]),
+      "[]",
+      created,
+      created
+    )
+    .run();
+  await logAction(env, access.member.id, "member_review_create", JSON.stringify({ review_id: id, booking_id: booking.id }), request);
+  const updated = await one(env, "SELECT * FROM members WHERE id=?", access.member.id);
+  return json({
+    ok: true,
+    message: "후기가 초안으로 저장되었습니다. 운영자 검수 후 공개할 수 있습니다.",
+    data: await publicMemberDashboardPayload(env, updated),
+  });
 }
 
 function handleKakaoLogout() {
@@ -3780,10 +4959,55 @@ function handleKakaoLogout() {
   return response;
 }
 
-async function telegramCallbackResult(env, data, request) {
+async function telegramCallbackResult(env, data, request, callback = {}) {
   const parts = String(data || "").split(":");
   if (parts.length !== 3 || parts[0] !== "arsen") return "지원하지 않는 버튼입니다.";
   const [_, action, targetId] = parts;
+  const callbackChatId = String(callback?.message?.chat?.id || env.TELEGRAM_ADMIN_CHAT_ID || "");
+  const callbackThreadId = String(callback?.message?.message_thread_id || "");
+
+  if (action === "noticestop") {
+    const stopped = await stopKakaoNoticeJobs(env, targetId, request);
+    await sendTelegramToChat(env, callbackChatId, `ARSEN 카톡 공지 긴급정지 요청 처리: ${stopped}개 작업`, null, "button", callbackThreadId);
+    return "카톡 공지 긴급정지 요청 완료";
+  }
+
+  if (action === "noticeok" || action === "noticeno") {
+    const state = await kakaoNoticeState(env);
+    const current = (state.jobs || []).find((item) => item.id === targetId);
+    if (current && !["pending_approval", "prepared"].includes(current.status)) return `현재 작업 상태는 ${current.status}입니다.`;
+    if (action === "noticeok" && current && current.status === "prepared" && kakaoNoticeReadyCount(current) < 1) {
+      return "발송 준비 완료 대상이 없어 승인할 수 없습니다.";
+    }
+    const job = updateKakaoNoticeJob(state, targetId, (item) => {
+      if (!["pending_approval", "prepared"].includes(item.status)) return;
+      item.status = action === "noticeok" ? "approved" : "rejected";
+      item.approved_at = action === "noticeok" ? now() : "";
+      item.rejected_at = action === "noticeno" ? now() : "";
+      item.phase = action === "noticeok" ? "send" : item.phase;
+    });
+    if (!job) return "카톡 공지 작업을 찾지 못했습니다.";
+    await saveKakaoNoticeState(env, state);
+    await logAction(env, "system", action === "noticeok" ? "kakao_notice_job_approved" : "kakao_notice_job_rejected", targetId, request);
+    if (action === "noticeok") {
+      await sendTelegramToChat(
+        env,
+        callbackChatId,
+        [
+          "<b>ARSEN 카톡 공지 승인 완료</b>",
+          `작업ID: <code>${htmlEscape(targetId)}</code>`,
+          `대상: ${kakaoNoticeReadyCount(job) || Number(job.recipients?.length || 0)}명`,
+          "맥에어 카톡 발송기가 준비 완료 대상만 가져가 전송을 시작합니다.",
+          "중간에 멈추려면 /arsen_stop 또는 아래 긴급정지를 누르세요.",
+        ].join("\n"),
+        kakaoNoticeStopKeyboard(targetId),
+        "button",
+        callbackThreadId
+      );
+      return "카톡 공지 발송 승인 완료";
+    }
+    return "카톡 공지 작업 취소 완료";
+  }
 
   if (action === "approve") {
     const member = await one(env, "SELECT * FROM members WHERE id=?", targetId);
@@ -3902,8 +5126,12 @@ async function handleTelegramWebhook(request, env) {
     return fail(401, "Invalid Telegram webhook secret.");
   }
   const payload = await readJson(request);
+  if (payload.message) {
+    const result = await handleTelegramMessage(env, payload.message, request);
+    return json({ ok: true, message: result });
+  }
   const callback = payload.callback_query || {};
-  const message = await telegramCallbackResult(env, callback.data || "", request);
+  const message = await telegramCallbackResult(env, callback.data || "", request, callback);
   await answerTelegramCallback(env, callback.id || "", message);
   return json({ ok: true, message });
 }
@@ -4277,6 +5505,20 @@ async function handleAdmin(request, env, path) {
     ];
     return responseText(csvRows(rows), "text/csv; charset=utf-8");
   }
+  if (path === "/admin/kakao-notice/jobs" && method === "GET") {
+    const url = new URL(request.url);
+    return json(await kakaoNoticeJobsPayload(env, String(url.searchParams.get("status") || "").trim()));
+  }
+  if (parts[0] === "admin" && parts[1] === "kakao-notice" && parts[2] === "jobs" && parts[3]) {
+    const jobId = parts[3];
+    if (!parts[4] && method === "GET") return kakaoNoticeJobPayload(env, jobId);
+    if (parts[4] === "claim" && method === "POST") return claimKakaoNoticeJob(env, jobId, request);
+    if (parts[4] === "stop" && method === "POST") {
+      const stopped = await stopKakaoNoticeJobs(env, jobId, request);
+      return json({ ok: true, stopped });
+    }
+    if (parts[4] === "result" && method === "POST") return finishKakaoNoticeJob(env, jobId, await readJson(request), request);
+  }
   if (path === "/admin/licenses" && method === "GET") {
     const url = new URL(request.url);
     return json({
@@ -4512,6 +5754,7 @@ async function handleAdmin(request, env, path) {
   if (path === "/members" && method === "GET") {
     const rows = await all(env, "SELECT * FROM members ORDER BY created_at DESC");
     const data = await membersWithAdminFields(env, rows);
+    data.sort((a, b) => String(b.latest_activity_at || b.created_at || "").localeCompare(String(a.latest_activity_at || a.created_at || "")));
     return json({ ok: true, data, total: data.length });
   }
   if (parts[0] === "admin" && parts[1] === "members" && parts[2] && parts[3] === "code-delivery-log" && method === "POST") {
@@ -4531,7 +5774,7 @@ async function handleAdmin(request, env, path) {
       "name", "gender", "age", "job", "referral_source", "reason", "ai_level", "plan_type",
       "ai_tools", "ai_subscription", "ai_weekly_hours", "ai_use_cases", "group_goals", "short_term_goal",
       "participation_type", "preferred_schedule", "available_time_slots", "region", "main_device",
-      "can_code", "can_present", "skills", "contribution", "participation_grade", "consent_marketing",
+      "can_code", "can_present", "skills", "contribution", "participation_grade", "openchat_nickname", "consent_marketing",
       "status", "rejection_reason",
     ];
     if (body.status && !["pending", "approved", "rejected", "blacklist", "erased"].includes(body.status)) return fail(400, "상태 값이 올바르지 않습니다.");
@@ -4974,6 +6217,49 @@ async function handleAdmin(request, env, path) {
       await logAction(env, "booking", "session_seed_default_sunday", `created=${createdIds.length},updated=${updatedIds.length}`, request);
       return json({ ok: true, created: createdIds.length, updated: updatedIds.length, total: createdIds.length + updatedIds.length, ids: [...createdIds, ...updatedIds] });
     }
+    if (parts[2] === "seed-free-class") {
+      const body = await readJson(request);
+      const weeks = Math.max(1, Math.min(12, Number(body.weeks || 4)));
+      const createdIds = [];
+      const updatedIds = [];
+      const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+      let daysUntilSaturday = (6 - kstNow.getUTCDay() + 7) % 7;
+      if (daysUntilSaturday === 0) daysUntilSaturday = 7;
+      const base = new Date(Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate() + daysUntilSaturday));
+      for (let week = 0; week < weeks; week += 1) {
+        const startKst = new Date(base.getTime() + week * 7 * 24 * 60 * 60 * 1000 + 10 * 60 * 60 * 1000);
+        const endKst = new Date(startKst.getTime() + 2 * 60 * 60 * 1000);
+        const startsAt = new Date(startKst.getTime() - 9 * 60 * 60 * 1000).toISOString();
+        const endsAt = new Date(endKst.getTime() - 9 * 60 * 60 * 1000).toISOString();
+        const existing = await one(env, "SELECT id FROM sessions WHERE starts_at=? AND program_type='free_class'", startsAt);
+        if (existing) {
+          await env.DB.prepare(
+            `UPDATE sessions
+             SET title=?, description=?, audience_level='beginner', ends_at=?, location=?, materials=?,
+                 price_krw=0, capacity_min=1, capacity_max=20, status='open', updated_at=?
+             WHERE id=?`
+          )
+            .bind(FREE_CLASS_TITLE, FREE_CLASS_DESCRIPTION, endsAt, FREE_CLASS_LOCATION, FREE_CLASS_MATERIALS, now(), existing.id)
+            .run();
+          updatedIds.push(existing.id);
+        } else {
+          const id = crypto.randomUUID();
+          const created = now();
+          await env.DB.prepare(
+            `INSERT INTO sessions (
+              id, title, description, program_type, audience_level, starts_at, ends_at, timezone,
+              capacity_min, capacity_max, confirmed_count, price_krw, location, materials, status,
+              payment_guide, created_at, updated_at
+            ) VALUES (?, ?, ?, 'free_class', 'beginner', ?, ?, 'Asia/Seoul', 1, 20, 0, 0, ?, ?, 'open', '', ?, ?)`
+          )
+            .bind(id, FREE_CLASS_TITLE, FREE_CLASS_DESCRIPTION, startsAt, endsAt, FREE_CLASS_LOCATION, FREE_CLASS_MATERIALS, created, created)
+            .run();
+          createdIds.push(id);
+        }
+      }
+      await logAction(env, "booking", "session_seed_free_class", `created=${createdIds.length},updated=${updatedIds.length}`, request);
+      return json({ ok: true, created: createdIds.length, updated: updatedIds.length, total: createdIds.length + updatedIds.length, ids: [...createdIds, ...updatedIds] });
+    }
     if (parts[3] === "manual-booking") {
       const session = await getSession(env, parts[2]);
       if (!session) return fail(404, "일정을 찾을 수 없습니다.");
@@ -5000,14 +6286,16 @@ async function handleAdmin(request, env, path) {
         member.id,
         parts[2]
       );
+      const studySession = isStudySession(session);
       const freeSession = isFreeSession(session);
-      const manualNote = body.payment_note || (freeSession ? "운영자 수동 추가: 무료강의 확정" : "운영자 수동 추가: 입금 확인 완료");
+      const participationSession = studySession || freeSession;
+      const manualNote = body.payment_note || (studySession ? "운영자 수동 추가: 스터디 참여 확정" : freeSession ? "운영자 수동 추가: 무료강의 확정" : "운영자 수동 추가: 입금 확인 완료");
       if (existing) {
         await env.DB.prepare("UPDATE bookings SET status='confirmed', payment_status=?, payment_note=?, confirmed_at=?, updated_at=? WHERE id=?")
-          .bind(freeSession ? "waived" : "paid", manualNote, now(), now(), existing.id)
+          .bind(participationSession ? "waived" : "paid", manualNote, now(), now(), existing.id)
           .run();
         await refreshSessionCount(env, parts[2]);
-        return json({ ok: true, message: freeSession ? "이미 연결된 무료강의 예약을 확정으로 변경했습니다. 자동 알림은 보내지 않았습니다." : "이미 연결된 예약을 입금확정으로 변경했습니다. 자동 알림은 보내지 않았습니다.", data: await getBooking(env, existing.id), member_id: member.id, reused_member: true, ...noSendDelivery("manual_booking") });
+        return json({ ok: true, message: studySession ? "이미 연결된 스터디 예약을 참여확정으로 변경했습니다. 자동 알림은 보내지 않았습니다." : freeSession ? "이미 연결된 무료강의 예약을 확정으로 변경했습니다. 자동 알림은 보내지 않았습니다." : "이미 연결된 예약을 입금확정으로 변경했습니다. 자동 알림은 보내지 않았습니다.", data: await getBooking(env, existing.id), member_id: member.id, reused_member: true, ...noSendDelivery("manual_booking") });
       }
       const [ok, reason] = sessionAcceptance(session);
       if (!ok) return fail(409, reason);
@@ -5019,13 +6307,13 @@ async function handleAdmin(request, env, path) {
         desired_outcome: body.desired_outcome || "",
         preparedness: "운영자 수동 추가",
         status: "confirmed",
-        payment_status: freeSession ? "waived" : "paid",
-        payment_amount_krw: Number(body.payment_amount_krw == null || body.payment_amount_krw === "" ? session.price_krw || (freeSession ? 0 : DEFAULT_PRICE) : body.payment_amount_krw),
+        payment_status: participationSession ? "waived" : "paid",
+        payment_amount_krw: Number(body.payment_amount_krw == null || body.payment_amount_krw === "" ? (participationSession ? 0 : session.price_krw || DEFAULT_PRICE) : body.payment_amount_krw),
         payment_note: manualNote,
         confirmed_at: now(),
       });
       await logAction(env, member.id, "manual_booking_confirmed", `booking_id=${bookingId}`, request);
-      return json({ ok: true, message: freeSession ? "무료강의 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다." : "입금확정 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다.", data: await getBooking(env, bookingId), member_id: member.id, reused_member: Boolean(body.member_id), ...noSendDelivery("manual_booking") });
+      return json({ ok: true, message: studySession ? "스터디 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다." : freeSession ? "무료강의 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다." : "입금확정 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다.", data: await getBooking(env, bookingId), member_id: member.id, reused_member: Boolean(body.member_id), ...noSendDelivery("manual_booking") });
     }
     const body = await readJson(request);
     const allowed = ["title", "description", "program_type", "audience_level", "starts_at", "ends_at", "timezone", "capacity_min", "capacity_max", "price_krw", "location", "materials", "status", "payment_guide"];
@@ -5228,12 +6516,21 @@ export async function handleRequest(request, env) {
     } else if (path === `/api/daf/launcher/artifacts/${LAUNCHER_ARTIFACT_NAME}` && (request.method === "GET" || request.method === "HEAD")) {
       response = await launcherArtifactResponse(env, request);
     } else if (path === "/sessions" && request.method === "GET") {
-      const rows = await sessionRows(env, false);
+      const url = new URL(request.url);
+      const programType = String(url.searchParams.get("program_type") || "").toLowerCase();
+      const rows = (await sessionRows(env, false)).filter((row) => !programType || String(row.program_type || "").toLowerCase() === programType);
       response = json({ ok: true, data: rows.map((row) => ({ ...row, payment_guide: undefined })), total: rows.length });
+    } else if (path === "/study/sessions" && request.method === "GET") {
+      const rows = (await sessionRows(env, false)).filter((row) => isStudySession(row));
+      response = json({ ok: true, data: rows.map((row) => ({ ...row, payment_guide: undefined })), total: rows.length, workflow: "회원 확인 → 스터디 선택 → 참가 신청 → 운영자 확인" });
     } else if (path === "/apply" && request.method === "POST") {
       response = await handleApply(request, env);
     } else if (path === "/member/verify-code" && request.method === "POST") {
       response = await handlePublicVerify(request, env);
+    } else if (path === "/member/profile" && request.method === "POST") {
+      response = await handleMemberProfileUpdate(request, env);
+    } else if (path === "/member/reviews" && request.method === "POST") {
+      response = await handleMemberReviewCreate(request, env);
     } else if (path === "/member/bookings" && request.method === "POST") {
       response = await handlePublicBooking(request, env);
     } else if (path === "/auth/kakao/start" && request.method === "GET") {

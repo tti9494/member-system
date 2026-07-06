@@ -35,6 +35,10 @@
   .program-item strong { display: block; color: var(--text); font-size: 0.98rem; margin-bottom: 4px; }
   .program-item span { display: block; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
 	  .program-result { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--text); font-weight: 750; font-size: 0.98rem; }
+  .program-type-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 16px 0 18px; }
+  .program-type-chip { border: 1.5px solid var(--border); border-radius: 11px; padding: 13px 14px; background: #F4F7FB; color: #0E1726; }
+  .program-type-chip strong { display: block; color: #0E1726; font-size: 0.94rem; margin-bottom: 3px; }
+  .program-type-chip span { display: block; color: #3A485F; font-size: 0.86rem; line-height: 1.45; }
   .session-choice { border: 1.5px solid var(--border); border-radius: 12px; padding: 16px; background: #F4F7FB; margin-bottom: 24px; }
   .session-choice-title { color: var(--text); font-size: 1.02rem; font-weight: 850; margin-bottom: 8px; }
   .session-choice-meta { color: var(--muted); font-size: 0.95rem; line-height: 1.55; margin-top: 8px; }
@@ -138,6 +142,16 @@
   .consent-box:has(input:checked) {
     background: #18345d;
   }
+  .program-type-chip {
+    background: #182235;
+    color: #eef4ff;
+  }
+  .program-type-chip strong {
+    color: #eef4ff;
+  }
+  .program-type-chip span {
+    color: #b8c6d9;
+  }
 	  .grade-badge .grade-bar-wrap,
 	  .consent-box,
 	  .privacy-full,
@@ -178,6 +192,7 @@
     h1 { font-size: 1.85rem; }
     .program-head { display: block; }
     .program-pill { display: inline-flex; margin-top: 12px; }
+    .program-type-strip { grid-template-columns: 1fr; }
     .program-grid { grid-template-columns: 1fr; }
     .checkbox-grid { grid-template-columns: 1fr; }
     .step-dot { width: 36px; height: 36px; font-size: 0.92rem; }
@@ -200,7 +215,12 @@
       </div>
       <div class="program-pill">정보 접수</div>
     </div>
-    <p class="program-summary">무료강의는 고정 요일 없이 매번 내용, 장소, 시간이 달라질 수 있습니다. 아래 정보는 연락과 편성 참고용으로만 받습니다.</p>
+    <p class="program-summary">무료강의는 유료강의와 다르게 입금이나 승인 코드 없이 참여 희망 정보를 먼저 받습니다. 일정, 장소, 내용은 매번 달라질 수 있고 확정 후 따로 안내합니다.</p>
+    <div class="program-type-strip" aria-label="무료강의 특징">
+      <div class="program-type-chip"><strong>비용 0원</strong><span>입금 안내나 결제 확인 없이 무료 참여 희망만 접수합니다.</span></div>
+      <div class="program-type-chip"><strong>입문/체험 중심</strong><span>AI 계정 세팅, 활용 방향, 궁금한 주제를 가볍게 확인합니다.</span></div>
+      <div class="program-type-chip"><strong>일정 변동 가능</strong><span>공개 일정이 있으면 선택하고, 없으면 정보만 남겨도 됩니다.</span></div>
+    </div>
     <div class="program-grid">
       <div class="program-item"><strong>기본 연락 정보</strong><span>이름, 이메일, 연락처와 현재 AI 활용 수준을 확인합니다.</span></div>
       <div class="program-item"><strong>가능한 지역</strong><span>오프라인 참여 가능 지역이나 온라인만 가능한지 남겨주세요.</span></div>

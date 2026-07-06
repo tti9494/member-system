@@ -477,6 +477,36 @@ class BookingPaymentFlowTest(unittest.TestCase):
         self.assertEqual(first["status"], "open")
         self.assertEqual(first["location"], "영등포시장역 사무실")
 
+    def test_seed_default_free_class_sessions_creates_free_saturday_session(self):
+        result = booking_manager.seed_default_free_class_sessions(weeks=1)
+        sessions = booking_manager.list_sessions(include_closed=True)
+
+        self.assertEqual(len(result["created"]), 1)
+        self.assertEqual(result["updated"], [])
+        self.assertEqual(len(sessions), 1)
+        self.assertEqual(sessions[0]["program_type"], "free_class")
+        self.assertEqual(sessions[0]["title"], "무료 AI 강의")
+        self.assertEqual(sessions[0]["price_krw"], 0)
+        self.assertEqual(sessions[0]["capacity_max"], 20)
+        self.assertEqual(sessions[0]["location"], "장소 추후 안내")
+
+    def test_seed_default_free_class_sessions_reopens_existing_same_time(self):
+        result = booking_manager.seed_default_free_class_sessions(weeks=1)
+        first_id = result["created"][0]
+        ok = booking_manager.update_session(first_id, {"location": "테스트 장소", "status": "canceled", "capacity_max": 3})
+
+        second_result = booking_manager.seed_default_free_class_sessions(weeks=1)
+        sessions = booking_manager.list_sessions(include_closed=True)
+        first = booking_manager.get_session(first_id)
+
+        self.assertTrue(ok)
+        self.assertEqual(second_result["created"], [])
+        self.assertEqual(second_result["updated"], [first_id])
+        self.assertEqual(len(sessions), 1)
+        self.assertEqual(first["status"], "open")
+        self.assertEqual(first["location"], "장소 추후 안내")
+        self.assertEqual(first["capacity_max"], 20)
+
     def test_delete_empty_session_succeeds(self):
         now = datetime.now(timezone.utc)
         session_id = booking_manager.create_session(
@@ -688,6 +718,119 @@ class BookingPaymentFlowTest(unittest.TestCase):
         self.assertEqual(member["class_summary"]["free_completed"], 1)
         self.assertEqual(member["class_summary"]["paid_completed"], 0)
         self.assertIn("무료 1회", member["class_summary_text"])
+
+    def test_study_default_allows_approved_member_and_paid_only_requires_paid_history(self):
+        now = datetime.now(timezone.utc)
+        study_id = booking_manager.create_session(
+            {
+                "title": "TEST Member Study",
+                "program_type": "study",
+                "audience_level": "approved",
+                "starts_at": (now + timedelta(days=5)).isoformat(),
+                "ends_at": (now + timedelta(days=5, hours=2)).isoformat(),
+                "location": "TEST Study Room",
+                "status": "open",
+                "capacity_min": 1,
+                "capacity_max": 12,
+                "price_krw": 0,
+            }
+        )
+        paid_only_id = booking_manager.create_session(
+            {
+                "title": "TEST Paid Only Study",
+                "program_type": "study",
+                "audience_level": "paid_only",
+                "starts_at": (now + timedelta(days=6)).isoformat(),
+                "ends_at": (now + timedelta(days=6, hours=2)).isoformat(),
+                "location": "TEST Study Room",
+                "status": "open",
+                "capacity_min": 1,
+                "capacity_max": 12,
+                "price_krw": 0,
+            }
+        )
+
+        ok, reason, detail = booking_manager.study_member_acceptance(
+            booking_manager.get_session(study_id),
+            "member-1",
+        )
+        self.assertTrue(ok)
+        self.assertEqual(reason, "")
+        self.assertEqual(detail["paid_completed"], 0)
+
+        ok, reason, detail = booking_manager.study_member_acceptance(
+            booking_manager.get_session(paid_only_id),
+            "member-1",
+        )
+        self.assertFalse(ok)
+        self.assertIn("유료강의 수강 이력", reason)
+        self.assertEqual(detail["paid_completed"], 0)
+
+        paid_session_id = booking_manager.create_session(
+            {
+                "title": "TEST Completed Paid Class",
+                "program_type": "ai_basic_setup",
+                "starts_at": (now - timedelta(days=10)).isoformat(),
+                "ends_at": (now - timedelta(days=10) + timedelta(hours=2)).isoformat(),
+                "location": "TEST Room",
+                "status": "open",
+                "capacity_max": 5,
+                "price_krw": 50000,
+            }
+        )
+        booking_manager.create_booking(
+            {
+                "session_id": paid_session_id,
+                "member_id": "member-1",
+                "applicant_name": "TEST Member 1",
+                "phone_masked": "010-****-0001",
+                "status": "completed",
+                "payment_status": "paid",
+                "payment_amount_krw": 50000,
+                "confirmed_at": (now - timedelta(days=11)).isoformat(),
+            }
+        )
+
+        ok, reason, detail = booking_manager.study_member_acceptance(
+            booking_manager.get_session(paid_only_id),
+            "member-1",
+        )
+        self.assertTrue(ok)
+        self.assertEqual(reason, "")
+        self.assertEqual(detail["paid_completed"], 1)
+
+    def test_study_sessions_are_listed_separately_from_class_sessions(self):
+        now = datetime.now(timezone.utc)
+        booking_manager.create_session(
+            {
+                "title": "TEST Study List",
+                "program_type": "study",
+                "audience_level": "approved",
+                "starts_at": (now + timedelta(days=7)).isoformat(),
+                "ends_at": (now + timedelta(days=7, hours=1)).isoformat(),
+                "location": "TEST Study Room",
+                "status": "open",
+                "capacity_max": 10,
+                "price_krw": 0,
+            }
+        )
+        booking_manager.create_session(
+            {
+                "title": "TEST Paid Class List",
+                "program_type": "ai_basic_setup",
+                "starts_at": (now + timedelta(days=8)).isoformat(),
+                "ends_at": (now + timedelta(days=8, hours=1)).isoformat(),
+                "location": "TEST Paid Room",
+                "status": "open",
+                "capacity_max": 5,
+                "price_krw": 50000,
+            }
+        )
+
+        studies = booking_manager.list_study_sessions()
+
+        self.assertEqual([row["title"] for row in studies], ["TEST Study List"])
+        self.assertEqual(studies[0]["audience_level"], "approved")
 
 
 class FreeApplyValidationTest(unittest.TestCase):

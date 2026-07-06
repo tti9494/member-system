@@ -1088,6 +1088,40 @@
     min-width: 1360px;
   }
 
+  .kakao-member-table {
+    min-width: 1180px;
+  }
+
+  .kakao-member-row {
+    display: grid;
+    grid-template-columns: 58px minmax(140px, 1fr) 132px 112px 112px 150px 130px minmax(220px, 1.2fr) 128px;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+    min-height: 46px;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .kakao-member-row:not(.kakao-member-row-head) {
+    cursor: pointer;
+  }
+
+  .kakao-member-row:not(.kakao-member-row-head):hover {
+    background: var(--surface-soft);
+  }
+
+  .kakao-member-row-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    min-height: 42px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 850;
+  }
+
   .review-board-panel {
     min-height: 0;
   }
@@ -1311,6 +1345,8 @@
   .pill.plan-consultation { color: #fff; background: #0f766e; border-color: #0d5f59; }
   .pill.plan-lead_email { color: #0f172a; background: #bae6fd; border-color: #38bdf8; }
   .pill.plan-lead_phone { color: #0f172a; background: #fde68a; border-color: #f59e0b; }
+  .pill.plan-latest { box-shadow: 0 0 0 1px rgba(255,255,255,0.36), 0 0 0 4px rgba(20,184,166,0.12); }
+  .pill.reapply { color: #042f2e; background: #99f6e4; border-color: #2dd4bf; }
   .pill.contact-registered { color: #052119; background: var(--green-strong); border-color: var(--green-strong); }
   .pill.contact-unregistered { color: var(--amber-strong); background: var(--amber-soft); border-color: var(--amber); }
   .pill.kakao-linked { color: #2b1800; background: #fee500; border-color: #f6d600; }
@@ -2396,6 +2432,7 @@
 	      <button class="admin-tab" id="admin-tab-consultations" type="button" role="tab" aria-selected="false" aria-controls="consultations-panel">상담</button>
 	      <button class="admin-tab" id="admin-tab-newsletter" type="button" role="tab" aria-selected="false" aria-controls="newsletter-panel">소식받기</button>
 	      <button class="admin-tab" id="admin-tab-member-groups" type="button" role="tab" aria-selected="false" aria-controls="member-groups-panel">멤버</button>
+	      <button class="admin-tab" id="admin-tab-kakao-members" type="button" role="tab" aria-selected="false" aria-controls="kakao-members-panel">카카오회원</button>
 	      <button class="admin-tab" id="admin-tab-review-board" type="button" role="tab" aria-selected="false" aria-controls="review-board-panel">후기</button>
 	      <button class="admin-tab" id="admin-tab-schedule" type="button" role="tab" aria-selected="false" aria-controls="schedule-panel">일정</button>
 	      <button class="admin-tab" id="admin-tab-system" type="button" role="tab" aria-selected="false" aria-controls="system-panel">시스템</button>
@@ -2699,6 +2736,42 @@
       </section>
     </section>
 
+    <section class="admin-tab-panel" id="kakao-members-panel" role="tabpanel" aria-labelledby="admin-tab-kakao-members">
+      <section class="panel member-group-panel" aria-label="카카오 연동 회원 목록">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">카카오 회원 관리</div>
+            <div class="panel-caption" id="kakao-member-caption">카카오 연동 회원과 연동 대기 회원을 따로 확인합니다.</div>
+          </div>
+          <div class="top-actions">
+            <a class="btn secondary" href="/frontend/kakao-members.html" target="_blank" rel="noopener">전용 페이지</a>
+            <button class="btn primary" id="kakao-member-refresh-btn" type="button">새로고침</button>
+          </div>
+        </div>
+        <section class="toolbar member-group-toolbar" aria-label="카카오 회원 필터">
+          <div class="field">
+            <label for="kakao-member-search-input">검색</label>
+            <input id="kakao-member-search-input" type="search" placeholder="이름, 연락처, 닉네임, 지역, 목표">
+          </div>
+          <div class="field">
+            <label for="kakao-member-filter">연동 상태</label>
+            <select id="kakao-member-filter">
+              <option value="linked">카카오 연동</option>
+              <option value="unlinked-approved">승인·미연동</option>
+              <option value="all">전체</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <span class="pill neutral" id="kakao-member-active-filter-label">카카오 연동</span>
+          </div>
+        </section>
+        <div id="kakao-member-list" class="member-group-list">
+          <div class="empty-state">관리자 비밀번호로 연결하면 카카오 회원 목록을 불러옵니다.</div>
+        </div>
+      </section>
+    </section>
+
     <section class="admin-tab-panel" id="review-board-panel" role="tabpanel" aria-labelledby="admin-tab-review-board">
       <section class="panel review-board-panel" aria-label="ARSEN 후기보드 관리">
         <div class="panel-head">
@@ -2949,7 +3022,8 @@
           </div>
         </div>
         <div class="top-actions">
-          <button class="btn" id="seed-sessions-btn" type="button">기본 일정 생성</button>
+          <button class="btn" id="seed-sessions-btn" type="button">유료 일정 생성</button>
+          <button class="btn green" id="seed-free-sessions-btn" type="button">무료 일정 생성</button>
           <button class="btn primary" id="booking-refresh-btn" type="button">예약 새로고침</button>
         </div>
       </div>
@@ -2969,9 +3043,10 @@
         <div id="payment-account-summary" class="operator-template-summary">저장된 계좌를 불러오는 중입니다.</div>
         <div class="operator-template-row" aria-label="준비물 안내 관리">
           <button class="btn primary" id="preparation-guide-copy-btn" type="button">준비물 안내 복사</button>
+          <button class="btn green" id="free-guide-template-copy-btn" type="button">무료강의 안내 복사</button>
           <button class="btn" id="preparation-guide-edit-btn" type="button">준비물 문구 수정</button>
         </div>
-        <div id="preparation-guide-summary" class="operator-template-summary">준비물 안내 문구를 불러오는 중입니다.</div>
+        <div id="preparation-guide-summary" class="operator-template-summary">준비물 안내 문구를 불러오는 중입니다. 무료강의 안내 복사는 일정 없이도 사용할 수 있습니다.</div>
       </div>
       <div class="booking-tabs" role="tablist" aria-label="강의 일정 예약 탭">
         <button class="booking-tab active" id="booking-tab-sessions" type="button" role="tab" aria-selected="true" aria-controls="session-tab-panel">일정 보기</button>
@@ -2991,7 +3066,8 @@
       <details>
         <summary style="cursor:pointer;margin-top:14px;font-weight:800;color:var(--primary);">새 일정 직접 추가</summary>
         <div class="session-form">
-          <div class="field"><label>일정 종류</label><select id="new-session-program-type"><option value="ai_basic_setup">유료강의</option><option value="free_class">무료강의</option></select></div>
+          <div class="field"><label>일정 종류</label><select id="new-session-program-type"><option value="ai_basic_setup">유료강의</option><option value="free_class">무료강의</option><option value="study">스터디</option></select></div>
+          <div class="field"><label>참가 대상</label><select id="new-session-audience-level"><option value="approved">승인멤버 전체</option><option value="paid_only">유료강의 수강자만</option><option value="beginner">입문/무료강의</option><option value="all">전체</option></select></div>
           <div class="field"><label>일정명</label><input id="new-session-title" type="text" value="AI 기초 세팅 및 컨설팅 강의 1:4" placeholder="예: 무료 AI 강의"></div>
           <div class="field"><label>시작</label><input id="new-session-start" type="datetime-local"></div>
           <div class="field"><label>종료</label><input id="new-session-end" type="datetime-local"></div>
@@ -3087,6 +3163,7 @@
 	    adminTabConsultations: $("admin-tab-consultations"),
 	    adminTabNewsletter: $("admin-tab-newsletter"),
 	    adminTabMemberGroups: $("admin-tab-member-groups"),
+    adminTabKakaoMembers: $("admin-tab-kakao-members"),
     adminTabReviewBoard: $("admin-tab-review-board"),
     adminTabSchedule: $("admin-tab-schedule"),
     adminTabSystem: $("admin-tab-system"),
@@ -3095,6 +3172,7 @@
 	    consultationsPanel: $("consultations-panel"),
 	    newsletterPanel: $("newsletter-panel"),
 	    memberGroupsPanel: $("member-groups-panel"),
+    kakaoMembersPanel: $("kakao-members-panel"),
     reviewBoardPanel: $("review-board-panel"),
     schedulePanel: $("schedule-panel"),
     systemPanel: $("system-panel"),
@@ -3105,6 +3183,11 @@
     memberGroupPlanFilter: $("member-group-plan-filter"),
     memberGroupStatusFilter: $("member-group-status-filter"),
     memberGroupActiveFilterLabel: $("member-group-active-filter-label"),
+    kakaoMemberList: $("kakao-member-list"),
+    kakaoMemberCaption: $("kakao-member-caption"),
+    kakaoMemberSearchInput: $("kakao-member-search-input"),
+    kakaoMemberFilter: $("kakao-member-filter"),
+    kakaoMemberActiveFilterLabel: $("kakao-member-active-filter-label"),
     consultationsCaption: $("consultations-caption"),
     consultationsList: $("consultations-list"),
     consultationNewCount: $("consultation-new-count"),
@@ -3442,10 +3525,34 @@
     return span;
   }
 
+  function latestDuplicatePlanType(member) {
+    const logs = Array.isArray(member?.duplicate_apply_logs) ? member.duplicate_apply_logs : [];
+    return member?.duplicate_apply_last_attempt_plan_type || logs[0]?.attempt_plan_type || "";
+  }
+
+  function reapplyPill(member) {
+    if (!Number(member?.duplicate_apply_count || 0)) return null;
+    const span = document.createElement("span");
+    span.className = "pill reapply";
+    span.textContent = "재신청";
+    span.title = member.duplicate_apply_summary_text || "재신청 이력이 있습니다.";
+    return span;
+  }
+
   function memberPlanNode(member) {
     const wrap = document.createElement("div");
     wrap.className = "member-plan-wrap";
+    const reapply = reapplyPill(member);
+    if (reapply) wrap.appendChild(reapply);
     wrap.appendChild(planTypePill(member.plan_type));
+    const latestPlan = latestDuplicatePlanType(member);
+    if (latestPlan && latestPlan !== member.plan_type) {
+      const latest = planTypePill(latestPlan);
+      latest.classList.add("plan-latest");
+      latest.title = "최근 재신청 유형";
+      latest.textContent = `최근 ${planTypeLabel(latestPlan)}`;
+      wrap.appendChild(latest);
+    }
     const grade = document.createElement("span");
     grade.className = "clip";
     grade.textContent = member.participation_grade || "-";
@@ -3484,18 +3591,42 @@
     return span;
   }
 
-	  function isFreeBooking(booking) {
-	    return Number(booking?.payment_amount_krw || booking?.session_price_krw || 0) === 0
-	      || booking?.payment_status === "waived"
-	      || String(booking?.session_title || "").includes("무료")
-	      || String(booking?.member_plan_type || "").toLowerCase() === "free";
+	  function isStudySession(session) {
+	    return String(session?.program_type || "").toLowerCase() === "study";
 	  }
 
-  function isFreeSession(session) {
-    return String(session?.program_type || "").toLowerCase().includes("free")
-      || Number(session?.price_krw || 0) === 0
-      || String(session?.title || "").includes("무료");
-  }
+	  function isStudyBooking(booking) {
+	    return String(booking?.session_program_type || "").toLowerCase() === "study";
+	  }
+
+	  function isFreeBooking(booking) {
+	    if (isStudyBooking(booking)) return false;
+		    return Number(booking?.payment_amount_krw || booking?.session_price_krw || 0) === 0
+		      || booking?.payment_status === "waived"
+		      || String(booking?.session_title || "").includes("무료")
+		      || String(booking?.member_plan_type || "").toLowerCase() === "free";
+		  }
+
+	  function isFreeSession(session) {
+	    if (isStudySession(session)) return false;
+	    return String(session?.program_type || "").toLowerCase().includes("free")
+	      || Number(session?.price_krw || 0) === 0
+	      || String(session?.title || "").includes("무료");
+	  }
+
+	  function sessionKindLabel(session) {
+	    if (isStudySession(session)) return "스터디";
+	    return isFreeSession(session) ? "무료강의" : "유료강의";
+	  }
+
+	  function bookingKindLabel(booking) {
+	    if (isStudyBooking(booking)) return "스터디";
+	    return isFreeBooking(booking) ? "무료강의" : "유료강의";
+	  }
+
+	  function sessionAudienceLabel(session) {
+	    return String(session?.audience_level || "").toLowerCase() === "paid_only" ? "유료수강자 전용" : "승인멤버 전체";
+	  }
 
   function updateStats(stats) {
     const data = stats || {};
@@ -4136,12 +4267,18 @@
 	      statusLabel(member.status),
 	      member.created_at,
 	      member.updated_at,
+	      member.openchat_nickname,
 	      member.job,
 	      member.referral_source,
-	      member.region,
-	      member.plan_type,
-	      planTypeLabel(member.plan_type),
-	      member.ai_level,
+		      member.region,
+		      member.plan_type,
+		      planTypeLabel(member.plan_type),
+          member.latest_activity_at,
+          member.duplicate_apply_last_at,
+          member.duplicate_apply_summary_text,
+          latestDuplicatePlanType(member),
+          planTypeLabel(latestDuplicatePlanType(member)),
+		      member.ai_level,
 	      member.ai_tools,
 	      member.ai_subscription,
 	      member.ai_use_cases,
@@ -4244,7 +4381,7 @@
     table.className = "member-table";
     const header = document.createElement("div");
     header.className = "member-row member-row-head";
-    ["선택", "신청시각", "이름", "연락처", "상태", "분류", "카카오", "수강", "연락처등록", "요청/목표", "처리"].forEach((label) => {
+	    ["선택", "최근접수", "이름", "연락처", "상태", "분류", "카카오", "수강", "연락처등록", "요청/목표", "처리"].forEach((label) => {
       const cell = document.createElement("div");
       cell.className = label === "선택" ? "member-cell member-select-cell" : "member-cell";
       cell.textContent = label;
@@ -4269,7 +4406,7 @@
       });
 
       const cells = [
-        { text: formatDateCompact(member.created_at), className: "muted" },
+	        { text: formatDateCompact(member.latest_activity_at || member.created_at), className: member.duplicate_apply_last_at ? "muted strong" : "muted" },
         { text: member.name || "(이름 없음)", className: "strong clip" },
         { text: member.phone_masked || "전화번호 없음", className: "muted" },
         { node: statusPill(member.status) },
@@ -4429,6 +4566,98 @@
     });
 
     fields.memberGroupList.appendChild(table);
+  }
+
+  function filteredKakaoMembers() {
+    const query = fields.kakaoMemberSearchInput.value.trim();
+    const filter = fields.kakaoMemberFilter.value;
+    return state.members.filter((member) => {
+      if (member.status === "erased") return false;
+      if (filter === "linked" && !member.kakao_id) return false;
+      if (filter === "unlinked-approved" && (member.kakao_id || member.status !== "approved")) return false;
+      return memberMatchesSearch(member, query);
+    });
+  }
+
+  function renderKakaoMembers() {
+    const members = filteredKakaoMembers();
+    const filterLabel = {
+      linked: "카카오 연동",
+      "unlinked-approved": "승인·미연동",
+      all: "전체",
+    }[fields.kakaoMemberFilter.value] || "카카오 연동";
+    const linkedCount = state.members.filter((member) => member.kakao_id && member.status !== "erased").length;
+    const approvedUnlinked = state.members.filter((member) => !member.kakao_id && member.status === "approved").length;
+    fields.kakaoMemberCaption.textContent = `${members.length}명 표시 / 연동 ${linkedCount}명 · 승인 미연동 ${approvedUnlinked}명`;
+    fields.kakaoMemberActiveFilterLabel.textContent = filterLabel;
+    fields.kakaoMemberList.innerHTML = "";
+
+    if (!members.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = "조건에 맞는 카카오 회원이 없습니다.";
+      fields.kakaoMemberList.appendChild(empty);
+      return;
+    }
+
+    const table = document.createElement("div");
+    table.className = "kakao-member-table";
+    const header = document.createElement("div");
+    header.className = "kakao-member-row kakao-member-row-head";
+    ["번호", "이름", "연락처", "상태", "신청유형", "오픈톡 닉네임", "카카오", "수강/레벨", "처리"].forEach((label) => {
+      const cell = document.createElement("div");
+      cell.className = "member-cell";
+      cell.textContent = label;
+      header.appendChild(cell);
+    });
+    table.appendChild(header);
+
+    members.forEach((member, index) => {
+      const row = document.createElement("div");
+      row.className = "kakao-member-row";
+      row.role = "button";
+      row.tabIndex = 0;
+      row.addEventListener("click", (event) => {
+        if (event.target.closest("button")) return;
+        openMemberFromGroup(member.id);
+      });
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openMemberFromGroup(member.id);
+        }
+      });
+      const cells = [
+        { text: String(index + 1), className: "muted" },
+        { text: member.name || "(이름 없음)", className: "strong clip" },
+        { text: member.phone_masked || "전화번호 없음", className: "muted" },
+        { node: statusPill(member.status) },
+        { node: planTypePill(member.plan_type) },
+        { text: member.openchat_nickname || "-", className: "clip muted" },
+        { node: kakaoLinkedPill(member) },
+        { text: classSummaryText(member), className: "clip muted" },
+      ];
+      for (const item of cells) {
+        const cell = document.createElement("div");
+        cell.className = `member-cell ${item.className || ""}`.trim();
+        if (item.node) cell.appendChild(item.node);
+        else {
+          cell.textContent = item.text;
+          cell.title = item.text;
+        }
+        row.appendChild(cell);
+      }
+      const actions = document.createElement("div");
+      actions.className = "member-cell review-board-actions";
+      actions.append(
+        actionButton("상세", "primary", false, () => openMemberFromGroup(member.id)),
+        actionButton("연결 해제", "amber", !member.kakao_id, () => unlinkMemberKakao(member.id, member.name || "신청자"))
+      );
+      row.appendChild(actions);
+      table.appendChild(row);
+    });
+
+    fields.kakaoMemberList.appendChild(table);
   }
 
   function fieldRows(items) {
@@ -5331,9 +5560,11 @@
     }
   }
 
-		  async function showManualBookingModal(session) {
-	    const freeSession = isFreeSession(session);
-	    fields.contactModalTitle.textContent = freeSession ? "무료 참여자 수동 추가" : "입금자 수동 추가";
+			  async function showManualBookingModal(session) {
+		    const studySession = isStudySession(session);
+		    const freeSession = isFreeSession(session);
+		    const participationSession = studySession || freeSession;
+		    fields.contactModalTitle.textContent = studySession ? "스터디 참여자 수동 추가" : freeSession ? "무료 참여자 수동 추가" : "입금자 수동 추가";
     fields.contactModalBody.innerHTML = "";
     const manualMembers = await loadManualMembers(true).catch((error) => {
       setStatus(error.message, "error");
@@ -5341,7 +5572,7 @@
     });
     const note = document.createElement("div");
     note.className = "contact-modal-note";
-	    note.textContent = `${formatSessionDateKey(sessionDateKey(session))} ${formatSessionTime(session.starts_at)} 일정에 ${freeSession ? "무료강의 확정 참여자" : "입금확정 예약"}를 바로 추가합니다. 먼저 기존 신청자를 선택하고, 목록에 없을 때만 새로 입력하세요.`;
+		    note.textContent = `${formatSessionDateKey(sessionDateKey(session))} ${formatSessionTime(session.starts_at)} 일정에 ${studySession ? "스터디 확정 참여자" : freeSession ? "무료강의 확정 참여자" : "입금확정 예약"}를 바로 추가합니다. 먼저 기존 신청자를 선택하고, 목록에 없을 때만 새로 입력하세요.`;
     const form = document.createElement("div");
     form.className = "template-editor";
     const grid = document.createElement("div");
@@ -5362,7 +5593,7 @@
     const name = modalInput("이름", "", "입금자 또는 신청자 이름");
     const phone = modalInput("연락처", "", "010-0000-0000");
     const email = modalInput("이메일 (선택)", "", "비워두면 운영자 수동 등록용 이메일로 보관");
-	    const amount = modalInput(freeSession ? "금액" : "입금액", freeSession ? 0 : (session.price_krw || 50000), freeSession ? "0" : "50000");
+		    const amount = modalInput(participationSession ? "금액" : "입금액", participationSession ? 0 : (session.price_krw || 50000), participationSession ? "0" : "50000");
     const outcome = modalTextarea("메모 / 구현 목표", "", "예: 입금 확인 완료, 희망 자동화 주제, 전달받은 요청사항");
     function syncManualInputMode() {
       const selected = manualMembers.find((member) => member.id === memberSelect.value);
@@ -5383,18 +5614,18 @@
     memberSelect.addEventListener("change", syncManualInputMode);
     grid.append(memberWrap, name.wrap, phone.wrap, email.wrap, amount.wrap, outcome.wrap);
     syncManualInputMode();
-    const actions = document.createElement("div");
-    actions.className = "booking-actions";
-    actions.append(
-	      actionButton(freeSession ? "무료 참여자로 추가" : "입금확정으로 추가", "green", false, () => createManualBooking(session, {
+	    const actions = document.createElement("div");
+	    actions.className = "booking-actions";
+	    actions.append(
+		      actionButton(studySession ? "스터디 참여자로 추가" : freeSession ? "무료 참여자로 추가" : "입금확정으로 추가", "green", false, () => createManualBooking(session, {
         member_id: memberSelect.value,
         applicant_name: name.input.value.trim(),
         phone: memberSelect.value ? "" : phone.input.value.trim(),
         email: memberSelect.value ? "" : email.input.value.trim(),
-	        payment_amount_krw: Number(amount.input.value === "" ? (freeSession ? 0 : (session.price_krw || 50000)) : amount.input.value),
-	        desired_outcome: outcome.textarea.value.trim(),
-	        payment_note: outcome.textarea.value.trim() || (freeSession ? "운영자 수동 추가: 무료강의 확정" : "운영자 수동 추가: 입금 확인 완료"),
-      })),
+		        payment_amount_krw: Number(amount.input.value === "" ? (participationSession ? 0 : (session.price_krw || 50000)) : amount.input.value),
+		        desired_outcome: outcome.textarea.value.trim(),
+		        payment_note: outcome.textarea.value.trim() || (studySession ? "운영자 수동 추가: 스터디 참여 확정" : freeSession ? "운영자 수동 추가: 무료강의 확정" : "운영자 수동 추가: 입금 확인 완료"),
+	      })),
       actionButton("닫기", "muted", false, hideContactModal)
     );
     form.append(grid, actions);
@@ -5566,6 +5797,34 @@
     );
   }
 
+  function freeClassTemplateGuide() {
+    return [
+      "[무료강의 안내]",
+      "",
+      "안녕하세요. ARSEN 무료강의 신청 안내드립니다.",
+      "",
+      "무료강의는 일정과 장소가 확정되는 대로 개별 안내드립니다.",
+      "참석 가능 여부를 답장으로 알려주시면 편성에 참고하겠습니다.",
+      "",
+      "참여 전 준비물",
+      "- 노트북 또는 태블릿",
+      "- 충전기",
+      "- 사용 중인 AI 계정 정보",
+      "- 궁금한 자동화 주제나 직접 해보고 싶은 업무 예시",
+      "",
+      "일정이나 장소 변경이 필요하면 이 메시지로 편하게 답장 주세요.",
+    ].join("\n");
+  }
+
+  function copyFreeClassTemplateGuide() {
+    showCopyModal(
+      "무료강의 안내 문구",
+      "무료강의 일정이 아직 없어도 사용할 수 있는 공통 안내입니다. 자동 전송하지 않고 클립보드에 복사합니다.",
+      freeClassTemplateGuide(),
+      "무료강의 안내 복사"
+    );
+  }
+
   async function deleteCurrentPaymentAccount() {
     const selected = currentPaymentAccount();
     if (!selected) return;
@@ -5585,6 +5844,7 @@
 	    const isConsultations = tabName === "consultations";
 	    const isNewsletter = tabName === "newsletter";
 	    const isMemberGroups = tabName === "memberGroups";
+    const isKakaoMembers = tabName === "kakaoMembers";
     const isReviewBoard = tabName === "reviewBoard";
     const isSchedule = tabName === "schedule";
     const isSystem = tabName === "system";
@@ -5593,6 +5853,7 @@
 	    fields.adminTabConsultations.classList.toggle("active", isConsultations);
 	    fields.adminTabNewsletter.classList.toggle("active", isNewsletter);
 	    fields.adminTabMemberGroups.classList.toggle("active", isMemberGroups);
+    fields.adminTabKakaoMembers.classList.toggle("active", isKakaoMembers);
     fields.adminTabReviewBoard.classList.toggle("active", isReviewBoard);
     fields.adminTabSchedule.classList.toggle("active", isSchedule);
     fields.adminTabSystem.classList.toggle("active", isSystem);
@@ -5601,6 +5862,7 @@
 	    fields.adminTabConsultations.setAttribute("aria-selected", isConsultations ? "true" : "false");
 	    fields.adminTabNewsletter.setAttribute("aria-selected", isNewsletter ? "true" : "false");
 	    fields.adminTabMemberGroups.setAttribute("aria-selected", isMemberGroups ? "true" : "false");
+    fields.adminTabKakaoMembers.setAttribute("aria-selected", isKakaoMembers ? "true" : "false");
     fields.adminTabReviewBoard.setAttribute("aria-selected", isReviewBoard ? "true" : "false");
     fields.adminTabSchedule.setAttribute("aria-selected", isSchedule ? "true" : "false");
     fields.adminTabSystem.setAttribute("aria-selected", isSystem ? "true" : "false");
@@ -5609,6 +5871,7 @@
 	    fields.consultationsPanel.classList.toggle("active", isConsultations);
 	    fields.newsletterPanel.classList.toggle("active", isNewsletter);
 	    fields.memberGroupsPanel.classList.toggle("active", isMemberGroups);
+    fields.kakaoMembersPanel.classList.toggle("active", isKakaoMembers);
     fields.reviewBoardPanel.classList.toggle("active", isReviewBoard);
     fields.schedulePanel.classList.toggle("active", isSchedule);
     fields.systemPanel.classList.toggle("active", isSystem);
@@ -6038,9 +6301,10 @@
   }
 
 	  function bookingWorkflowLabel(booking) {
-	    if (booking.status === "completed") return "참여 완료";
-	    if (booking.status === "no_show") return "불참";
-	    if (booking.status === "confirmed") return isFreeBooking(booking) ? "무료 확정" : "입금확정";
+		    if (booking.status === "completed") return "참여 완료";
+		    if (booking.status === "no_show") return "불참";
+		    if (booking.status === "confirmed" && isStudyBooking(booking)) return "참여확정";
+		    if (booking.status === "confirmed") return isFreeBooking(booking) ? "무료 확정" : "입금확정";
 	    if (booking.status === "payment_guide_sent") return "입금 안내 완료";
 	    if (booking.status === "payment_pending") return "입금 대기";
 	    if (booking.status === "payment_confirmed") return "입금 확인 대기";
@@ -6048,11 +6312,12 @@
     return "신청 접수";
   }
 
-  function bookingRankText(booking) {
-    const requestRank = booking.request_rank ? `신청 ${booking.request_rank}번째` : "신청 순번 -";
-    const paidRank = booking.paid_rank ? `입금확정 ${booking.paid_rank}번째` : "입금확정 전";
-    return `${requestRank} · ${paidRank}`;
-  }
+	  function bookingRankText(booking) {
+	    const requestRank = booking.request_rank ? `신청 ${booking.request_rank}번째` : "신청 순번 -";
+	    const label = isStudyBooking(booking) ? "참여확정" : isFreeBooking(booking) ? "무료확정" : "입금확정";
+	    const paidRank = booking.paid_rank ? `${label} ${booking.paid_rank}번째` : `${label} 전`;
+	    return `${requestRank} · ${paidRank}`;
+	  }
 
   function appendSessionBookingGroup(container, title, rows, kind) {
     const group = document.createElement("section");
@@ -6062,35 +6327,50 @@
     heading.textContent = `${title} ${rows.length}명`;
     group.appendChild(heading);
 
-    if (!rows.length) {
-      const empty = document.createElement("div");
-      empty.className = "session-booking-empty";
-      empty.textContent = kind === "confirmed" ? "아직 입금확정된 예약자가 없습니다." : "현재 신청 대기자가 없습니다.";
-      group.appendChild(empty);
-      container.appendChild(group);
-      return;
-    }
+	    if (!rows.length) {
+	      const empty = document.createElement("div");
+	      empty.className = "session-booking-empty";
+	      empty.textContent = kind === "confirmed" ? `아직 ${title} 예약자가 없습니다.` : "현재 신청 대기자가 없습니다.";
+	      group.appendChild(empty);
+	      container.appendChild(group);
+	      return;
+	    }
 
-	    for (const booking of rows) {
-	      const freeBooking = isFreeBooking(booking);
-	      const row = document.createElement("div");
+		    for (const booking of rows) {
+		      const studyBooking = isStudyBooking(booking);
+		      const freeBooking = isFreeBooking(booking);
+		      const row = document.createElement("div");
 	      row.className = "session-booking-row";
 	      row.dataset.bookingId = booking.id;
 	      const info = document.createElement("div");
-	      info.innerHTML = `
-	        <div class="session-booking-name">${escapeHtml(booking.applicant_name || booking.member_name || "신청자")}</div>
-	        <div class="session-booking-meta">${escapeHtml(booking.phone_masked || "-")} · ${freeBooking ? "무료강의" : "유료강의"} · ${escapeHtml(bookingWorkflowLabel(booking))} · ${escapeHtml(paymentStatusLabel(booking.payment_status))}</div>
-	        <div class="session-booking-meta">${escapeHtml(bookingRankText(booking))} · 신청 ${escapeHtml(formatDate(booking.created_at))}</div>
-	      `;
+		      info.innerHTML = `
+		        <div class="session-booking-name">${escapeHtml(booking.applicant_name || booking.member_name || "신청자")}</div>
+		        <div class="session-booking-meta">${escapeHtml(booking.phone_masked || "-")} · ${escapeHtml(bookingKindLabel(booking))} · ${escapeHtml(bookingWorkflowLabel(booking))} · ${escapeHtml(paymentStatusLabel(booking.payment_status))}</div>
+		        <div class="session-booking-meta">${escapeHtml(bookingRankText(booking))} · 신청 ${escapeHtml(formatDate(booking.created_at))}</div>
+		      `;
 	      const actions = document.createElement("div");
 	      actions.className = "booking-actions";
 	      actions.append(
 	        actionButton("연락처 보기", "primary", !booking.member_id, () => revealContact(booking.member_id))
 	      );
-	      if (freeBooking) {
+		      if (studyBooking) {
+		        if (booking.status === "confirmed") {
+		          actions.append(
+		            actionButton("참여 완료", "green", false, () => markAttendance(booking.id, "completed")),
+		            actionButton("불참", "amber", false, () => markAttendance(booking.id, "no_show"))
+		          );
+		        } else if (isActiveBooking(booking)) {
+		          actions.append(
+		            actionButton("참여확정", "green", false, () => updateBookingState(booking.id, "confirmed", "waived")),
+		            actionButton("불참", "amber", false, () => markAttendance(booking.id, "no_show"))
+		          );
+		        }
+		      } else if (freeBooking) {
+		        actions.append(
+		          actionButton("무료 안내 복사", "primary", !isActiveBooking(booking) && booking.status !== "completed", () => showFreeClassGuide(booking.id))
+	        );
 	        if (booking.status === "confirmed") {
 	          actions.append(
-	            actionButton("무료 안내", "primary", false, () => showFreeClassGuide(booking.id)),
 	            actionButton("참여 완료", "green", false, () => markAttendance(booking.id, "completed")),
 	            actionButton("불참", "amber", false, () => markAttendance(booking.id, "no_show"))
 	          );
@@ -6190,11 +6470,14 @@
     head.appendChild(dayActions);
     detail.appendChild(head);
 
-    const timeList = document.createElement("div");
-    timeList.className = "session-time-list";
-	    for (const session of selectedSessions) {
-	      const freeSession = isFreeSession(session);
-	      const activeCount = Number(session.active_booking_count ?? session.confirmed_count ?? 0);
+	    const timeList = document.createElement("div");
+	    timeList.className = "session-time-list";
+		    for (const session of selectedSessions) {
+		      const studySession = isStudySession(session);
+		      const freeSession = isFreeSession(session);
+		      const sessionKind = sessionKindLabel(session);
+		      const confirmedLabel = studySession ? "참여확정" : freeSession ? "무료확정" : "입금확정";
+		      const activeCount = Number(session.active_booking_count ?? session.confirmed_count ?? 0);
 	      const pendingCount = Number(session.requested_count || 0);
 	      const confirmedCount = Number(session.confirmed_booking_count ?? session.confirmed_count ?? 0);
       const sessionGroups = sessionBookingGroups(session.id);
@@ -6211,12 +6494,12 @@
           </div>
           <span class="session-status-pill ${escapeHtml(session.status || "")}">${escapeHtml(sessionStatusLabel(session.status))}</span>
         </div>
-	        <div class="booking-meta">${freeSession ? "무료강의" : "유료강의"} · ${escapeHtml(session.location || "-")} · 정원 ${session.capacity_max || 5}명 · ${Number(session.price_krw || 0).toLocaleString()}원</div>
-	        <div class="session-count-row">
-	          <span class="session-count-chip pending">신청대기 ${pendingCount}명</span>
-	          <span class="session-count-chip confirmed">${freeSession ? "무료확정" : "입금확정"} ${confirmedCount}명</span>
-	          <span class="session-count-chip">일정 연결 ${activeCount}명</span>
-	        </div>
+		        <div class="booking-meta">${escapeHtml(sessionKind)} · ${escapeHtml(sessionAudienceLabel(session))} · ${escapeHtml(session.location || "-")} · 정원 ${session.capacity_max || 5}명 · ${Number(session.price_krw || 0).toLocaleString()}원</div>
+		        <div class="session-count-row">
+		          <span class="session-count-chip pending">신청대기 ${pendingCount}명</span>
+		          <span class="session-count-chip confirmed">${confirmedLabel} ${confirmedCount}명</span>
+		          <span class="session-count-chip">일정 연결 ${activeCount}명</span>
+		        </div>
       `;
       const openFilteredBookings = () => setBookingSessionFilter(session.id, { openBookings: true });
       item.addEventListener("click", (event) => {
@@ -6231,20 +6514,20 @@
         }
       });
       const actions = document.createElement("div");
-      actions.className = "booking-actions";
-	      actions.append(
-	        actionButton("예약만 보기", "primary", false, openFilteredBookings),
-	        actionButton(freeSession ? "참여자 추가" : "입금자 추가", "primary", session.status === "canceled", () => showManualBookingModal(session)),
+		      actions.className = "booking-actions";
+		      actions.append(
+		        actionButton("예약만 보기", "primary", false, openFilteredBookings),
+		        actionButton(studySession || freeSession ? "참여자 추가" : "입금자 추가", "primary", session.status === "canceled", () => showManualBookingModal(session)),
         actionButton("공개", "green", session.status === "open", () => updateSessionStatus(session.id, "open")),
         actionButton("비공개", "muted", session.status === "draft", () => updateSessionStatus(session.id, "draft")),
         actionButton("취소", "red", session.status === "canceled", () => updateSessionStatus(session.id, "canceled")),
         actionButton("삭제", "red", activeCount > 0, () => deleteSession(session.id, activeCount))
       );
       item.appendChild(actions);
-      const bookingGroups = document.createElement("div");
-      bookingGroups.className = "session-booking-groups";
-	      appendSessionBookingGroup(bookingGroups, "신청 대기", sessionGroups.pending, "pending");
-	      appendSessionBookingGroup(bookingGroups, freeSession ? "무료확정" : "입금확정", sessionGroups.confirmed, "confirmed");
+	      const bookingGroups = document.createElement("div");
+	      bookingGroups.className = "session-booking-groups";
+		      appendSessionBookingGroup(bookingGroups, "신청 대기", sessionGroups.pending, "pending");
+		      appendSessionBookingGroup(bookingGroups, confirmedLabel, sessionGroups.confirmed, "confirmed");
       item.appendChild(bookingGroups);
       timeList.appendChild(item);
     }
@@ -6295,19 +6578,21 @@
 	        : '<div class="empty-state">예약 신청이 없습니다.</div>';
 	      return;
 	    }
-	    for (const booking of rows) {
-	      const isWaitlisted = booking.status === "waitlisted";
-	      const isConfirmed = booking.status === "confirmed";
-	      const isCompleted = booking.status === "completed";
-	      const isNoShow = booking.status === "no_show";
-	      const freeBooking = isFreeBooking(booking);
+		    for (const booking of rows) {
+		      const isWaitlisted = booking.status === "waitlisted";
+		      const isConfirmed = booking.status === "confirmed";
+		      const isCompleted = booking.status === "completed";
+		      const isNoShow = booking.status === "no_show";
+		      const studyBooking = isStudyBooking(booking);
+		      const freeBooking = isFreeBooking(booking);
 	      const isInactive = canDeleteBookingRecord(booking);
 	      const item = document.createElement("article");
 	      item.className = `booking-item ${isConfirmed || isCompleted ? "confirmed" : isWaitlisted ? "waitlisted" : isInactive || isNoShow ? "inactive" : "pending-seat"}`;
       item.dataset.bookingId = booking.id;
 
 	      const requestRank = booking.request_rank ? `신청 ${booking.request_rank}번째` : "신청 순번 계산 전";
-	      const paidRank = booking.paid_rank ? `${freeBooking ? "무료확정" : "입금확정"} ${booking.paid_rank}번째` : `${freeBooking ? "무료확정" : "입금확정"} 전`;
+		      const confirmLabel = studyBooking ? "참여확정" : freeBooking ? "무료확정" : "입금확정";
+		      const paidRank = booking.paid_rank ? `${confirmLabel} ${booking.paid_rank}번째` : `${confirmLabel} 전`;
       const waitlistChip = isWaitlisted
         ? `<span class="rank-chip waitlist">대기 ${booking.waitlist_rank != null ? booking.waitlist_rank + "번째" : "순번 계산 전"}</span>`
         : "";
@@ -6317,32 +6602,38 @@
           <div class="booking-item-main">
             <div class="booking-title">${escapeHtml(booking.applicant_name || booking.member_name || "신청자")}</div>
             <div class="booking-meta">${escapeHtml(formatDate(booking.session_starts_at))} · ${escapeHtml(booking.session_title || "일정 미선택")}</div>
-	            <div class="booking-meta">${freeBooking ? "무료강의" : "유료강의"} · ${escapeHtml(booking.session_location || booking.location || "-")} · ${Number(booking.payment_amount_krw || 0).toLocaleString()}원 · ${escapeHtml(booking.phone_masked || "-")}</div>
+		            <div class="booking-meta">${escapeHtml(bookingKindLabel(booking))} · ${escapeHtml(booking.session_location || booking.location || "-")} · ${Number(booking.payment_amount_krw || 0).toLocaleString()}원 · ${escapeHtml(booking.phone_masked || "-")}</div>
 	          </div>
 	          <span class="pill ${isInactive || isNoShow ? "erased" : isConfirmed || isCompleted ? "approved" : isWaitlisted ? "rejected" : "pending"}">${escapeHtml(bookingStatusLabel(booking.status))}</span>
         </div>
         <div class="booking-rank-row">
           <span class="rank-chip ${isConfirmed ? "strong" : "waiting"}">${escapeHtml(requestRank)}</span>
           ${isWaitlisted ? waitlistChip : `<span class="rank-chip ${booking.paid_rank ? "strong" : "waiting"}">${escapeHtml(paidRank)}</span>`}
-	          <span class="rank-chip waiting">${freeBooking ? "비용" : "입금"} ${escapeHtml(paymentStatusLabel(booking.payment_status))}</span>
+		          <span class="rank-chip waiting">${studyBooking || freeBooking ? "비용" : "입금"} ${escapeHtml(paymentStatusLabel(booking.payment_status))}</span>
         </div>
         ${isWaitlisted ? '<div class="booking-waitlist-notice">정원 마감 — 자리가 생기면 관리자가 확정 가능합니다.</div>' : ""}
         <div class="booking-meta">신청 ${escapeHtml(formatDate(booking.created_at))} · 확정 ${escapeHtml(formatDate(booking.confirmed_at))}</div>
         ${booking.desired_outcome ? `<div class="booking-meta">${escapeHtml(booking.desired_outcome)}</div>` : ""}
       `;
-      if (booking.payment_note) {
-        const guide = document.createElement("div");
-        guide.className = "booking-guide";
-        guide.innerHTML = `<span class="booking-guide-label">입금 안내 문구</span>${escapeHtml(booking.payment_note)}`;
-        item.appendChild(guide);
-      }
+	      if (booking.payment_note) {
+	        const guide = document.createElement("div");
+	        guide.className = "booking-guide";
+	        guide.innerHTML = `<span class="booking-guide-label">${studyBooking ? "운영 메모" : "입금 안내 문구"}</span>${escapeHtml(booking.payment_note)}`;
+	        item.appendChild(guide);
+	      }
 	      const actions = document.createElement("div");
 	      actions.className = "booking-actions";
 	      const guideText = booking.payment_note || "";
 	      actions.append(actionButton("연락처 보기", "primary", !booking.member_id, () => revealContact(booking.member_id)));
-	      if (freeBooking) {
-	        actions.append(
-	          actionButton("무료 안내", "primary", !isActiveBooking(booking) && !isCompleted, () => showFreeClassGuide(booking.id)),
+		      if (studyBooking) {
+		        actions.append(
+		          actionButton("참여확정", "green", isConfirmed || isCompleted || isNoShow, () => updateBookingState(booking.id, "confirmed", "waived")),
+		          actionButton("참여 완료", "green", !isConfirmed, () => markAttendance(booking.id, "completed")),
+		          actionButton("불참", "amber", !isActiveBooking(booking) && !isCompleted, () => markAttendance(booking.id, "no_show"))
+		        );
+		      } else if (freeBooking) {
+		        actions.append(
+	          actionButton("무료 안내 복사", "primary", !isActiveBooking(booking) && !isCompleted, () => showFreeClassGuide(booking.id)),
 	          actionButton("무료 확정", "green", isConfirmed || isCompleted || isNoShow, () => updateBookingState(booking.id, "confirmed", "waived")),
 	          actionButton("참여 완료", "green", !isConfirmed, () => markAttendance(booking.id, "completed")),
 	          actionButton("불참", "amber", !isActiveBooking(booking) && !isCompleted, () => markAttendance(booking.id, "no_show"))
@@ -6599,11 +6890,11 @@
 	    }
 	  }
 
-  async function markAttendance(bookingId, status) {
-    const label = status === "completed" ? "참여 완료" : "불참";
-    if (!window.confirm(`무료강의 예약을 '${label}' 상태로 표시할까요? 이 기록으로 멤버 수강 횟수가 계산됩니다.`)) return;
-    await updateBookingState(bookingId, status, "waived");
-  }
+	  async function markAttendance(bookingId, status) {
+	    const label = status === "completed" ? "참여 완료" : "불참";
+	    if (!window.confirm(`이 예약을 '${label}' 상태로 표시할까요? 이 기록으로 멤버 참여/수강 횟수가 계산됩니다.`)) return;
+	    await updateBookingState(bookingId, status, "waived");
+	  }
 
   async function cancelBookingFromSession(bookingId, applicantName = "신청자") {
     if (!window.confirm(`${applicantName} 예약을 이 일정에서 제거할까요? 기록은 취소 상태로 보관됩니다.`)) return;
@@ -6774,6 +7065,7 @@
       infoSection("기본 정보", [
         ["상태", member.status, statusLabel],
         ["전화번호", member.phone_masked],
+        ["오픈톡 닉네임", member.openchat_nickname],
         ["성별", member.gender],
         ["나이", member.age, formatAgeWithBirthYear],
         ["지역", member.region],
@@ -6827,14 +7119,14 @@
     try {
       const data = await api(`/admin/bookings/${encodeURIComponent(bookingId)}/free-guide`, { method: "POST" });
       const guide = data.free_guide || "";
-      showCopyModal("무료강의 안내 문구", "무료강의 신청자에게 보낼 안내입니다. 자동 전송하지 않고 복사용으로만 표시합니다.", guide, "무료 안내 복사");
+      showCopyModal("무료강의 준비물 안내 문구", "무료강의 신청자에게 보낼 준비물/일정 안내입니다. 자동 전송하지 않고 복사용으로만 표시합니다.", guide, "무료 안내 복사");
       try {
         if (guide && navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(guide);
-          setStatus("무료강의 안내 문구를 만들고 클립보드에 복사했습니다.", "ok");
+          setStatus("무료강의 준비물 안내 문구를 만들고 클립보드에 복사했습니다.", "ok");
         }
       } catch (_) {
-        setStatus("무료강의 안내 문구를 만들었습니다. 모달의 복사 버튼을 사용하세요.", "ok");
+        setStatus("무료강의 준비물 안내 문구를 만들었습니다. 모달의 복사 버튼을 사용하세요.", "ok");
       }
     } catch (error) {
       setStatus(error.message, "error");
@@ -6931,14 +7223,14 @@
     section.className = "info-section wide";
     const heading = document.createElement("div");
     heading.className = "section-heading";
-    heading.textContent = "중복 신청 감지 이력";
+    heading.textContent = "재신청 이력";
     const list = document.createElement("div");
     list.className = "member-history-list";
     const logs = Array.isArray(member.duplicate_apply_logs) ? member.duplicate_apply_logs : [];
     if (!logs.length) {
       const empty = document.createElement("div");
       empty.className = "panel-caption";
-      empty.textContent = "중복 신청으로 감지된 이력이 없습니다.";
+      empty.textContent = "재신청 이력이 없습니다.";
       list.appendChild(empty);
     } else {
       for (const item of logs) {
@@ -6979,6 +7271,7 @@
       updateMemberInState(member);
       renderMembers();
       renderMemberGroups();
+      renderKakaoMembers();
       renderMemberModal(member);
       setStatus("멤버 상세 팝업을 열었습니다.", "ok");
     } catch (error) {
@@ -6996,8 +7289,8 @@
       modalCard("상태", statusLabel(member.status)),
       modalCard("수강", classSummaryText(member)),
       modalCard("연락처 등록", member.contact_registered ? `등록함 · ${formatDate(member.contact_registered_at)}` : "미등록"),
-      modalCard("카카오", member.kakao_id ? `연결됨 · ${formatDate(member.kakao_connected_at)}` : "미연결"),
-      modalCard("중복 감지", member.duplicate_apply_count ? `${member.duplicate_apply_count}회` : "없음")
+	      modalCard("카카오", member.kakao_id ? `연결됨 · ${formatDate(member.kakao_connected_at)}` : "미연결"),
+	      modalCard("재신청", member.duplicate_apply_count ? `${member.duplicate_apply_count}회` : "없음")
     );
     const actions = document.createElement("div");
     actions.className = "member-modal-actions";
@@ -7140,6 +7433,7 @@
       editorInput("직업/소속", "job", member.job),
       editorInput("유입 경로", "referral_source", member.referral_source),
       editorInput("지역", "region", member.region),
+      editorInput("오픈톡 닉네임", "openchat_nickname", member.openchat_nickname),
       editorInput("AI 레벨", "ai_level", member.ai_level),
       editorInput("참여 등급", "participation_grade", member.participation_grade),
       editorInput("주 사용 기기", "main_device", member.main_device),
@@ -7184,6 +7478,7 @@
       updateMemberInState(updated);
       renderMembers();
       renderMemberGroups();
+      renderKakaoMembers();
       renderMemberModal(updated);
       setStatus("멤버 정보를 수정했습니다.", "ok");
     } catch (error) {
@@ -7201,6 +7496,7 @@
       updateMemberInState(updated);
       renderMembers();
       renderMemberGroups();
+      renderKakaoMembers();
       setStatus(registered ? "연락처 등록 완료로 표시했습니다." : "연락처 등록 표시를 해제했습니다.", "ok");
       return updated;
     } catch (error) {
@@ -7220,6 +7516,7 @@
       updateMemberInState(updated);
       renderMembers();
       renderMemberGroups();
+      renderKakaoMembers();
       renderMemberModal(updated);
       setStatus(data.message || "카카오 계정 연결을 해제했습니다.", "ok");
     } catch (error) {
@@ -7246,6 +7543,7 @@
     state.selectedId = memberId;
     renderMembers();
     renderMemberGroups();
+      renderKakaoMembers();
     fields.detailBody.innerHTML = '<div class="detail-empty">상세 정보를 불러오는 중입니다.</div>';
     try {
       const data = await api(`/members/${encodeURIComponent(memberId)}`);
@@ -7343,6 +7641,7 @@
 	      }
 	      renderMembers();
 	      renderMemberGroups();
+      renderKakaoMembers();
       renderConsultations();
       renderNewsletterLeads();
       renderReviewBoard();
@@ -7565,12 +7864,14 @@
   $("payment-account-new-btn").addEventListener("click", () => showPaymentAccountEditor(null));
   $("payment-account-delete-btn").addEventListener("click", deleteCurrentPaymentAccount);
   $("preparation-guide-copy-btn").addEventListener("click", copyPreparationGuide);
+  $("free-guide-template-copy-btn").addEventListener("click", copyFreeClassTemplateGuide);
   $("preparation-guide-edit-btn").addEventListener("click", showPreparationGuideEditor);
 	  fields.adminTabToday.addEventListener("click", () => setAdminTab("today"));
 		  fields.adminTabMembers.addEventListener("click", () => setAdminTab("members"));
 		  fields.adminTabConsultations.addEventListener("click", () => setAdminTab("consultations"));
 		  fields.adminTabNewsletter.addEventListener("click", () => setAdminTab("newsletter"));
 		  fields.adminTabMemberGroups.addEventListener("click", () => setAdminTab("memberGroups"));
+	  fields.adminTabKakaoMembers.addEventListener("click", () => setAdminTab("kakaoMembers"));
 	  fields.adminTabReviewBoard.addEventListener("click", () => setAdminTab("reviewBoard"));
 	  fields.adminTabSchedule.addEventListener("click", () => setAdminTab("schedule"));
 	  fields.adminTabSystem.addEventListener("click", () => setAdminTab("system"));
@@ -7606,29 +7907,40 @@
   $("member-group-contacts-csv-btn").addEventListener("click", () => downloadContactsExport("csv", { memberGroupFilters: true }));
   $("member-group-contacts-vcf-btn").addEventListener("click", () => downloadContactsExport("vcf", { memberGroupFilters: true }));
 	  $("member-group-refresh-btn").addEventListener("click", () => loadDashboard({ adminTab: "memberGroups" }));
+	  $("kakao-member-refresh-btn").addEventListener("click", () => loadDashboard({ adminTab: "kakaoMembers", statusMessage: "카카오 회원 목록을 갱신했습니다." }));
 	  $("consultations-refresh-btn").addEventListener("click", () => loadDashboard({ adminTab: "consultations", statusMessage: "상담 접수를 갱신했습니다." }));
 	  $("newsletter-refresh-btn").addEventListener("click", () => loadDashboard({ adminTab: "newsletter", statusMessage: "소식받기 신청을 갱신했습니다." }));
 	  $("review-board-refresh-btn").addEventListener("click", () => loadDashboard({ adminTab: "reviewBoard", statusMessage: "후기보드를 갱신했습니다." }));
   $("review-invite-new-btn").addEventListener("click", showReviewInviteEditor);
   $("review-instructor-new-btn").addEventListener("click", () => showReviewInstructorEditor(null));
 	  $("review-entry-new-btn").addEventListener("click", () => showReviewEntryEditor(null));
-  function syncNewSessionDefaults() {
-    const programType = $("new-session-program-type").value;
-    const titleInput = $("new-session-title");
-    const priceInput = $("new-session-price");
-    const descriptionInput = $("new-session-description");
-    if (programType === "free_class") {
-      if (!titleInput.value.trim() || titleInput.value.includes("컨설팅 강의")) titleInput.value = "무료 AI 강의";
-      if (!priceInput.value || Number(priceInput.value) === 50000) priceInput.value = "0";
-      if (!descriptionInput.value.trim() || descriptionInput.value.includes("유료 구독")) {
-        descriptionInput.value = "AI 입문자에게 필요한 계정 세팅, 실습 방향, 업무 활용 예시를 무료로 안내합니다.";
-      }
-    } else {
-      if (!titleInput.value.trim() || titleInput.value === "무료 AI 강의") titleInput.value = "AI 기초 세팅 및 컨설팅 강의 1:4";
-      if (!priceInput.value || Number(priceInput.value) === 0) priceInput.value = "50000";
-      if (!descriptionInput.value.trim() || descriptionInput.value.includes("무료로 안내")) {
-        descriptionInput.value = "AI 기초 세팅, 유료 구독 점검, 구현하고 싶은 업무 자동화 방향 설계까지 함께 진행합니다.";
-      }
+	  function syncNewSessionDefaults() {
+	    const programType = $("new-session-program-type").value;
+	    const titleInput = $("new-session-title");
+	    const priceInput = $("new-session-price");
+	    const descriptionInput = $("new-session-description");
+	    const audienceInput = $("new-session-audience-level");
+	    if (programType === "free_class") {
+	      if (!titleInput.value.trim() || titleInput.value.includes("컨설팅 강의")) titleInput.value = "무료 AI 강의";
+	      if (!priceInput.value || Number(priceInput.value) === 50000) priceInput.value = "0";
+	      if (audienceInput.value === "approved" || audienceInput.value === "all" || audienceInput.value === "paid_only") audienceInput.value = "beginner";
+	      if (!descriptionInput.value.trim() || descriptionInput.value.includes("유료 구독")) {
+	        descriptionInput.value = "AI 입문자에게 필요한 계정 세팅, 실습 방향, 업무 활용 예시를 무료로 안내합니다.";
+	      }
+	    } else if (programType === "study") {
+	      if (!titleInput.value.trim() || titleInput.value === "무료 AI 강의" || titleInput.value.includes("컨설팅 강의")) titleInput.value = "ARSEN 멤버 스터디";
+	      if (!priceInput.value || Number(priceInput.value) === 50000) priceInput.value = "0";
+	      if (audienceInput.value === "beginner" || audienceInput.value === "all") audienceInput.value = "approved";
+	      if (!descriptionInput.value.trim() || descriptionInput.value.includes("무료로 안내") || descriptionInput.value.includes("유료 구독")) {
+	        descriptionInput.value = "승인 멤버가 함께 모여 AI 활용 사례와 실습 내용을 점검하는 스터디입니다.";
+	      }
+	    } else {
+	      if (!titleInput.value.trim() || titleInput.value === "무료 AI 강의" || titleInput.value === "ARSEN 멤버 스터디") titleInput.value = "AI 기초 세팅 및 컨설팅 강의 1:4";
+	      if (!priceInput.value || Number(priceInput.value) === 0) priceInput.value = "50000";
+	      if (audienceInput.value === "beginner" || audienceInput.value === "approved") audienceInput.value = "all";
+	      if (!descriptionInput.value.trim() || descriptionInput.value.includes("무료로 안내")) {
+	        descriptionInput.value = "AI 기초 세팅, 유료 구독 점검, 구현하고 싶은 업무 자동화 방향 설계까지 함께 진행합니다.";
+	      }
     }
   }
   $("new-session-program-type").addEventListener("change", syncNewSessionDefaults);
@@ -7636,16 +7948,29 @@
     state.selectedMemberIds.clear();
     renderMembers();
     renderMemberGroups();
+      renderKakaoMembers();
   });
   fields.bulkEraseMembersBtn.addEventListener("click", bulkEraseSelectedMembers);
 	  $("seed-sessions-btn").addEventListener("click", async () => {
-    if (!window.confirm("저장된 기본 규칙으로 4주치 강의 일정을 생성할까요? 이미 같은 시간이 있으면 장소와 공개 상태를 정리합니다.")) return;
+    if (!window.confirm("저장된 기본 규칙으로 4주치 유료 강의 일정을 생성할까요? 이미 같은 시간이 있으면 장소와 공개 상태를 정리합니다.")) return;
     try {
       const data = await api("/admin/sessions/seed-default-sunday", {
         method: "POST",
         body: JSON.stringify({ weeks: 4 }),
       });
-      await refreshScheduleAfterMutation(`기본 일정 처리 완료: 새로 생성 ${data.created || 0}건, 기존 정리 ${data.updated || 0}건`);
+      await refreshScheduleAfterMutation(`유료 일정 처리 완료: 새로 생성 ${data.created || 0}건, 기존 정리 ${data.updated || 0}건`);
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+	  $("seed-free-sessions-btn").addEventListener("click", async () => {
+    if (!window.confirm("다가오는 토요일 오전 기준으로 4주치 무료강의 일정을 생성할까요? 생성 후 시간과 장소는 일정 카드에서 수정하세요.")) return;
+    try {
+      const data = await api("/admin/sessions/seed-free-class", {
+        method: "POST",
+        body: JSON.stringify({ weeks: 4 }),
+      });
+      await refreshScheduleAfterMutation(`무료 일정 처리 완료: 새로 생성 ${data.created || 0}건, 기존 정리 ${data.updated || 0}건`);
     } catch (error) {
       setStatus(error.message, "error");
     }
@@ -7653,8 +7978,9 @@
 	  $("create-session-btn").addEventListener("click", async () => {
 	    const startsAt = toIsoFromLocalInput($("new-session-start").value);
 	    const endsAt = toIsoFromLocalInput($("new-session-end").value);
-	    const programType = $("new-session-program-type").value || "ai_basic_setup";
-	    const freeSession = programType === "free_class";
+		    const programType = $("new-session-program-type").value || "ai_basic_setup";
+		    const studySession = programType === "study";
+		    const freeSession = programType === "free_class";
 	    if (!startsAt || !endsAt) {
 	      setStatus("시작/종료 시간을 입력하세요.", "error");
 	      return;
@@ -7662,19 +7988,20 @@
 	    try {
 	      await api("/admin/sessions", {
 	        method: "POST",
-	        body: JSON.stringify({
-	          title: $("new-session-title").value.trim() || (freeSession ? "무료 AI 강의" : "AI 기초 세팅 및 컨설팅 강의 1:4"),
-	          description: $("new-session-description").value.trim(),
-	          program_type: programType,
-	          starts_at: startsAt,
-	          ends_at: endsAt,
-	          location: $("new-session-location").value,
-	          capacity_min: freeSession ? 1 : Math.min(4, Number($("new-session-capacity").value || 5)),
-	          capacity_max: Number($("new-session-capacity").value || 5),
-	          price_krw: freeSession ? 0 : Number($("new-session-price").value || 50000),
-	          status: $("new-session-status").value,
-	          payment_guide: freeSession ? "" : $("new-session-payment-guide").value.trim(),
-	        }),
+		        body: JSON.stringify({
+		          title: $("new-session-title").value.trim() || (studySession ? "ARSEN 멤버 스터디" : freeSession ? "무료 AI 강의" : "AI 기초 세팅 및 컨설팅 강의 1:4"),
+		          description: $("new-session-description").value.trim(),
+		          program_type: programType,
+		          audience_level: $("new-session-audience-level").value || (studySession ? "approved" : freeSession ? "beginner" : "all"),
+		          starts_at: startsAt,
+		          ends_at: endsAt,
+		          location: $("new-session-location").value,
+		          capacity_min: studySession || freeSession ? 1 : Math.min(4, Number($("new-session-capacity").value || 5)),
+		          capacity_max: Number($("new-session-capacity").value || 5),
+		          price_krw: studySession || freeSession ? 0 : Number($("new-session-price").value || 50000),
+		          status: $("new-session-status").value,
+		          payment_guide: studySession || freeSession ? "" : $("new-session-payment-guide").value.trim(),
+		        }),
 	      });
       await refreshScheduleAfterMutation("새 일정을 추가했습니다.");
     } catch (error) {
@@ -7687,6 +8014,7 @@
     fields.detailBody.innerHTML = '<div class="detail-empty">왼쪽 목록에서 신청자를 선택하세요.</div>';
     renderMembers();
     renderMemberGroups();
+      renderKakaoMembers();
   });
   fields.gradeFilter.addEventListener("change", () => {
     state.selectedId = "";
@@ -7694,11 +8022,14 @@
     fields.detailBody.innerHTML = '<div class="detail-empty">왼쪽 목록에서 신청자를 선택하세요.</div>';
     renderMembers();
     renderMemberGroups();
+      renderKakaoMembers();
   });
   fields.searchInput.addEventListener("input", renderMembers);
   fields.memberGroupPlanFilter.addEventListener("change", renderMemberGroups);
   fields.memberGroupStatusFilter.addEventListener("change", renderMemberGroups);
   fields.memberGroupSearchInput.addEventListener("input", renderMemberGroups);
+  fields.kakaoMemberFilter.addEventListener("change", renderKakaoMembers);
+  fields.kakaoMemberSearchInput.addEventListener("input", renderKakaoMembers);
   fields.adminKey.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       state.key = fields.adminKey.value.trim();

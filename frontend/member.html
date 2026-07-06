@@ -245,6 +245,44 @@
   }
   .booking-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 16px; }
   .booking-form .wide { grid-column: 1 / -1; }
+  .progress-grid, .review-list { display: grid; gap: 12px; }
+  .progress-grid { grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr)); }
+  .progress-card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    background: #f6f8fb;
+    min-width: 0;
+  }
+  .progress-card span, .review-card span { display: block; color: var(--muted); font-size: 12px; font-weight: 850; }
+  .progress-card strong, .review-card strong { display: block; margin-top: 5px; overflow-wrap: anywhere; }
+  .progress-bar {
+    height: 10px;
+    margin-top: 12px;
+    border-radius: 999px;
+    background: #e6eaf0;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #355f92, #087451);
+  }
+  .nickname-form, .review-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: end;
+  }
+  .review-form { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 16px; }
+  .review-form .wide { grid-column: 1 / -1; }
+  .review-card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    background: #ffffff;
+  }
   select {
     width: 100%;
     min-height: 46px;
@@ -258,7 +296,7 @@
   @media (max-width: 880px) {
     .hero { grid-template-columns: 1fr; }
     .hero-copy { min-height: auto; }
-    .profile-grid, .action-grid, .booking-meta, .hero-metrics, .booking-form { grid-template-columns: 1fr; }
+    .profile-grid, .action-grid, .booking-meta, .hero-metrics, .booking-form, .progress-grid, .nickname-form, .review-form { grid-template-columns: 1fr; }
     .panel-head, .booking-head, .topbar { display: block; }
     .top-links { justify-content: flex-start; margin-top: 12px; }
   }
@@ -598,7 +636,43 @@
         <div class="profile-card"><span>상태</span><strong id="member-status">-</strong></div>
         <div class="profile-card"><span>신청 구분</span><strong id="member-plan">-</strong></div>
         <div class="profile-card"><span>수강 이력</span><strong id="member-history">-</strong></div>
+        <div class="profile-card"><span>오픈톡 닉네임</span><strong id="member-openchat">-</strong></div>
+        <div class="profile-card"><span>레벨</span><strong id="member-level">-</strong></div>
+        <div class="profile-card"><span>포인트</span><strong id="member-points">-</strong></div>
+        <div class="profile-card"><span>게시판 접근</span><strong id="member-access">-</strong></div>
       </div>
+    </section>
+
+    <section class="panel" aria-label="회원 성장 상태">
+      <div class="panel-head">
+        <div>
+          <h2>포인트·레벨</h2>
+          <p class="muted">출석, 수강 완료, 후기 작성 이력을 기준으로 계산합니다.</p>
+        </div>
+        <span class="pill green" id="level-pill">Starter</span>
+      </div>
+      <div class="progress-grid">
+        <div class="progress-card">
+          <span>다음 레벨까지</span>
+          <strong id="next-level-text">-</strong>
+          <div class="progress-bar" aria-hidden="true"><div class="progress-fill" id="progress-fill"></div></div>
+        </div>
+        <div class="progress-card"><span>무료 수강</span><strong id="free-count">0회</strong></div>
+        <div class="progress-card"><span>유료 수강</span><strong id="paid-count">0회</strong></div>
+        <div class="progress-card"><span>스터디/후기</span><strong id="study-review-count">0회 · 0개</strong></div>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="오픈톡 닉네임">
+      <h2>오픈톡 닉네임</h2>
+      <p class="muted">정보방에서 쓰는 닉네임을 저장해두면 출석과 수강 이력을 운영자가 더 쉽게 매칭할 수 있습니다.</p>
+      <form id="nickname-form" class="nickname-form">
+        <div>
+          <label for="openchat-nickname">닉네임</label>
+          <input id="openchat-nickname" type="text" maxlength="40" placeholder="예: 아르센_윤상욱">
+        </div>
+        <button id="nickname-btn" type="submit">닉네임 저장</button>
+      </form>
     </section>
 
     <section class="panel" aria-label="다음 행동">
@@ -620,6 +694,35 @@
         <span class="pill" id="booking-count">0건</span>
       </div>
       <div id="booking-list" class="booking-list"></div>
+    </section>
+
+    <section class="panel" aria-label="내 후기">
+      <div class="panel-head">
+        <div>
+          <h2>내 후기</h2>
+          <p class="muted">작성한 후기는 운영자 검수 후 공개 후기보드에 노출될 수 있습니다.</p>
+        </div>
+        <span class="pill" id="review-count">0개</span>
+      </div>
+      <div id="review-list" class="review-list"></div>
+      <form id="review-form" class="review-form">
+        <div class="wide">
+          <label for="review-booking">후기 작성할 수업</label>
+          <select id="review-booking"></select>
+        </div>
+        <div class="wide">
+          <label for="review-title">후기 제목</label>
+          <input id="review-title" type="text" maxlength="80" placeholder="예: 업무 자동화 방향이 잡혔어요">
+        </div>
+        <div class="wide">
+          <label for="review-body">후기 내용</label>
+          <textarea id="review-body" placeholder="수업 후 실제로 도움 된 점을 적어주세요. 개인정보나 타인의 이름은 제외해 주세요."></textarea>
+        </div>
+        <div class="wide button-row">
+          <button id="review-btn" type="submit">후기 초안 저장</button>
+          <a class="button secondary" href="/frontend/class-stories.html">공개 후기 보기</a>
+        </div>
+      </form>
     </section>
 
     <section class="panel" aria-label="새 예약 신청">
@@ -648,7 +751,7 @@
 </div>
 
 <script>
-const state = { member: null, code: "", phone: "", bookings: [], sessions: [], kakao: null };
+const state = { member: null, code: "", phone: "", bookings: [], sessions: [], reviews: [], progress: null, kakao: null };
 const $ = (id) => document.getElementById(id);
 
 function escapeHtml(value) {
@@ -719,6 +822,14 @@ function bookingState(booking) {
   return ["확인 중", "amber"];
 }
 
+function completedBooking(booking) {
+  if (!booking) return false;
+  if (booking.status === "completed") return true;
+  if (booking.status !== "confirmed") return false;
+  const value = booking.session_starts_at || booking.confirmed_at || booking.updated_at || booking.created_at || "";
+  return Boolean(value && new Date(value).getTime() <= Date.now());
+}
+
 function historySummary() {
   const active = state.bookings.filter((item) => !["canceled", "rejected", "no_show"].includes(item.status));
   const completed = active.filter((item) => item.status === "completed").length;
@@ -731,6 +842,30 @@ function renderProfile() {
   $("member-status").textContent = statusLabel(state.member?.status);
   $("member-plan").textContent = planLabel(state.member?.plan_type);
   $("member-history").textContent = historySummary();
+  $("member-openchat").textContent = state.member?.openchat_nickname || "미입력";
+  $("member-level").textContent = state.progress ? `Lv.${state.progress.level} ${state.progress.level_name}` : "-";
+  $("member-points").textContent = state.progress ? `${state.progress.points}P` : "-";
+  $("member-access").textContent = state.progress?.access_label || "-";
+  $("openchat-nickname").value = state.member?.openchat_nickname || "";
+}
+
+function renderProgress() {
+  const progress = state.progress || { points: 0, level: 1, level_name: "Starter", next_points: 30, points_to_next: 30, counts: {}, access_label: "기본 게시판" };
+  const counts = progress.counts || {};
+  $("level-pill").textContent = `Lv.${progress.level} ${progress.level_name}`;
+  $("free-count").textContent = `${Number(counts.free || 0)}회`;
+  $("paid-count").textContent = `${Number(counts.paid || 0)}회`;
+  $("study-review-count").textContent = `${Number(counts.study || 0)}회 · ${Number(counts.reviews || 0)}개`;
+  if (progress.next_points) {
+    const levelStart = { 1: 0, 2: 30, 3: 80, 4: 150 }[progress.level] || 0;
+    const range = Math.max(1, progress.next_points - levelStart);
+    const fill = Math.max(0, Math.min(100, ((progress.points - levelStart) / range) * 100));
+    $("next-level-text").textContent = `${progress.points_to_next}P 남음 · 현재 ${progress.points}P`;
+    $("progress-fill").style.width = `${fill}%`;
+  } else {
+    $("next-level-text").textContent = `최고 레벨 · 현재 ${progress.points}P`;
+    $("progress-fill").style.width = "100%";
+  }
 }
 
 function renderBookings() {
@@ -766,6 +901,45 @@ function renderBookings() {
   }).join("");
 }
 
+function reviewStatusLabel(status) {
+  return { draft: "검수 대기", public: "공개", hidden: "숨김" }[String(status || "").toLowerCase()] || status || "-";
+}
+
+function renderReviews() {
+  $("review-count").textContent = `${state.reviews.length}개`;
+  const list = $("review-list");
+  if (!state.reviews.length) {
+    list.innerHTML = '<div class="empty">아직 작성한 후기가 없습니다. 수강 완료 후 아래에서 후기를 남길 수 있습니다.</div>';
+  } else {
+    list.innerHTML = state.reviews.map((review) => `
+      <article class="review-card">
+        <span>${escapeHtml(reviewStatusLabel(review.status))} · ${escapeHtml(review.class_title || "ARSEN 강의")} · ${escapeHtml(review.class_date || "-")}</span>
+        <strong>${escapeHtml(review.title || "제목 없음")}</strong>
+        <p class="muted">${escapeHtml(review.summary || "")}</p>
+      </article>
+    `).join("");
+  }
+
+  const select = $("review-booking");
+  const reviewedBookingIds = new Set(state.reviews.map((review) => review.booking_id).filter(Boolean));
+  const completed = state.bookings.filter((booking) => completedBooking(booking) && !reviewedBookingIds.has(booking.id));
+  select.innerHTML = "";
+  if (!completed.length) {
+    select.innerHTML = '<option value="">후기 작성 가능한 완료 수업이 없습니다</option>';
+    select.disabled = true;
+    $("review-btn").disabled = true;
+    return;
+  }
+  select.disabled = false;
+  $("review-btn").disabled = false;
+  for (const booking of completed) {
+    const option = document.createElement("option");
+    option.value = booking.id;
+    option.textContent = `${booking.session_title || "ARSEN 강의"} · ${formatDate(booking.session_starts_at)}`;
+    select.appendChild(option);
+  }
+}
+
 function renderSessions() {
   const select = $("session");
   select.innerHTML = "";
@@ -789,14 +963,26 @@ function renderSessions() {
 function renderDashboard() {
   $("dashboard").classList.remove("hidden");
   renderProfile();
+  renderProgress();
   renderBookings();
+  renderReviews();
 }
 
 function applyMemberPayload(payload) {
   state.kakao = payload.kakao || state.kakao;
   state.member = payload.member;
   state.bookings = payload.bookings || [];
+  state.reviews = payload.reviews || [];
+  state.progress = payload.progress || null;
   renderDashboard();
+}
+
+function memberAccessBody(extra = {}) {
+  return {
+    member_id: state.member?.id,
+    code: state.code || undefined,
+    ...extra,
+  };
 }
 
 async function verifyAndLoad() {
@@ -910,6 +1096,63 @@ $("booking-form").addEventListener("submit", async (event) => {
     setStatus(error.message, "error");
   } finally {
     $("booking-btn").disabled = false;
+  }
+});
+
+$("nickname-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!state.member) {
+    setStatus("먼저 회원 확인을 완료하세요.", "error");
+    return;
+  }
+  $("nickname-btn").disabled = true;
+  setStatus("오픈톡 닉네임을 저장하는 중입니다.");
+  try {
+    const data = await api("/member/profile", {
+      method: "POST",
+      body: JSON.stringify(memberAccessBody({
+        openchat_nickname: $("openchat-nickname").value.trim(),
+      })),
+    });
+    applyMemberPayload(data.data);
+    setStatus(data.message || "오픈톡 닉네임을 저장했습니다.", "ok");
+  } catch (error) {
+    setStatus(error.message, "error");
+  } finally {
+    $("nickname-btn").disabled = false;
+  }
+});
+
+$("review-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!state.member) {
+    setStatus("먼저 회원 확인을 완료하세요.", "error");
+    return;
+  }
+  const bookingId = $("review-booking").value;
+  if (!bookingId) {
+    setStatus("후기 작성 가능한 수업이 없습니다.", "error");
+    return;
+  }
+  $("review-btn").disabled = true;
+  setStatus("후기 초안을 저장하는 중입니다.");
+  try {
+    const data = await api("/member/reviews", {
+      method: "POST",
+      body: JSON.stringify(memberAccessBody({
+        booking_id: bookingId,
+        title: $("review-title").value.trim(),
+        body: $("review-body").value.trim(),
+      })),
+    });
+    $("review-title").value = "";
+    $("review-body").value = "";
+    applyMemberPayload(data.data);
+    setStatus(data.message || "후기가 초안으로 저장되었습니다.", "ok");
+  } catch (error) {
+    setStatus(error.message, "error");
+  } finally {
+    $("review-btn").disabled = false;
   }
 });
 

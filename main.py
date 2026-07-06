@@ -40,7 +40,7 @@ from agents.db_manager import (
     get_latest_member_by_phone_hash, get_operator_health, get_storage_snapshot,
     release_expired_locks, get_code_delivery_logs, erase_member_personal_data,
     get_member_by_kakao_id, link_member_kakao, unlink_member_kakao,
-    upgrade_lead_to_application,
+    upgrade_lead_to_application, refresh_duplicate_application,
     list_review_board, get_review_instructor, get_review_entry,
     create_review_instructor, update_review_instructor, delete_review_instructor,
     create_review_entry, update_review_entry, delete_review_entry,
@@ -51,7 +51,8 @@ from agents.booking_manager import (
     DEFAULT_PRICE, confirm_payment_state, create_booking, create_session, default_free_class_guide, default_location_guide, default_payment_guide,
     default_refund_guide,
     delete_booking, delete_session, find_active_member_booking, get_booking, get_session, list_bookings, list_member_bookings,
-    list_sessions, move_booking_to_session, refresh_session_counts, seed_default_sunday_sessions, send_payment_guide_state,
+    list_sessions, list_study_sessions, member_paid_class_count, move_booking_to_session, refresh_session_counts, seed_default_free_class_sessions,
+    seed_default_sunday_sessions, send_payment_guide_state, is_study_session, study_member_acceptance,
     session_acceptance, set_booking_state, update_session,
 )
 from agents.code_generator import generate_code, get_current_code, verify_code, revoke_code, regenerate_code
@@ -1387,6 +1388,7 @@ def _safe_member_profile(member: dict) -> dict:
         "status": member.get("status"),
         "plan_type": member.get("plan_type"),
         "participation_grade": member.get("participation_grade"),
+        "paid_class_count": member_paid_class_count(member["id"]),
         "approved_at": member.get("approved_at"),
         "code_expires_at": None,
         "code_expiry_label": "기한 없음",
@@ -1619,6 +1621,8 @@ def _safe_public_booking(booking: dict) -> dict:
         "payment_amount_krw": booking.get("payment_amount_krw"),
         "session_id": booking.get("session_id"),
         "session_title": booking.get("session_title"),
+        "session_program_type": booking.get("session_program_type"),
+        "session_audience_level": booking.get("session_audience_level"),
         "session_starts_at": booking.get("session_starts_at"),
         "session_ends_at": booking.get("session_ends_at"),
         "session_location": booking.get("session_location"),
@@ -1651,8 +1655,16 @@ def _can_upgrade_lead_to_application(existing: dict | None, attempted: dict) -> 
     return existing_plan in LEAD_PLAN_TYPES and attempted_plan in APPLICATION_PLAN_TYPES
 
 
+def _can_refresh_duplicate_application(existing: dict | None, attempted: dict) -> bool:
+    existing_plan = str((existing or {}).get("plan_type") or "").lower()
+    attempted_plan = str((attempted or {}).get("plan_type") or "").lower()
+    return existing_plan in APPLICATION_PLAN_TYPES and attempted_plan in APPLICATION_PLAN_TYPES
+
+
 def _is_free_session(session: dict | None) -> bool:
     if not session:
+        return False
+    if is_study_session(session):
         return False
     program = str(session.get("program_type") or "").lower()
     return "free" in program or int(session.get("price_krw") or 0) == 0
@@ -2045,6 +2057,7 @@ async def index():
           <a class="primary" href="/frontend/join-free.html">무료 강의 신청<span>참여 가능 지역과 시간대를 남겨주세요.</span></a>
           <a class="product" href="/frontend/yoonbot.html#download">YOONBOT 다운로드<span>Windows 런처를 내려받고 파일럿 구매 정보를 확인합니다.</span></a>
           <a href="/frontend/status.html">예약 확인<span>신청/예약 상태와 안내 문구를 확인합니다.</span></a>
+          <a href="/frontend/study.html">스터디 참가<span>승인 멤버 전용 스터디 일정을 확인하고 신청합니다.</span></a>
           <a href="/frontend/class-dashboard.html">수업용 대시보드<span>강의 자료와 공개 학습 아카이브를 봅니다.</span></a>
           <a href="/frontend/class-stories.html">공개 후기 보기<span>관리자가 승인한 후기와 결과물만 표시됩니다.</span></a>
           <a href="/frontend/join-basic.html">체험 신청 (Basic)<span>간단한 체험 신청과 운영자 확인용입니다.</span></a>
@@ -2462,8 +2475,10 @@ async def admin_consultation_status(consultation_id: str, body: dict, request: R
 
 
 @app.get("/sessions")
-async def public_sessions():
+async def public_sessions(program_type: Optional[str] = None):
     rows = list_sessions(include_closed=False)
+    if program_type:
+        rows = [row for row in rows if str(row.get("program_type") or "").lower() == program_type.lower()]
     safe_rows = []
     for row in rows:
         safe = dict(row)
@@ -2474,6 +2489,22 @@ async def public_sessions():
         "data": safe_rows,
         "total": len(safe_rows),
         "workflow": "신청 → 승인 코드 확인 → 예약 신청 → 입금 확인 → 자리 확정",
+    }
+
+
+@app.get("/study/sessions")
+async def public_study_sessions():
+    rows = list_study_sessions(include_closed=False)
+    safe_rows = []
+    for row in rows:
+        safe = dict(row)
+        safe.pop("payment_guide", None)
+        safe_rows.append(safe)
+    return {
+        "ok": True,
+        "data": safe_rows,
+        "total": len(safe_rows),
+        "workflow": "회원 확인 → 스터디 선택 → 참가 신청 → 운영자 확인",
     }
 
 
@@ -2611,11 +2642,32 @@ async def apply(req: ApplyRequest, request: Request):
                 "reservation": _safe_public_booking((free_booking or {}).get("booking") or {}) if free_booking else None,
                 "payment": None,
             }
+        previous_plan = duplicate_member.get("plan_type")
+        active_member = duplicate_member
+        refreshed_application = False
+        if _can_refresh_duplicate_application(duplicate_member, data):
+            con = check_consent(data)
+            if not con["ok"]:
+                return {"ok": False, "errors": con["errors"]}
+            enc = encrypt_data(data)
+            member_data = {
+                **data,
+                **enc,
+                "consent_at": con["consent_data"]["at"],
+                "consent_version": "duplicate-refresh-v1",
+                "consent_marketing": con["consent_data"]["marketing"],
+                "participation_grade": _grade_count(data),
+            }
+            refreshed_application = refresh_duplicate_application(duplicate_member["id"], member_data)
+            if not refreshed_application:
+                raise HTTPException(500, detail="기존 신청 정보를 최신 신청으로 갱신하지 못했습니다.")
+            active_member = get_member(duplicate_member["id"]) or duplicate_member
+
         free_booking = None
         if data.get("plan_type") == "free" and data.get("session_id"):
-            free_booking = _maybe_create_free_session_booking(duplicate_member, data.get("session_id"), request)
+            free_booking = _maybe_create_free_session_booking(active_member, data.get("session_id"), request)
         stats_data = get_stats()
-        hermes_status = notify_admin_duplicate_apply(duplicate_member, data, stats=stats_data)
+        hermes_status = notify_admin_duplicate_apply(active_member, data, stats=stats_data)
         log_action(
             duplicate_member["id"],
             "duplicate_apply",
@@ -2623,6 +2675,9 @@ async def apply(req: ApplyRequest, request: Request):
                 {
                     "source": duplicate_member.get("duplicate_source"),
                     "notify": hermes_status,
+                    "refreshed": refreshed_application,
+                    "from_plan_type": previous_plan,
+                    "to_plan_type": data.get("plan_type"),
                     "attempt_name": data.get("name"),
                     "attempt_phone_masked": encrypt_data({"phone": data.get("phone") or "", "email": data.get("email") or ""}).get("phone_masked"),
                     "attempt_plan_type": data.get("plan_type"),
@@ -2635,11 +2690,17 @@ async def apply(req: ApplyRequest, request: Request):
         return {
             "ok": True,
             "duplicate": True,
-            "message": "이미 신청이 접수되어 있습니다. 기존 신청 상태를 기준으로 안내드릴게요.",
+            "latest_application_refreshed": refreshed_application,
+            "previous_plan_type": previous_plan,
+            "message": (
+                f"기존 신청 정보를 {_plan_label(data.get('plan_type'))} 기준으로 갱신했습니다."
+                if refreshed_application
+                else "이미 신청이 접수되어 있습니다. 기존 신청 상태를 기준으로 안내드릴게요."
+            ),
             "member_id": duplicate_member["id"],
-            "status": duplicate_member.get("status"),
+            "status": active_member.get("status"),
             "next_steps": [
-                "기존 신청이 대기 중이면 운영자가 순서대로 확인합니다.",
+                "관리자 신청자 목록에서 최근 재신청 시간 기준으로 확인할 수 있습니다.",
                 "무료강의 일정을 선택했다면 같은 일정에 중복 예약 없이 연결합니다.",
                 "유료강의는 승인 코드 받은 뒤 예약자 확인 페이지에서 진행하세요.",
             ],
@@ -3004,6 +3065,9 @@ async def public_create_booking(body: PublicBookingRequest, request: Request):
     ok, reason = session_acceptance(session)
     if not ok:
         raise HTTPException(400, detail=reason)
+    eligible, eligibility_reason, _eligibility = study_member_acceptance(session, body.member_id)
+    if not eligible:
+        raise HTTPException(403, detail=eligibility_reason)
 
     existing = find_active_member_booking(body.member_id, body.session_id)
     if existing:
@@ -3013,6 +3077,8 @@ async def public_create_booking(body: PublicBookingRequest, request: Request):
             "data": _safe_public_booking(get_booking(existing["id"]) or existing),
         }
 
+    study_session = is_study_session(session)
+    amount = int(session.get("price_krw") or 0) if study_session else int(session.get("price_krw") or DEFAULT_PRICE)
     booking_id = create_booking({
         "session_id": body.session_id,
         "member_id": body.member_id,
@@ -3021,8 +3087,8 @@ async def public_create_booking(body: PublicBookingRequest, request: Request):
         "desired_outcome": body.desired_outcome or member.get("short_term_goal") or member.get("reason") or "",
         "preparedness": body.preparedness or "",
         "status": "requested",
-        "payment_status": "not_sent",
-        "payment_amount_krw": int(session.get("price_krw") or DEFAULT_PRICE),
+        "payment_status": "waived" if study_session and amount == 0 else "not_sent",
+        "payment_amount_krw": amount,
     })
     refresh_session_counts(body.session_id)
     booking = get_booking(booking_id)
@@ -3032,7 +3098,7 @@ async def public_create_booking(body: PublicBookingRequest, request: Request):
 
     return {
         "ok": True,
-        "message": "예약 신청이 접수되었습니다. 운영자가 인원과 일정을 확인한 뒤 안내합니다.",
+        "message": "스터디 참가 신청이 접수되었습니다. 운영자가 인원과 일정을 확인한 뒤 안내합니다." if study_session else "예약 신청이 접수되었습니다. 운영자가 인원과 일정을 확인한 뒤 안내합니다.",
         "data": _safe_public_booking(booking or {}),
     }
 
@@ -4170,6 +4236,22 @@ async def admin_seed_sessions(body: SeedSessionsRequest, request: Request, _=Dep
     }
 
 
+@app.post("/admin/sessions/seed-free-class")
+async def admin_seed_free_class_sessions(body: SeedSessionsRequest, request: Request, _=Depends(require_admin)):
+    result = seed_default_free_class_sessions(body.weeks)
+    created_ids = result.get("created", [])
+    updated_ids = result.get("updated", [])
+    detail = f"created={len(created_ids)},updated={len(updated_ids)}"
+    log_action("booking", "session_seed_free_class", detail, request.client.host if request.client else None)
+    return {
+        "ok": True,
+        "created": len(created_ids),
+        "updated": len(updated_ids),
+        "total": len(created_ids) + len(updated_ids),
+        "ids": created_ids + updated_ids,
+    }
+
+
 @app.post("/admin/sessions/{session_id}")
 async def admin_update_session(session_id: str, body: SessionUpdateRequest, request: Request, _=Depends(require_admin)):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
@@ -4236,15 +4318,21 @@ async def admin_manual_booking(session_id: str, body: ManualBookingRequest, requ
         log_action(member_id, "manual_member_create", f"session_id={session_id}", request.client.host if request.client else None)
 
     existing = find_active_member_booking(member_id, session_id)
+    is_study = is_study_session(session)
     is_free = _is_free_session(session)
-    payment_note = body.payment_note or ("운영자 수동 추가: 무료강의 확정" if is_free else "운영자 수동 추가: 입금 확인 완료")
+    is_participation = is_free or is_study
+    payment_note = body.payment_note or (
+        "운영자 수동 추가: 스터디 참여 확정" if is_study
+        else "운영자 수동 추가: 무료강의 확정" if is_free
+        else "운영자 수동 추가: 입금 확인 완료"
+    )
     if existing:
-        if is_free:
+        if is_participation:
             ok = set_booking_state(existing["id"], status="confirmed", payment_status="waived", payment_note=payment_note)
             if not ok:
-                raise HTTPException(409, detail="기존 무료강의 예약 상태를 변경하지 못했습니다.")
+                raise HTTPException(409, detail="기존 참여 예약 상태를 변경하지 못했습니다.")
             booking = get_booking(existing["id"])
-            message = "이미 연결된 무료강의 예약을 확정으로 변경했습니다. 자동 알림은 보내지 않았습니다."
+            message = "이미 연결된 스터디 예약을 참여확정으로 변경했습니다. 자동 알림은 보내지 않았습니다." if is_study else "이미 연결된 무료강의 예약을 확정으로 변경했습니다. 자동 알림은 보내지 않았습니다."
         else:
             ok, message, booking = confirm_payment_state(existing["id"], payment_note)
             if not ok:
@@ -4271,7 +4359,7 @@ async def admin_manual_booking(session_id: str, body: ManualBookingRequest, requ
         "desired_outcome": body.desired_outcome or "",
         "preparedness": "운영자 수동 추가",
         "status": "confirmed",
-        "payment_status": "waived" if is_free else "paid",
+        "payment_status": "waived" if is_participation else "paid",
         "payment_amount_krw": int((session.get("price_krw") if body.payment_amount_krw is None else body.payment_amount_krw) or 0),
         "payment_note": payment_note,
         "confirmed_at": datetime.now(timezone.utc).isoformat(),
@@ -4281,7 +4369,7 @@ async def admin_manual_booking(session_id: str, body: ManualBookingRequest, requ
     log_action(member_id, "manual_booking_confirmed", f"booking_id={booking_id}", request.client.host if request.client else None)
     return {
         "ok": True,
-        "message": "무료강의 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다." if is_free else "입금확정 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다.",
+        "message": "스터디 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다." if is_study else "무료강의 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다." if is_free else "입금확정 예약을 일정에 수동 추가했습니다. 자동 알림은 보내지 않았습니다.",
         "data": booking,
         "member_id": member_id,
         "reused_member": reused_member,

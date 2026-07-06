@@ -18,6 +18,17 @@ DEFAULT_PRICE = 50000
 DEFAULT_CAPACITY_MIN = 4
 DEFAULT_CAPACITY_MAX = 5
 DEFAULT_LOCATION = "영등포시장역 사무실"
+FREE_CLASS_TITLE = "무료 AI 강의"
+FREE_CLASS_DESCRIPTION = "AI 입문자를 위한 계정 세팅, 실습 방향, 업무 활용 예시를 무료로 안내합니다."
+FREE_CLASS_MATERIALS = "노트북 또는 태블릿, 충전기, 사용 중인 AI 계정 정보, 궁금한 자동화 주제"
+FREE_CLASS_LOCATION = "장소 추후 안내"
+FREE_CLASS_CAPACITY_MIN = 1
+FREE_CLASS_CAPACITY_MAX = 20
+STUDY_PROGRAM_TYPE = "study"
+STUDY_TITLE = "ARSEN 멤버 스터디"
+STUDY_DESCRIPTION = "승인 멤버가 함께 모여 AI 활용 사례와 실습 내용을 점검하는 스터디입니다."
+STUDY_MATERIALS = "노트북, 충전기, 공유하고 싶은 AI 활용 사례 또는 질문"
+STUDY_LOCATION = "온라인/오프라인 별도 안내"
 PENDING_BOOKING_STATUSES = ("requested", "payment_guide_sent", "payment_pending", "payment_confirmed")
 INACTIVE_BOOKING_STATUSES = ("canceled", "rejected", "no_show")
 NON_MOVABLE_BOOKING_STATUSES = ("canceled", "rejected", "no_show", "completed")
@@ -331,6 +342,9 @@ def list_bookings(status: str | None = None, session_id: str | None = None) -> l
             s.ends_at AS session_ends_at,
             s.location AS session_location,
             s.capacity_max AS session_capacity_max,
+            s.program_type AS session_program_type,
+            s.audience_level AS session_audience_level,
+            s.price_krw AS session_price_krw,
             bo.request_rank,
             CASE WHEN b.status='confirmed' AND b.payment_status='paid' THEN bo.paid_rank_raw END AS paid_rank,
             CASE WHEN b.status='waitlisted' THEN wo.waitlist_rank END AS waitlist_rank,
@@ -398,6 +412,8 @@ def get_booking(booking_id: str) -> dict | None:
             s.capacity_max AS session_capacity_max,
             s.confirmed_count AS session_confirmed_count,
             s.price_krw AS session_price_krw,
+            s.program_type AS session_program_type,
+            s.audience_level AS session_audience_level,
             s.payment_guide AS session_payment_guide,
             bo.request_rank,
             CASE WHEN b.status='confirmed' AND b.payment_status='paid' THEN bo.paid_rank_raw END AS paid_rank,
@@ -454,6 +470,8 @@ def list_member_bookings(member_id: str) -> list[dict]:
             s.location AS session_location,
             s.capacity_max AS session_capacity_max,
             s.price_krw AS session_price_krw,
+            s.program_type AS session_program_type,
+            s.audience_level AS session_audience_level,
             bo.request_rank,
             CASE WHEN b.status='confirmed' AND b.payment_status='paid' THEN bo.paid_rank_raw END AS paid_rank,
             CASE WHEN b.status='waitlisted' THEN wo.waitlist_rank END AS waitlist_rank
@@ -578,6 +596,56 @@ def session_acceptance(session: dict | None) -> tuple[bool, str]:
     if active >= capacity:
         return False, "신청 정원이 마감된 세션입니다."
     return True, ""
+
+
+def is_study_session(session: dict | None) -> bool:
+    return str((session or {}).get("program_type") or "").lower() == STUDY_PROGRAM_TYPE
+
+
+def list_study_sessions(include_closed: bool = False) -> list[dict]:
+    return [
+        row for row in list_sessions(include_closed=include_closed)
+        if is_study_session(row)
+    ]
+
+
+def member_paid_class_count(member_id: str) -> int:
+    conn = get_conn()
+    row = conn.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM bookings b
+        LEFT JOIN sessions s ON s.id = b.session_id
+        WHERE b.member_id=?
+          AND (
+            b.status='completed'
+            OR (
+              b.status='confirmed'
+              AND COALESCE(s.starts_at, b.confirmed_at, b.updated_at, b.created_at) <= ?
+            )
+          )
+          AND COALESCE(s.program_type, '') != ?
+          AND COALESCE(s.program_type, '') NOT LIKE '%free%'
+          AND COALESCE(s.price_krw, b.payment_amount_krw, 0) > 0
+          AND COALESCE(b.payment_status, '') != 'waived'
+        """,
+        (member_id, _now(), STUDY_PROGRAM_TYPE),
+    ).fetchone()
+    conn.close()
+    return int((row or {})["count"] or 0)
+
+
+def study_member_acceptance(session: dict | None, member_id: str) -> tuple[bool, str, dict]:
+    if not is_study_session(session):
+        return True, "", {"paid_completed": member_paid_class_count(member_id)}
+    audience = str((session or {}).get("audience_level") or "approved").lower()
+    paid_completed = member_paid_class_count(member_id)
+    if audience == "paid_only" and paid_completed < 1:
+        return False, "이 스터디는 유료강의 수강 이력이 있는 승인 멤버만 신청할 수 있습니다.", {
+            "paid_completed": paid_completed,
+            "audience_level": audience,
+        }
+    return True, "", {"paid_completed": paid_completed, "audience_level": audience}
 
 
 def move_booking_to_session(
@@ -891,4 +959,62 @@ def seed_default_sunday_sessions(weeks: int = 4) -> dict[str, list[str]]:
             session_id = create_session(data)
             created.append(session_id)
             existing_by_start[data["starts_at"]] = get_session(session_id) or {"id": session_id}
+    return {"created": created, "updated": updated}
+
+
+def seed_default_free_class_sessions(weeks: int = 4) -> dict[str, list[str]]:
+    """Create or reopen simple Saturday free-class sessions."""
+    weeks = max(1, min(int(weeks), 12))
+    now_local = datetime.now()
+    days_until_saturday = (5 - now_local.weekday()) % 7
+    if days_until_saturday == 0:
+        days_until_saturday = 7
+    first = now_local + timedelta(days=days_until_saturday)
+    created: list[str] = []
+    updated: list[str] = []
+    existing = list_sessions(include_closed=True)
+    existing_by_key = {
+        (row.get("starts_at"), row.get("program_type") or ""): row
+        for row in existing
+    }
+    for week in range(weeks):
+        day = first + timedelta(days=7 * week)
+        start = day.replace(hour=10, minute=0, second=0, microsecond=0)
+        end = day.replace(hour=12, minute=0, second=0, microsecond=0)
+        data = {
+            "title": FREE_CLASS_TITLE,
+            "description": FREE_CLASS_DESCRIPTION,
+            "program_type": "free_class",
+            "audience_level": "beginner",
+            "starts_at": start.isoformat(),
+            "ends_at": end.isoformat(),
+            "location": FREE_CLASS_LOCATION,
+            "materials": FREE_CLASS_MATERIALS,
+            "price_krw": 0,
+            "capacity_min": FREE_CLASS_CAPACITY_MIN,
+            "capacity_max": FREE_CLASS_CAPACITY_MAX,
+            "status": "open",
+        }
+        existing_session = existing_by_key.get((data["starts_at"], "free_class"))
+        if existing_session:
+            updates = {
+                "title": FREE_CLASS_TITLE,
+                "description": FREE_CLASS_DESCRIPTION,
+                "program_type": "free_class",
+                "audience_level": "beginner",
+                "ends_at": data["ends_at"],
+                "location": FREE_CLASS_LOCATION,
+                "materials": FREE_CLASS_MATERIALS,
+                "price_krw": 0,
+                "capacity_min": FREE_CLASS_CAPACITY_MIN,
+                "capacity_max": FREE_CLASS_CAPACITY_MAX,
+                "status": "open",
+            }
+            changed = any(existing_session.get(key) != value for key, value in updates.items())
+            if changed and update_session(existing_session["id"], updates):
+                updated.append(existing_session["id"])
+            continue
+        session_id = create_session(data)
+        created.append(session_id)
+        existing_by_key[(data["starts_at"], "free_class")] = get_session(session_id) or {"id": session_id}
     return {"created": created, "updated": updated}

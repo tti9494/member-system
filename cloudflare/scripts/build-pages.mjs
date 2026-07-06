@@ -22,12 +22,14 @@ const frontendHtmlFiles = [
   "join-basic.html",
   "join-free.html",
   "join-full.html",
+  "kakao-members.html",
   "license-admin.html",
   "member.html",
   "payment-admin.html",
   "privacy.html",
   "review-submit.html",
   "status.html",
+  "study.html",
   "yoonbot.html",
 ];
 const frontendAssetFiles = [
@@ -176,6 +178,7 @@ a span{display:block;margin-top:4px;color:#b8c6d9;font-weight:600;font-size:.95r
 <a class="primary" href="/frontend/join-free.html">무료 강의 신청<span>참여 가능 지역과 시간대를 남겨주세요.</span></a>
 <a class="product" href="/frontend/yoonbot.html#download">YOONBOT 다운로드<span>Windows 런처를 내려받고 파일럿 구매 정보를 확인합니다.</span></a>
 <a href="/frontend/status.html">예약 확인<span>신청/예약 상태와 안내 문구를 확인합니다.</span></a>
+<a href="/frontend/study.html">스터디 참가<span>승인 멤버 전용 스터디 일정을 확인하고 신청합니다.</span></a>
 <a href="/frontend/class-dashboard.html">수업용 대시보드<span>강의 자료와 공개 학습 아카이브를 봅니다.</span></a>
 <a href="/frontend/class-stories.html">공개 후기 보기<span>관리자가 승인한 후기와 결과물만 표시됩니다.</span></a>
 <a href="/frontend/join-basic.html">체험 신청 (Basic)<span>간단한 체험 신청과 운영자 확인용입니다.</span></a>

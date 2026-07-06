@@ -194,6 +194,72 @@ def upgrade_lead_to_application(member_id: str, data: dict) -> bool:
         conn.close()
 
 
+def refresh_duplicate_application(member_id: str, data: dict) -> bool:
+    """Refresh an existing class applicant with the latest duplicate application."""
+    list_fields = {"ai_tools", "ai_use_cases", "group_goals", "available_time_slots"}
+    bool_fields = {"can_code", "can_present", "consent_marketing", "consent_personal"}
+    updates = {
+        "name": data.get("name") or "신청자",
+        "email_encrypted": data.get("email_encrypted", ""),
+        "email_hash": data.get("email_hash", ""),
+        "phone_masked": data.get("phone_masked", ""),
+        "phone_encrypted": data.get("phone_encrypted", ""),
+        "phone_hash": data.get("phone_hash", ""),
+        "gender": data.get("gender", ""),
+        "age": int(data.get("age") or 0),
+        "job": data.get("job", ""),
+        "referral_source": data.get("referral_source", ""),
+        "reason": data.get("reason") or data.get("desired_outcome") or "",
+        "ai_level": data.get("ai_level", ""),
+        "plan_type": data.get("plan_type") or "full",
+        "ai_tools": data.get("ai_tools", []),
+        "ai_subscription": data.get("ai_subscription", ""),
+        "ai_weekly_hours": data.get("ai_weekly_hours", ""),
+        "ai_use_cases": data.get("ai_use_cases", []),
+        "group_goals": data.get("group_goals", []),
+        "short_term_goal": data.get("short_term_goal") or data.get("desired_outcome") or "",
+        "participation_type": data.get("participation_type", ""),
+        "preferred_schedule": data.get("preferred_schedule", ""),
+        "available_time_slots": data.get("available_time_slots", []),
+        "region": data.get("region", ""),
+        "main_device": data.get("main_device", ""),
+        "can_code": data.get("can_code", False),
+        "can_present": data.get("can_present", False),
+        "skills": data.get("skills") or data.get("preparedness") or "",
+        "contribution": data.get("contribution", ""),
+        "participation_grade": data.get("participation_grade", "새 신청"),
+        "consent_personal": data.get("consent_personal", True),
+        "consent_marketing": data.get("consent_marketing", False),
+        "consent_at": data.get("consent_at", _now()),
+        "consent_version": data.get("consent_version", "duplicate-refresh-v1"),
+    }
+    normalized = {}
+    for key, value in updates.items():
+        if key in list_fields and isinstance(value, list):
+            value = json.dumps(value, ensure_ascii=False)
+        if key in bool_fields:
+            value = 1 if value else 0
+        normalized[key] = value
+    fields = list(normalized.keys())
+    sql = ", ".join(f"{field}=?" for field in fields)
+    conn = get_conn()
+    try:
+        cur = conn.execute(
+            f"""
+            UPDATE members
+            SET {sql},
+                status=CASE WHEN status='rejected' THEN 'pending' ELSE status END,
+                rejection_reason=CASE WHEN status='rejected' THEN NULL ELSE rejection_reason END
+            WHERE id=?
+            """,
+            [*(normalized[field] for field in fields), member_id],
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def get_member(member_id: str) -> dict | None:
     conn = get_conn()
     cur = conn.cursor()
@@ -296,6 +362,7 @@ def list_members(status: str = None, grade: str = None) -> list:
     rows = cur.execute(query, params).fetchall()
     data = [dict(r) for r in rows]
     _attach_member_admin_fields(conn, data)
+    data.sort(key=_latest_activity_key, reverse=True)
     conn.close()
     return data
 
@@ -436,12 +503,13 @@ def _member_duplicate_activity(conn: sqlite3.Connection, member_ids: list[str]) 
             })
     for activity in result.values():
         latest = activity["logs"][0] if activity["logs"] else {}
-        source_label = {"phone": "전화번호", "email": "이메일"}.get(latest.get("source"), latest.get("source") or "중복 기준")
+        source_label = {"phone": "전화번호", "email": "이메일"}.get(latest.get("source"), latest.get("source") or "확인 기준")
         attempt_name = latest.get("attempt_name") or "이름 미기록"
         activity["last_at"] = latest.get("created_at")
         activity["last_source"] = latest.get("source") or ""
         activity["last_attempt_name"] = latest.get("attempt_name") or ""
-        activity["summary_text"] = f"중복 감지 {activity['count']}회 · 최근 {source_label} · {attempt_name}"
+        activity["last_attempt_plan_type"] = latest.get("attempt_plan_type") or ""
+        activity["summary_text"] = f"재신청 {activity['count']}회 · 최근 {source_label} · {attempt_name}"
     return result
 
 
@@ -473,8 +541,17 @@ def _attach_member_admin_fields(conn: sqlite3.Connection, members: list[dict]) -
         member["duplicate_apply_last_at"] = duplicate.get("last_at")
         member["duplicate_apply_last_source"] = duplicate.get("last_source", "")
         member["duplicate_apply_last_attempt_name"] = duplicate.get("last_attempt_name", "")
+        member["duplicate_apply_last_attempt_plan_type"] = duplicate.get("last_attempt_plan_type", "")
         member["duplicate_apply_summary_text"] = duplicate.get("summary_text", "")
         member["duplicate_apply_logs"] = duplicate.get("logs", [])
+        member["latest_activity_at"] = max(
+            str(member.get("created_at") or ""),
+            str(duplicate.get("last_at") or ""),
+        )
+
+
+def _latest_activity_key(member: dict) -> str:
+    return str(member.get("latest_activity_at") or member.get("created_at") or "")
 
 
 def update_member(member_id: str, updates: dict) -> bool:

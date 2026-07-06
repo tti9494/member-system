@@ -6,6 +6,7 @@ ADMIN_HTML = ROOT / "frontend" / "admin.html"
 MAIN_PY = ROOT / "main.py"
 BUILD_PAGES = ROOT / "cloudflare" / "scripts" / "build-pages.mjs"
 WORKER_JS = ROOT / "cloudflare" / "src" / "worker.js"
+KAKAO_MEMBERS_HTML = ROOT / "frontend" / "kakao-members.html"
 
 
 def test_admin_member_search_and_erase_ux_contracts():
@@ -45,6 +46,69 @@ def test_admin_member_group_tab_and_download_contracts():
     assert "Google 연락처용" in html
 
 
+def test_member_page_profile_progress_and_review_contracts():
+    member_html = (ROOT / "frontend" / "member.html").read_text(encoding="utf-8")
+    admin_html = ADMIN_HTML.read_text(encoding="utf-8")
+    worker_js = WORKER_JS.read_text(encoding="utf-8")
+    schema_sql = (ROOT / "cloudflare" / "schema.sql").read_text(encoding="utf-8")
+    deploy_script = (ROOT / "cloudflare" / "scripts" / "deploy-cloudflare.mjs").read_text(encoding="utf-8")
+
+    for token in [
+        "member-openchat",
+        "member-level",
+        "member-points",
+        "member-access",
+        "nickname-form",
+        "review-form",
+        "review-booking",
+        "renderProgress",
+        "renderReviews",
+        "/member/profile",
+        "/member/reviews",
+    ]:
+        assert token in member_html
+
+    for token in [
+        "admin-tab-kakao-members",
+        "kakao-members-panel",
+        "renderKakaoMembers",
+        "kakaoMemberFilter",
+        "오픈톡 닉네임",
+    ]:
+        assert token in admin_html
+
+    assert "openchat_nickname TEXT" in schema_sql
+    assert "member_id TEXT REFERENCES members" in schema_sql
+    assert "booking_id TEXT REFERENCES bookings" in schema_sql
+    assert "ALTER TABLE members ADD COLUMN openchat_nickname" in deploy_script
+    assert "ALTER TABLE review_entries ADD COLUMN member_id" in deploy_script
+    assert "ALTER TABLE review_entries ADD COLUMN booking_id" in deploy_script
+    assert "function memberLevelProfile" in worker_js
+    assert "function handleMemberProfileUpdate" in worker_js
+    assert "function handleMemberReviewCreate" in worker_js
+
+
+def test_kakao_members_standalone_admin_page_contracts():
+    html = KAKAO_MEMBERS_HTML.read_text(encoding="utf-8")
+    admin_html = ADMIN_HTML.read_text(encoding="utf-8")
+    build_pages = BUILD_PAGES.read_text(encoding="utf-8")
+
+    for token in [
+        "ARSEN 카카오 회원 관리",
+        "loadKakaoMembers",
+        'api("/members")',
+        "/admin/members/${encodeURIComponent(member.id)}/kakao-unlink",
+        "kakao-filter",
+        "approved-unlinked",
+        "전체 관리자에서 보기",
+        "승인 미연동",
+    ]:
+        assert token in html
+
+    assert "kakao-members.html" in build_pages
+    assert "/frontend/kakao-members.html" in admin_html
+
+
 def test_admin_member_modal_free_schedule_and_attendance_contracts():
     html = ADMIN_HTML.read_text(encoding="utf-8")
     main_py = MAIN_PY.read_text(encoding="utf-8")
@@ -62,8 +126,16 @@ def test_admin_member_modal_free_schedule_and_attendance_contracts():
         "카카오 연결 해제",
         "memberClassHistorySection",
         "new-session-program-type",
+        "seed-free-sessions-btn",
+        "무료 일정 생성",
+        "seed-free-class",
         "무료 참여자로 추가",
         "showFreeClassGuide",
+        "무료 안내 복사",
+        "free-guide-template-copy-btn",
+        "copyFreeClassTemplateGuide",
+        "무료강의 안내 복사",
+        "무료강의 준비물 안내 문구",
         "markAttendance",
         "참여 완료",
         "불참",
@@ -75,7 +147,9 @@ def test_admin_member_modal_free_schedule_and_attendance_contracts():
     assert '@app.post("/admin/members/{member_id}/kakao-unlink")' in main_py
     assert '@app.post("/admin/members/{member_id}/kick")' in main_py
     assert '@app.post("/admin/bookings/{booking_id}/free-guide")' in main_py
+    assert '@app.post("/admin/sessions/seed-free-class")' in main_py
     assert 'parts[1] === "members"' in worker_js
+    assert 'parts[2] === "seed-free-class"' in worker_js
     assert 'parts[3] === "kakao-unlink"' in worker_js
     assert 'parts[3] === "free-guide"' in worker_js
     assert "contact_registered" in worker_js
@@ -84,6 +158,14 @@ def test_admin_member_modal_free_schedule_and_attendance_contracts():
     assert "loadFreeSessions" in join_free_html
     assert 'id="session_id"' in join_free_html
     assert "선택한 무료강의 일정 신청까지 함께 접수되었습니다." in join_free_html
+    assert "비용 0원" in join_free_html
+    assert "입문/체험 중심" in join_free_html
+    assert "일정 변동 가능" in join_free_html
+
+    join_full_html = (ROOT / "frontend" / "join-full.html").read_text(encoding="utf-8")
+    assert "승인 코드 필요" in join_full_html
+    assert "입금 확인 후 확정" in join_full_html
+    assert "소수정예 실습" in join_full_html
 
 
 def test_admin_applicant_detail_panel_and_copy_name_contracts():
@@ -200,6 +282,8 @@ def test_public_entry_points_include_free_application_link():
     assert "YOONBOT 다운로드" in main_py
     assert "/frontend/status.html" in main_py
     assert "예약 확인" in main_py
+    assert "/frontend/study.html" in main_py
+    assert "스터디 참가" in main_py
     assert "/frontend/member.html" in main_py
     assert "회원 페이지" in main_py
     assert "/frontend/join-free.html" in build_pages
@@ -210,9 +294,65 @@ def test_public_entry_points_include_free_application_link():
     assert "YOONBOT 다운로드" in build_pages
     assert "/frontend/status.html" in build_pages
     assert "예약 확인" in build_pages
+    assert "study.html" in build_pages
+    assert "/frontend/study.html" in build_pages
     assert "/frontend/member.html" in build_pages
     assert "회원 페이지" in build_pages
     assert "class-dashboard.html" in build_pages
+
+
+def test_study_page_and_booking_policy_contracts():
+    admin_html = ADMIN_HTML.read_text(encoding="utf-8")
+    study_html = (ROOT / "frontend" / "study.html").read_text(encoding="utf-8")
+    main_py = MAIN_PY.read_text(encoding="utf-8")
+    worker_js = WORKER_JS.read_text(encoding="utf-8")
+
+    for token in [
+        '<option value="study">스터디</option>',
+        "new-session-audience-level",
+        '<option value="approved">승인멤버 전체</option>',
+        '<option value="paid_only">유료강의 수강자만</option>',
+        "isStudySession",
+        "스터디 참여자로 추가",
+        "참여확정",
+        "sessionAudienceLabel",
+    ]:
+        assert token in admin_html
+
+    for token in [
+        "ARSEN 스터디 참가",
+        "승인 멤버 전용 스터디",
+        "/study/sessions",
+        "/member/bookings",
+        "유료 수강자 전용",
+        "승인 멤버 전체",
+        "paid_class_count",
+        "/auth/kakao/start?next=/frontend/study.html",
+    ]:
+        assert token in study_html
+
+    for token in [
+        '@app.get("/study/sessions")',
+        "study_member_acceptance",
+        "member_paid_class_count",
+        "is_study_session",
+        "session_program_type",
+        "session_audience_level",
+    ]:
+        assert token in main_py
+
+    for token in [
+        'path === "/study/sessions"',
+        'path === "/study/sessions" ||',
+        "studyMemberAcceptance",
+        "memberPaidClassCount",
+        "withPublicMemberStats",
+        "MEMBER_LOOKUP_CHUNK_SIZE",
+        "for (const chunk of chunkValues(memberIds))",
+        "session_program_type",
+        "session_audience_level",
+    ]:
+        assert token in worker_js
 
 
 def test_class_dashboard_archive_contracts():
@@ -315,11 +455,21 @@ def test_public_consultation_contracts():
     assert "consultation_mirror" in worker_js
     assert "canUpgradeLeadToApplication" in worker_js
     assert "upgradeLeadToApplication" in worker_js
+    assert "canRefreshDuplicateApplication" in worker_js
+    assert "refreshDuplicateApplication" in worker_js
+    assert "latest_application_refreshed" in worker_js
+    assert "latest_activity_at" in worker_js
     assert "upgraded_from_lead" in worker_js
     assert "lead_upgraded_to_apply" in worker_js
     assert "리드를 신청자/멤버 목록" in worker_js
+    assert "최근접수" in admin_html
+    assert "latestDuplicatePlanType" in admin_html
+    assert "최근 재신청 유형" in admin_html
+    assert "재신청 이력" in admin_html
+    assert "pill reapply" in admin_html
     assert '@app.post("/api/consultations")' in MAIN_PY.read_text(encoding="utf-8")
     assert "upgrade_lead_to_application" in MAIN_PY.read_text(encoding="utf-8")
+    assert "refresh_duplicate_application" in MAIN_PY.read_text(encoding="utf-8")
     assert '"plan_type": plan_type' in MAIN_PY.read_text(encoding="utf-8")
     assert '"lead_email"' in MAIN_PY.read_text(encoding="utf-8")
     assert '"lead_phone"' in MAIN_PY.read_text(encoding="utf-8")

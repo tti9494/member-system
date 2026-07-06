@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARSEN 스터디 참가</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f7f8fb;
+    --panel: #ffffff;
+    --ink: #0a0a0a;
+    --muted: #475467;
+    --line: #e5e7eb;
+    --line-strong: #cfd5df;
+    --blue: #355f92;
+    --green: #087451;
+    --amber: #7a4300;
+    --red: #b42318;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 82% 0%, rgba(53, 95, 146, 0.12), transparent 24rem),
+      linear-gradient(180deg, #ffffff 0%, var(--bg) 46%, #ffffff 100%);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    line-height: 1.55;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  a { color: inherit; }
+  .shell { width: min(1120px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 64px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-bottom: 24px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 950; text-decoration: none; }
+  .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 8px; background: #0a0a0a; color: #fff; }
+  .top-links { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .top-links a {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 850;
+    background: #fff;
+  }
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 410px;
+    gap: 22px;
+    align-items: stretch;
+  }
+  .hero-copy, .login-card, .panel, .study-card {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  }
+  .hero-copy {
+    min-height: 390px;
+    padding: clamp(24px, 4vw, 44px);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: #fff;
+    background:
+      radial-gradient(circle at 88% 10%, rgba(88, 141, 207, 0.32), transparent 19rem),
+      linear-gradient(115deg, #101820 0%, #203853 48%, #121925 100%);
+  }
+  .eyebrow { margin: 0 0 16px; color: #9ee8c8; font-size: 12px; font-weight: 950; text-transform: uppercase; }
+  h1 { margin: 0; font-size: clamp(2.25rem, 6vw, 4.3rem); line-height: 1.04; letter-spacing: 0; }
+  .hero-text { max-width: 660px; margin: 18px 0 0; color: rgba(255, 255, 255, 0.82); font-size: 1.04rem; }
+  .hero-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 30px; }
+  .step { border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 8px; padding: 14px; background: rgba(255, 255, 255, 0.1); }
+  .step span { display: block; color: rgba(255, 255, 255, 0.68); font-size: 12px; font-weight: 850; }
+  .step strong { display: block; margin-top: 4px; font-size: 1rem; }
+  .login-card, .panel { padding: 22px; }
+  h2 { margin: 0 0 10px; font-size: 1.22rem; letter-spacing: 0; }
+  .muted { color: var(--muted); }
+  .form-grid { display: grid; gap: 14px; margin-top: 18px; }
+  label { display: block; margin-bottom: 7px; color: #182230; font-weight: 850; font-size: 14px; }
+  input, textarea {
+    width: 100%;
+    min-height: 46px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 10px;
+    padding: 11px 12px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+  }
+  textarea { min-height: 86px; resize: vertical; }
+  input:focus, textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(127, 176, 240, 0.18); }
+  .auth-methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 16px 0 14px; padding: 5px; border: 1px solid var(--line); border-radius: 12px; background: #f6f8fb; }
+  .auth-method { min-height: 46px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--muted); font: inherit; font-weight: 900; cursor: pointer; }
+  .auth-method.active { background: #0a0a0a; border-color: #0a0a0a; color: #fff; }
+  .button-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  button, .button {
+    min-height: 46px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 11px 15px;
+    background: #0a0a0a;
+    color: #fff;
+    font: inherit;
+    font-weight: 950;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  button.secondary, .button.secondary { background: #fff; color: var(--ink); border-color: var(--line-strong); }
+  button:disabled { cursor: not-allowed; opacity: 0.62; }
+  .notice { margin-top: 14px; min-height: 42px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #f6f8fb; color: var(--muted); font-weight: 780; }
+  .notice.ok { color: var(--green); border-color: rgba(66, 212, 154, 0.45); }
+  .notice.error { color: var(--red); border-color: rgba(255, 133, 133, 0.45); }
+  .hidden { display: none !important; }
+  .dashboard { margin-top: 22px; display: grid; gap: 16px; }
+  .panel-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+  .profile-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .profile-card { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: #fff; min-width: 0; }
+  .profile-card span { display: block; color: var(--muted); font-size: 12px; font-weight: 850; }
+  .profile-card strong { display: block; margin-top: 5px; font-size: 1rem; overflow-wrap: anywhere; }
+  .study-list { display: grid; gap: 12px; }
+  .study-card { padding: 17px; }
+  .study-card.blocked { background: #fbfcfe; }
+  .study-top { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
+  .study-title { margin: 0; font-size: 1.08rem; }
+  .pill { display: inline-flex; align-items: center; justify-content: center; min-height: 28px; border-radius: 999px; padding: 4px 10px; background: #eef2f7; color: #344054; font-size: 12px; font-weight: 900; white-space: nowrap; }
+  .pill.green { background: #dcfaea; color: #05603a; }
+  .pill.amber { background: #fff3d6; color: #7a4300; }
+  .pill.dark { background: #111827; color: #fff; }
+  .study-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 14px 0; }
+  .meta-cell { border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-width: 0; background: #fff; }
+  .meta-cell span { display: block; color: var(--muted); font-size: 12px; font-weight: 850; }
+  .meta-cell strong { display: block; margin-top: 4px; font-size: 0.95rem; }
+  .study-note { margin: 0 0 14px; color: var(--muted); font-size: 0.94rem; }
+  .study-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+  .empty { border: 1px dashed var(--line-strong); border-radius: 12px; padding: 18px; color: var(--muted); background: #fff; font-weight: 760; }
+  @media (max-width: 940px) {
+    .hero { grid-template-columns: 1fr; }
+    .hero-copy { min-height: auto; }
+    .study-form { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 720px) {
+    .topbar, .panel-head, .study-top { flex-direction: column; align-items: stretch; }
+    .hero-steps, .profile-grid, .study-meta { grid-template-columns: 1fr; }
+    .top-links { justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">AI</span><span>ARSEN Study</span></a>
+    <nav class="top-links" aria-label="바로가기">
+      <a href="/frontend/member.html">회원 페이지</a>
+      <a href="/frontend/status.html">예약 확인</a>
+      <a href="/frontend/join-free.html">무료 강의</a>
+      <a href="/frontend/join-full.html">유료 강의</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="hero-copy">
+      <div>
+        <p class="eyebrow">member study</p>
+        <h1>승인 멤버 전용 스터디</h1>
+        <p class="hero-text">수업 이후에도 AI 활용 사례, 질문, 작업 흐름을 같이 점검하는 모임입니다. 기본은 승인 멤버 전체 대상이고, 일부 스터디는 유료강의 수강자 전용으로 열릴 수 있습니다.</p>
+      </div>
+      <div class="hero-steps" aria-label="스터디 신청 순서">
+        <div class="step"><span>01</span><strong>회원 확인</strong></div>
+        <div class="step"><span>02</span><strong>스터디 선택</strong></div>
+        <div class="step"><span>03</span><strong>참가 신청</strong></div>
+      </div>
+    </div>
+
+    <aside class="login-card" aria-label="회원 확인">
+      <h2>회원 확인</h2>
+      <p class="muted">승인 코드 또는 연결된 카카오 계정으로 스터디 신청 권한을 확인합니다.</p>
+      <div class="auth-methods" role="tablist" aria-label="확인 방식">
+        <button class="auth-method active" id="auth-code-mode" type="button" role="tab" aria-selected="true">승인 코드</button>
+        <button class="auth-method" id="auth-kakao-mode" type="button" role="tab" aria-selected="false">카카오</button>
+      </div>
+      <form id="member-login-form" class="form-grid">
+        <div>
+          <label for="phone">전화번호</label>
+          <input id="phone" type="tel" autocomplete="tel" placeholder="신청할 때 입력한 전화번호" required>
+        </div>
+        <div>
+          <label for="code">승인 코드</label>
+          <input id="code" type="text" autocomplete="one-time-code" placeholder="운영자가 발급한 코드" required>
+        </div>
+        <div class="button-row">
+          <button id="login-btn" type="submit">회원 확인</button>
+          <a class="button secondary" id="kakao-login-link" href="/auth/kakao/start?next=/frontend/study.html">카카오로 확인</a>
+        </div>
+      </form>
+      <div id="status" class="notice">승인 멤버 전체 대상 스터디가 기본입니다.</div>
+    </aside>
+  </section>
+
+  <main id="dashboard" class="dashboard hidden">
+    <section class="panel" aria-label="회원 요약">
+      <div class="panel-head">
+        <div>
+          <h2>내 스터디 권한</h2>
+          <p class="muted">유료강의 수강 이력이 있으면 유료 수강자 전용 스터디도 신청할 수 있습니다.</p>
+        </div>
+        <button class="secondary" id="refresh-btn" type="button">새로고침</button>
+      </div>
+      <div class="profile-grid">
+        <div class="profile-card"><span>이름</span><strong id="member-name">-</strong></div>
+        <div class="profile-card"><span>상태</span><strong id="member-status">-</strong></div>
+        <div class="profile-card"><span>신청 유형</span><strong id="member-plan">-</strong></div>
+        <div class="profile-card"><span>유료 수강</span><strong id="member-paid-count">0회</strong></div>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="스터디 일정">
+      <div class="panel-head">
+        <div>
+          <h2>열려 있는 스터디</h2>
+          <p class="muted">참가 신청 후 운영자가 인원과 장소를 확인합니다.</p>
+        </div>
+        <span class="pill dark" id="study-count">0개</span>
+      </div>
+      <div id="study-list" class="study-list"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+const state = { member: null, code: "", phone: "", bookings: [], studies: [], kakao: null };
+const $ = (id) => document.getElementById(id);
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[ch]));
+}
+
+function setStatus(message, tone = "") {
+  const el = $("status");
+  el.textContent = message;
+  el.className = `notice ${tone}`.trim();
+}
+
+function setAuthMode(mode) {
+  const codeButton = $("auth-code-mode");
+  const kakaoButton = $("auth-kakao-mode");
+  const isKakao = mode === "kakao";
+  codeButton.classList.toggle("active", !isKakao);
+  kakaoButton.classList.toggle("active", isKakao);
+  codeButton.setAttribute("aria-selected", String(!isKakao));
+  kakaoButton.setAttribute("aria-selected", String(isKakao));
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) {
+    const detail = typeof data.detail === "string" ? data.detail : data.message;
+    throw new Error(detail || `HTTP ${response.status}`);
+  }
+  return data;
+}
+
+function formatDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function formatAmount(value) {
+  const amount = Number(value || 0);
+  return amount ? `${amount.toLocaleString("ko-KR")}원` : "무료";
+}
+
+function planLabel(plan) {
+  return { free: "무료강의", basic: "기본강의", full: "유료강의" }[String(plan || "").toLowerCase()] || plan || "-";
+}
+
+function statusLabel(status) {
+  return { approved: "승인 완료", pending: "검토 대기", rejected: "거절", blacklist: "신청 제한" }[String(status || "").toLowerCase()] || status || "-";
+}
+
+function audienceLabel(session) {
+  return String(session?.audience_level || "approved").toLowerCase() === "paid_only" ? "유료 수강자 전용" : "승인 멤버 전체";
+}
+
+function isActiveBooking(booking) {
+  return !["canceled", "rejected", "no_show"].includes(String(booking?.status || ""));
+}
+
+function paidClassCount() {
+  return Number(state.member?.paid_class_count || 0);
+}
+
+function studyBookingFor(sessionId) {
+  return state.bookings.find((booking) => booking.session_id === sessionId && isActiveBooking(booking));
+}
+
+function renderProfile() {
+  $("member-name").textContent = state.member?.name || "-";
+  $("member-status").textContent = statusLabel(state.member?.status);
+  $("member-plan").textContent = planLabel(state.member?.plan_type);
+  $("member-paid-count").textContent = `${paidClassCount()}회`;
+}
+
+function renderStudies() {
+  $("study-count").textContent = `${state.studies.length}개`;
+  const list = $("study-list");
+  if (!state.studies.length) {
+    list.innerHTML = '<div class="empty">현재 공개된 스터디 일정이 없습니다. 운영자가 일정을 열면 이곳에 표시됩니다.</div>';
+    return;
+  }
+  list.innerHTML = state.studies.map((session) => {
+    const paidOnly = String(session.audience_level || "approved").toLowerCase() === "paid_only";
+    const eligible = !paidOnly || paidClassCount() > 0;
+    const booking = studyBookingFor(session.id);
+    const booked = Boolean(booking);
+    const full = Boolean(session.is_request_full || session.status === "full");
+    const disabled = !eligible || booked || full || session.status !== "open";
+    const pillClass = booked ? "green" : paidOnly ? "amber" : "dark";
+    const actionLabel = booked ? "신청됨" : full ? "마감" : !eligible ? "권한 필요" : "참가 신청";
+    return `
+      <article class="study-card ${eligible ? "" : "blocked"}">
+        <div class="study-top">
+          <div>
+            <h3 class="study-title">${escapeHtml(session.title || "ARSEN 멤버 스터디")}</h3>
+            <p class="muted">${escapeHtml(session.description || "AI 활용 사례와 질문을 함께 나누는 스터디입니다.")}</p>
+          </div>
+          <span class="pill ${pillClass}">${escapeHtml(booked ? "참가 신청됨" : audienceLabel(session))}</span>
+        </div>
+        <div class="study-meta">
+          <div class="meta-cell"><span>일시</span><strong>${escapeHtml(formatDate(session.starts_at))}</strong></div>
+          <div class="meta-cell"><span>장소</span><strong>${escapeHtml(session.location || "-")}</strong></div>
+          <div class="meta-cell"><span>정원</span><strong>${Number(session.active_booking_count || 0)}/${Number(session.capacity_max || 0)}명</strong></div>
+          <div class="meta-cell"><span>참가비</span><strong>${escapeHtml(formatAmount(session.price_krw))}</strong></div>
+        </div>
+        <p class="study-note">${eligible ? "참가 가능 대상입니다." : "유료강의 수강 이력이 있는 멤버만 신청할 수 있는 스터디입니다."}</p>
+        <form class="study-form" data-session-id="${escapeHtml(session.id)}">
+          <div>
+            <label for="outcome-${escapeHtml(session.id)}">나누고 싶은 주제</label>
+            <textarea id="outcome-${escapeHtml(session.id)}" name="desired_outcome" placeholder="예: 영상 생성 워크플로우, 업무 자동화 질문"></textarea>
+          </div>
+          <div>
+            <label for="prep-${escapeHtml(session.id)}">준비 상태</label>
+            <textarea id="prep-${escapeHtml(session.id)}" name="preparedness" placeholder="예: 노트북 지참 가능, 공유할 결과물 있음"></textarea>
+          </div>
+          <button type="submit" ${disabled ? "disabled" : ""}>${escapeHtml(actionLabel)}</button>
+        </form>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderDashboard() {
+  $("dashboard").classList.remove("hidden");
+  renderProfile();
+  renderStudies();
+}
+
+function applyMemberPayload(payload) {
+  state.kakao = payload.kakao || state.kakao;
+  state.member = payload.member;
+  state.bookings = payload.bookings || [];
+  renderDashboard();
+}
+
+async function loadStudies() {
+  const data = await api("/study/sessions");
+  state.studies = data.data || [];
+  renderStudies();
+}
+
+async function verifyAndLoad() {
+  const data = await api("/member/verify-code", {
+    method: "POST",
+    body: JSON.stringify({ phone: state.phone, code: state.code }),
+  });
+  applyMemberPayload(data.data);
+  await loadStudies();
+}
+
+async function loadKakaoSession(status = "") {
+  setAuthMode("kakao");
+  if (status === "not_configured") {
+    setStatus("카카오 로그인 키가 아직 서버에 설정되지 않았습니다. 운영자 설정 후 사용할 수 있습니다.", "error");
+    return false;
+  }
+  if (["error", "state_error", "token_error"].includes(status)) {
+    setStatus("카카오 로그인 확인 중 문제가 있었습니다. 다시 시도해 주세요.", "error");
+    return false;
+  }
+  const data = await api("/auth/kakao/me", { method: "GET" });
+  state.kakao = data.data.kakao || null;
+  if (data.data.member) {
+    applyMemberPayload(data.data);
+    await loadStudies();
+    setStatus("카카오 계정으로 스터디 페이지를 열었습니다.", "ok");
+    return true;
+  }
+  setStatus("카카오 계정은 확인되었습니다. 기존 전화번호와 승인 코드로 한 번만 연결해 주세요.");
+  return true;
+}
+
+async function linkKakaoAndLoad() {
+  const data = await api("/auth/kakao/link", {
+    method: "POST",
+    body: JSON.stringify({ phone: state.phone, code: state.code }),
+  });
+  applyMemberPayload(data.data);
+  await loadStudies();
+  setStatus(data.message || "카카오 계정이 회원 정보와 연결되었습니다.", "ok");
+}
+
+$("member-login-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  $("login-btn").disabled = true;
+  setStatus("회원 정보를 확인하는 중입니다.");
+  try {
+    state.phone = $("phone").value.trim();
+    state.code = $("code").value.trim();
+    if (state.kakao?.connected && !state.kakao?.linked) {
+      await linkKakaoAndLoad();
+    } else {
+      await verifyAndLoad();
+      setStatus("회원 확인 완료. 열려 있는 스터디를 확인하세요.", "ok");
+    }
+  } catch (error) {
+    setStatus(error.message, "error");
+  } finally {
+    $("login-btn").disabled = false;
+  }
+});
+
+$("refresh-btn").addEventListener("click", async () => {
+  if (!state.kakao?.linked && (!state.phone || !state.code)) return;
+  setStatus("스터디 정보를 새로고침합니다.");
+  try {
+    if (state.kakao?.linked) {
+      await loadKakaoSession("linked");
+    } else {
+      await verifyAndLoad();
+      setStatus("최신 상태로 갱신했습니다.", "ok");
+    }
+  } catch (error) {
+    setStatus(error.message, "error");
+  }
+});
+
+$("study-list").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.target.closest("form[data-session-id]");
+  if (!form || !state.member || (!state.code && !state.kakao?.linked)) {
+    setStatus("먼저 회원 확인을 완료하세요.", "error");
+    return;
+  }
+  const button = form.querySelector("button[type='submit']");
+  button.disabled = true;
+  setStatus("스터디 참가 신청을 접수하는 중입니다.");
+  try {
+    const data = await api("/member/bookings", {
+      method: "POST",
+      body: JSON.stringify({
+        member_id: state.member.id,
+        code: state.code || undefined,
+        session_id: form.dataset.sessionId,
+        desired_outcome: form.elements.desired_outcome.value.trim(),
+        preparedness: form.elements.preparedness.value.trim(),
+      }),
+    });
+    const booking = data.data;
+    state.bookings = [booking, ...state.bookings.filter((item) => item.id !== booking.id)];
+    await loadStudies();
+    setStatus(data.message || "스터디 참가 신청이 접수되었습니다.", "ok");
+  } catch (error) {
+    setStatus(error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("auth-code-mode").addEventListener("click", () => {
+  setAuthMode("code");
+  setStatus("신청할 때 입력한 전화번호와 운영자가 발급한 승인 코드를 입력하세요.");
+});
+
+$("auth-kakao-mode").addEventListener("click", () => {
+  setAuthMode("kakao");
+  window.location.href = $("kakao-login-link").href;
+});
+
+const params = new URLSearchParams(window.location.search);
+const kakaoStatus = params.get("kakao");
+if (kakaoStatus) {
+  loadKakaoSession(kakaoStatus).catch((error) => setStatus(error.message, "error"));
+} else {
+  loadStudies().catch(() => {});
+}
+</script>
+</body>
+</html>

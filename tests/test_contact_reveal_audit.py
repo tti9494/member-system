@@ -435,6 +435,67 @@ class ContactRevealAuditTest(unittest.TestCase):
             conn.close()
         self.assertEqual(row["status"], "closed")
 
+    def test_existing_application_duplicate_refreshes_latest_plan_for_admin(self):
+        member_id = self._create_member(
+            name="기존 무료 신청자",
+            plan_type="free",
+            status="approved",
+            participation_grade="무료 신청",
+        )
+        db_manager.update_status(member_id, "approved")
+
+        apply_payload = {
+            "name": "기존 무료 신청자",
+            "email": self.RAW_EMAIL,
+            "phone": self.RAW_PHONE,
+            "gender": "여",
+            "age": 33,
+            "job": "사업자",
+            "referral_source": "관리자 회귀 테스트",
+            "reason": "무료 신청자가 유료 강의를 다시 신청하면 관리자 목록에 최신 신청으로 보여야 합니다.",
+            "ai_level": "입문",
+            "plan_type": "full",
+            "ai_tools": ["ChatGPT"],
+            "ai_subscription": "유료",
+            "ai_weekly_hours": "1-3시간",
+            "ai_use_cases": ["문서자동화"],
+            "group_goals": ["업무 자동화"],
+            "short_term_goal": "유료 강의 전환",
+            "participation_type": "유료강의",
+            "preferred_schedule": "주말 오후",
+            "available_time_slots": ["주말 오후"],
+            "region": "서울",
+            "main_device": "노트북",
+            "can_code": False,
+            "can_present": True,
+            "skills": "기획",
+            "contribution": "사례 공유",
+            "consent_personal": True,
+            "consent_marketing": True,
+        }
+        with patch.object(self.main, "notify_admin_duplicate_apply", return_value="ok") as notify:
+            apply_response = self.client.post("/apply", json=apply_payload)
+
+        self.assertEqual(apply_response.status_code, 200)
+        body = apply_response.json()
+        self.assertTrue(body["ok"])
+        self.assertTrue(body["duplicate"])
+        self.assertTrue(body["latest_application_refreshed"])
+        self.assertEqual(body["previous_plan_type"], "free")
+
+        refreshed = db_manager.get_member(member_id)
+        self.assertEqual(refreshed["plan_type"], "full")
+        self.assertEqual(refreshed["status"], "approved")
+        self.assertEqual(refreshed["region"], "서울")
+        self.assertEqual(refreshed["duplicate_apply_count"], 1)
+        self.assertEqual(refreshed["duplicate_apply_last_attempt_plan_type"], "full")
+        self.assertGreaterEqual(refreshed["latest_activity_at"], refreshed["created_at"])
+        notify.assert_called_once()
+
+        listed = db_manager.list_members()
+        self.assertEqual(listed[0]["id"], member_id)
+        self.assertEqual(listed[0]["plan_type"], "full")
+
     def test_member_erasure_requires_admin_anonymizes_contact_and_cancels_bookings(self):
         member_id = self._create_member()
         session_id = booking_manager.create_session(
