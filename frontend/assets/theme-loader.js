@@ -2,7 +2,7 @@
   const API_URL = "/api/site-theme";
   const FALLBACK_CSS = "assets/arsen-theme.css";
   const THEME_QUERY = "theme";
-  const THEME_ASSET_VERSION = "member-selection-layout-v2";
+  const THEME_ASSET_VERSION = "button-state-colors-v3";
 
   function themeLink() {
     return (

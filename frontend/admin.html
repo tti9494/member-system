@@ -2381,8 +2381,8 @@
   body.admin-unlocked .status-line:empty { margin: 0; padding: 0; }
   body:not(.admin-unlocked) #admin-lock-btn { display: none; }
 </style>
-<link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css?v=member-newsletter-dark-v5">
-<script src="assets/theme-loader.js?v=member-selection-layout-v2"></script>
+<link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css?v=button-state-colors-v3">
+<script src="assets/theme-loader.js?v=button-state-colors-v3"></script>
 </head>
 <body class="admin-locked">
 <main class="page">
@@ -2636,7 +2636,7 @@
             <div class="ops-card-note">처리 완료</div>
           </div>
         </div>
-        <p class="review-board-helper">상담 접수는 상담 탭에 저장되고 신청자 목록에도 상담 유형으로 함께 표시됩니다. 목록에는 연락처가 마스킹되고, 연락처 버튼을 누를 때만 관리자 인증 상태에서 원문을 표시합니다.</p>
+        <p class="review-board-helper">상담 접수는 상담 탭에 저장되고 신청자 목록에도 상담 유형으로 함께 표시됩니다. 목록에는 연락처가 마스킹되어 있고, 연락처 버튼을 누르면 관리자 권한으로 원문을 조회해 표시합니다 (조회 기록이 남습니다).</p>
         <div id="consultations-list" class="review-board-list">
           <div class="empty-state">관리자 비밀번호로 연결하면 상담 접수 표를 불러옵니다.</div>
         </div>
@@ -7119,14 +7119,14 @@
     try {
       const data = await api(`/admin/bookings/${encodeURIComponent(bookingId)}/free-guide`, { method: "POST" });
       const guide = data.free_guide || "";
-      showCopyModal("무료강의 준비물 안내 문구", "무료강의 신청자에게 보낼 준비물/일정 안내입니다. 자동 전송하지 않고 복사용으로만 표시합니다.", guide, "무료 안내 복사");
+      showCopyModal("무료강의 안내 문구", "무료강의 신청자에게 보낼 준비물/일정 안내입니다. 자동 전송하지 않고 복사용으로만 표시합니다.", guide, "무료 안내 복사");
       try {
         if (guide && navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(guide);
-          setStatus("무료강의 준비물 안내 문구를 만들고 클립보드에 복사했습니다.", "ok");
+          setStatus("무료강의 안내 문구를 만들고 클립보드에 복사했습니다.", "ok");
         }
       } catch (_) {
-        setStatus("무료강의 준비물 안내 문구를 만들었습니다. 모달의 복사 버튼을 사용하세요.", "ok");
+        setStatus("무료강의 안내 문구를 만들었습니다. 모달의 복사 버튼을 사용하세요.", "ok");
       }
     } catch (error) {
       setStatus(error.message, "error");

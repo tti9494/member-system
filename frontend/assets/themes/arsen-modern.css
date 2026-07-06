@@ -354,6 +354,15 @@ li,
   color: var(--arsen-blue) !important;
 }
 
+/* 예약 카드 상태 라벨은 상태색을 유지한다 (확정=green, 대기=amber). */
+.booking-card.confirmed .state-label {
+  color: var(--arsen-green) !important;
+}
+
+.booking-card.pending .state-label {
+  color: var(--arsen-amber) !important;
+}
+
 .required {
   color: var(--arsen-red) !important;
 }

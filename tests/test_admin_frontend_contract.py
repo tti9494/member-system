@@ -135,7 +135,7 @@ def test_admin_member_modal_free_schedule_and_attendance_contracts():
         "free-guide-template-copy-btn",
         "copyFreeClassTemplateGuide",
         "무료강의 안내 복사",
-        "무료강의 준비물 안내 문구",
+        "무료강의 안내 문구",
         "markAttendance",
         "참여 완료",
         "불참",
