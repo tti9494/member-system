@@ -79,3 +79,18 @@ npm --prefix cloudflare run check              # worker 문법 + copy/launcher �
 - 상담 목록의 "관리자 인증 상태에서 원문 표시" 문구가 모호하다는 관찰 (기능은 정상).
 - status.html의 `.state-label` 색상이 테마 `!important` 규칙에 의해 상태별 색(green/amber) 대신
   blue로 통일 렌더링됨 — 저대비는 아니고 일관성 문제. 상태색 복원이 필요하면 테마 쪽 규칙 조정.
+
+## 운영 배포 기록 (2026-07-07)
+
+- main 병합: `14f4566` → `30f6566` (fast-forward, 12커밋) 후 push 완료.
+- 배포 전 D1 백업: `cloudflare/.data/backups/arsen_member_system-2026-07-06T23-55-53-891Z.sql` (565KB, git 미추적).
+- `npm --prefix cloudflare run deploy:cloudflare` 실행 — 7단계 전부 성공,
+  로컬 데이터 import는 건너뜀 (운영 D1 데이터 보존), 마이그레이션은 추가형 ALTER만.
+- 배포 후 검증:
+  - `smoke:production` 전 항목 정상 (health/페이지 200, 무키 401, 회원 98명, launcher 0.1.0)
+  - 무료강의 검증 실동작: region 없는 free `/apply` → 400 "참여 가능 지역을 입력해야 합니다."
+    (거절이 중복 확인·DB 기록·알림보다 먼저라 부작용 없음)
+  - 정적 자산 반영: yoonbot 구 문구 0건, 테마 신규 규칙 서빙 확인, status 구 색상 0건
+- 배포 범위에 병렬 세션 커밋 2건 포함: `5babe30` (kakao-notice AI 문구 다듬기 — 승인 단계,
+  키 미설정 시 원문 사용), `0edbfe0` (관련 문서). 테스트 247건 통과 상태로 배포함.
+- 캐시 키 `button-state-colors-v3` 통일 배포 — 재방문 브라우저도 새 테마 CSS 수신.
