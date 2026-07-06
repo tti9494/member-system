@@ -51,6 +51,17 @@ from `/Users/yoon/member-system/.env`.
 Smoke test `https://apply.arsen-ai.com/health` and the public/admin pages after
 deployment.
 
+Kakao notice AI polish (optional):
+
+- Telegram `카톡공지`/`카톡그룹` 명령의 운영자 멘트를 발송 전 승인 단계에서 AI로
+  다듬는다. 승인 미리보기와 실제 발송 문구는 동일한 다듬어진 텍스트를 쓴다.
+- `wrangler secret put ANTHROPIC_API_KEY`(또는 `GEMINI_API_KEY`)를 설정해야
+  활성화되며, 미설정 시 `polish_status=unavailable`로 원문 그대로 발송된다.
+- 회원 이름/확인 코드/연락처는 AI로 전송되지 않는다. `[[호칭]]`/`[[이름]]`
+  자리표시자는 다듬기 후에도 보존 검증된다.
+- 조정 변수: `KAKAO_POLISH_PROVIDER`, `KAKAO_POLISH_MODEL`,
+  `KAKAO_POLISH_ENABLED=0` — 상세는 `wrangler.toml.example` 주석 참조.
+
 Private D1 backup:
 
 ```bash

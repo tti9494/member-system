@@ -23,3 +23,13 @@ ALLOWED_ORIGINS = "https://arsen-ai.com,https://www.arsen-ai.com,https://apply.a
 # - EMAIL_SECRET_KEY
 # - CONTACT_ENCRYPTION_KEY
 # - LICENSE_SECRET_KEY
+
+# Optional Kakao notice AI polish (발송 전 승인 단계 문구 다듬기).
+# 미설정 시 polish_status=unavailable 로 원문 그대로 발송되며 기존 흐름은 유지된다.
+# Secrets (wrangler secret put):
+# - ANTHROPIC_API_KEY  (우선순위 1)
+# - GEMINI_API_KEY     (우선순위 2)
+# Optional [vars]:
+# - KAKAO_POLISH_PROVIDER = "anthropic" | "gemini"  (기본: 키가 있는 첫 프로바이더)
+# - KAKAO_POLISH_MODEL    = 모델 ID 재정의 (기본: claude-opus-4-8 / gemini-2.5-flash)
+# - KAKAO_POLISH_ENABLED  = "0" 으로 다듬기 비활성화 (skipped 처리)
