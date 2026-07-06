@@ -62,4 +62,16 @@ def validate(data: dict) -> dict:
     if data.get("gender") not in ("남", "여"):
         errors.append("성별은 남/여 중 하나여야 합니다.")
 
+    # 무료강의는 운영자가 일정을 확정 안내해야 하므로 지역/시간대가 필요하다.
+    # (join-free.html 프론트 필수 검증과 동일 기준 — API 직접 호출 우회 방지)
+    if data.get("plan_type") == "free":
+        region = str(data.get("region") or "").strip()
+        if not region:
+            errors.append("무료강의 신청은 참여 가능 지역을 입력해야 합니다.")
+        slots = data.get("available_time_slots") or []
+        if not isinstance(slots, list):
+            slots = [slots]
+        if not [s for s in slots if str(s or "").strip()]:
+            errors.append("무료강의 신청은 참여 가능 시간대를 최소 1개 선택해야 합니다.")
+
     return {"ok": len(errors) == 0, "errors": errors}

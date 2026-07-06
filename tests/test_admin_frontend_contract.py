@@ -384,3 +384,20 @@ def test_yoonbot_brand_copy_and_theme_button_state_contracts():
         assert "transition: transform 0.18s ease;" in css
         assert "background 0.18s" not in css
         assert "opacity 0.18s" not in css
+
+
+def test_apply_free_plan_backend_validation_contracts():
+    validator_py = (ROOT / "agents" / "validator.py").read_text(encoding="utf-8")
+    worker_js = WORKER_JS.read_text(encoding="utf-8")
+    status_html = (ROOT / "frontend" / "status.html").read_text(encoding="utf-8")
+
+    # 무료강의 신청의 지역/시간대 필수 검증은 main.py(validator)와 worker.js 양쪽에 있어야 한다.
+    for source in (validator_py, worker_js):
+        assert "무료강의 신청은 참여 가능 지역을 입력해야 합니다." in source
+        assert "무료강의 신청은 참여 가능 시간대를 최소 1개 선택해야 합니다." in source
+
+    # status.html은 사이트 테마 체계를 따르고, 동적 카드 색상은 테마 변수를 사용한다.
+    assert 'data-arsen-theme="active"' in status_html
+    assert "theme-loader.js" in status_html
+    assert "#d9e5f2" not in status_html
+    assert "#0c131b" not in status_html

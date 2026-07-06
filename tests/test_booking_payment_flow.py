@@ -690,5 +690,53 @@ class BookingPaymentFlowTest(unittest.TestCase):
         self.assertIn("무료 1회", member["class_summary_text"])
 
 
+class FreeApplyValidationTest(unittest.TestCase):
+    """무료강의 신청 백엔드 검증 — join-free.html 프론트 필수 항목과 동일 기준."""
+
+    def _base_payload(self, **overrides):
+        payload = {
+            "name": "테스트유저",
+            "email": "test-free-validate@example.com",
+            "phone": "010-1234-5678",
+            "gender": "남",
+            "age": 30,
+            "job": "QA",
+            "referral_source": "유튜브",
+            "reason": "무료강의 신청 백엔드 검증을 위한 스무 자 이상의 신청 이유입니다.",
+            "ai_level": "입문",
+            "plan_type": "free",
+            "region": "서울 강남구",
+            "available_time_slots": ["평일 오후"],
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_free_apply_requires_region(self):
+        from agents.validator import validate
+
+        result = validate(self._base_payload(region="  "))
+        self.assertFalse(result["ok"])
+        self.assertTrue(any("지역" in err for err in result["errors"]))
+
+    def test_free_apply_requires_time_slot(self):
+        from agents.validator import validate
+
+        result = validate(self._base_payload(available_time_slots=[]))
+        self.assertFalse(result["ok"])
+        self.assertTrue(any("시간대" in err for err in result["errors"]))
+
+    def test_free_apply_passes_with_region_and_slots(self):
+        from agents.validator import validate
+
+        result = validate(self._base_payload())
+        self.assertTrue(result["ok"], result["errors"])
+
+    def test_full_apply_does_not_require_region(self):
+        from agents.validator import validate
+
+        result = validate(self._base_payload(plan_type="full", region=None, available_time_slots=None))
+        self.assertTrue(result["ok"], result["errors"])
+
+
 if __name__ == "__main__":
     unittest.main()

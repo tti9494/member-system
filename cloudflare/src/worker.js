@@ -3386,6 +3386,14 @@ async function handleApply(request, env) {
   const phone = normalizePhoneForStorage(data.phone || "");
   if (!name || !phone) return fail(400, "이름과 연락처를 입력하세요.");
   if (!data.consent_personal) return fail(400, "개인정보 동의가 필요합니다.");
+  if (String(data.plan_type || "") === "free") {
+    // join-free.html 프론트 필수 검증과 동일 기준 — API 직접 호출 우회 방지
+    const freeRegion = String(data.region || "").trim();
+    if (!freeRegion) return fail(400, "무료강의 신청은 참여 가능 지역을 입력해야 합니다.");
+    const freeSlots = (Array.isArray(data.available_time_slots) ? data.available_time_slots : [data.available_time_slots])
+      .filter((slot) => String(slot || "").trim());
+    if (!freeSlots.length) return fail(400, "무료강의 신청은 참여 가능 시간대를 최소 1개 선택해야 합니다.");
+  }
 
   const email = String(data.email || "").trim().toLowerCase();
   const selectedSession = data.session_id ? await getSession(env, data.session_id) : null;
