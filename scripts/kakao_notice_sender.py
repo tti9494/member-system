@@ -16,9 +16,10 @@ from urllib import error, request
 
 
 ROOT = Path(__file__).resolve().parents[1]
+# 경로 하드코딩 금지 규칙: 사용자 홈 기준으로 계산 (KAKAO_GROUP_DB 환경변수로 재정의 가능)
 DEFAULT_GROUP_DBS = [
-    Path("/Users/yoon/Desktop/kakao_auto_sender/data/kakao.db"),
-    Path("/Users/yoon/Desktop/kakao_auto_gg/data/kakao.db"),
+    Path.home() / "Desktop" / "kakao_auto_sender" / "data" / "kakao.db",
+    Path.home() / "Desktop" / "kakao_auto_gg" / "data" / "kakao.db",
 ]
 
 
