@@ -2223,6 +2223,12 @@ function kakaoNoticeSentCount(job) {
   return (job.recipients || []).filter((item) => item.status === "sent").length;
 }
 
+const KAKAO_NOTICE_FAILURE_STATUSES = ["failed", "blocked", "prepare_failed", "skipped"];
+
+function kakaoNoticeFailureCount(job) {
+  return (job.recipients || []).filter((item) => KAKAO_NOTICE_FAILURE_STATUSES.includes(item.status)).length;
+}
+
 function kakaoNoticePendingRetryRecipients(job, includeSent = false) {
   return (job.recipients || []).filter((item) => includeSent || item.status !== "sent");
 }
@@ -2294,30 +2300,29 @@ function kakaoNoticeJobId() {
 }
 
 function safeJobForTelegram(job) {
-  const first = (job.recipients || []).find((item) => item.status === "ready") || job.recipients?.[0] || null;
-  const sample = first ? maskKakaoNoticeMessage(first.message || "") : "";
   const ready = kakaoNoticeReadyCount(job);
   const total = Number(job.recipients?.length || 0);
+  const first = (job.recipients || []).find((item) => item.status === "ready") || job.recipients?.[0] || null;
   return [
-    "<b>ARSEN 카톡 공지 발송 승인 요청</b>",
+    "<b>ARSEN 카톡 대상 준비 결과</b>",
     `작업ID: <code>${htmlEscape(job.id)}</code>`,
     `대상: ${htmlEscape(job.target_label || "-")}`,
-    `발송 가능: ${ready || total}명`,
-    ready && ready !== total ? `준비 실패/제외: ${total - ready}명` : "",
-    `제외: ${Number(job.skipped?.length || 0)}명`,
-    first ? `첫 대상: ${htmlEscape(first.name)} → <code>${htmlEscape(first.kakao_display_name)}</code>` : "",
-    sample ? "" : "",
-    sample ? "<b>샘플 문구(개인 코드는 마스킹)</b>" : "",
-    sample ? htmlEscape(sample) : "",
-    "",
-    "승인하면 맥에어 카톡 발송기가 준비 완료 대상만 전송합니다. 중간에 멈추려면 /arsen_stop 또는 긴급정지를 누르세요.",
+    `상태: ${htmlEscape(job.status || "-")}`,
+    `준비 완료: ${ready}명`,
+    `준비 실패/제외: ${Math.max(0, total - ready)}명`,
+    ...(ready > 0
+      ? [
+          first ? `첫 대상: ${htmlEscape(first.name)} → <code>${htmlEscape(first.kakao_display_name)}</code>` : "",
+          ...kakaoNoticeSampleLines(job),
+          "승인 버튼을 누르면 위 문구 그대로(개인 코드만 대상별 실제 값) 준비 완료 대상에게 전송합니다. 중간에 멈추려면 /arsen_stop 또는 긴급정지를 누르세요.",
+        ]
+      : ["발송 가능한 대상이 없어 발송 승인을 막았습니다."]),
   ].filter(Boolean).join("\n");
 }
 
 function safePrepareJobForTelegram(job) {
   const first = job.recipients?.[0] || null;
   const total = Number(job.recipients?.length || 0);
-  const sample = first ? maskKakaoNoticeMessage(first.message || "") : job.target === "local_group" ? maskKakaoNoticeMessage(job.custom_message || "") : "";
   const targetCount = job.target === "local_group" && total === 0 ? "맥에어에서 로컬 그룹 로딩" : `${total}명`;
   return [
     "<b>ARSEN 카톡 대상 준비 작업 생성</b>",
@@ -2326,10 +2331,7 @@ function safePrepareJobForTelegram(job) {
     `검사 후보: ${targetCount}`,
     `제외: ${Number(job.skipped?.length || 0)}명`,
     first ? `첫 대상: ${htmlEscape(first.name)} → <code>${htmlEscape(first.kakao_display_name)}</code>` : "",
-    sample ? "" : "",
-    sample ? "<b>샘플 문구(개인 코드는 마스킹)</b>" : "",
-    sample ? htmlEscape(sample) : "",
-    "",
+    ...kakaoNoticeSampleLines(job),
     "먼저 맥에어가 카카오톡 대상 채팅방을 열 수 있는지 검사합니다. 준비 완료 후 발송 승인 버튼을 다시 보내드립니다.",
   ].filter(Boolean).join("\n");
 }
@@ -2338,6 +2340,146 @@ function maskKakaoNoticeMessage(message) {
   return String(message || "")
     .replace(/(코드|신청 확인 코드)\s*:\s*[A-Z0-9-]+/gi, "$1: ******")
     .slice(0, 900);
+}
+
+const KAKAO_NOTICE_PLACEHOLDER_TOKENS = ["[[호칭]]", "[[이름]]"];
+const KAKAO_NOTICE_CUSTOM_MESSAGE_MAX = 2000;
+
+function kakaoPolishTokenCount(text, token) {
+  return String(text || "").split(token).length - 1;
+}
+
+function kakaoPolishPlaceholdersPreserved(original, polished) {
+  return KAKAO_NOTICE_PLACEHOLDER_TOKENS.every(
+    (token) => kakaoPolishTokenCount(original, token) === kakaoPolishTokenCount(polished, token)
+  );
+}
+
+function kakaoPolishProvider(env) {
+  const preferred = String(env.KAKAO_POLISH_PROVIDER || "").trim().toLowerCase();
+  const candidates = [
+    { name: "anthropic", key: String(env.ANTHROPIC_API_KEY || "").trim() },
+    { name: "gemini", key: String(env.GEMINI_API_KEY || "").trim() },
+  ].filter((item) => item.key);
+  if (!candidates.length) return null;
+  return candidates.find((item) => item.name === preferred) || candidates[0];
+}
+
+function kakaoPolishInstructions(context) {
+  const kind = context?.kind === "local_group" ? "local_group" : "member_notice";
+  return [
+    "당신은 카카오톡 공지 문구 교정기입니다.",
+    "운영자가 쓴 원문을 자연스럽고 정중한 한국어 안내 문구로 다듬으세요.",
+    "규칙:",
+    "- 날짜/시간/장소/링크/숫자 등 사실 정보를 추가하거나 바꾸지 마세요.",
+    "- 원문에 없는 약속이나 내용을 만들지 마세요.",
+    "- [[호칭]], [[이름]] 같은 이중 대괄호 자리표시자는 철자 그대로, 같은 횟수로 유지하세요.",
+    kind === "member_notice"
+      ? "- 이 문구는 확인 코드/일정 안내 아래에 붙는 운영자 멘트입니다. 인사말 중복을 피하고 간결하게 유지하세요."
+      : "- 이 문구는 그룹 단체 안내 메시지 전체입니다.",
+    "- 다듬어진 문구만 출력하세요. 설명, 머리말, 따옴표, 코드블록을 붙이지 마세요.",
+  ].join("\n");
+}
+
+function kakaoPolishTimeoutSignal() {
+  try {
+    return typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function callKakaoPolishModel(env, provider, rawMessage, context) {
+  const instructions = kakaoPolishInstructions(context);
+  if (provider.name === "anthropic") {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": provider.key,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: String(env.KAKAO_POLISH_MODEL || "claude-opus-4-8"),
+        max_tokens: 1024,
+        system: instructions,
+        messages: [{ role: "user", content: rawMessage }],
+      }),
+      signal: kakaoPolishTimeoutSignal(),
+    });
+    if (!response.ok) throw new Error(`anthropic_http_${response.status}`);
+    const data = await response.json();
+    if (data?.stop_reason === "refusal") throw new Error("anthropic_refusal");
+    return (data?.content || [])
+      .filter((part) => part?.type === "text")
+      .map((part) => String(part.text || ""))
+      .join("")
+      .trim();
+  }
+  if (provider.name === "gemini") {
+    const model = String(env.KAKAO_POLISH_MODEL || "gemini-2.5-flash");
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": provider.key },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: instructions }] },
+        contents: [{ role: "user", parts: [{ text: rawMessage }] }],
+      }),
+      signal: kakaoPolishTimeoutSignal(),
+    });
+    if (!response.ok) throw new Error(`gemini_http_${response.status}`);
+    const data = await response.json();
+    return (data?.candidates?.[0]?.content?.parts || [])
+      .map((part) => String(part?.text || ""))
+      .join("")
+      .trim();
+  }
+  throw new Error("unknown_polish_provider");
+}
+
+async function polishKakaoNoticeMessage(env, rawMessage, context = {}) {
+  const raw = String(rawMessage || "").trim();
+  if (!raw) return { text: "", status: "skipped", provider: "" };
+  if (String(env.KAKAO_POLISH_ENABLED || "") === "0") return { text: raw, status: "skipped", provider: "" };
+  const provider = kakaoPolishProvider(env);
+  if (!provider) return { text: raw, status: "unavailable", provider: "" };
+  try {
+    const polished = (await callKakaoPolishModel(env, provider, raw, context))
+      .slice(0, KAKAO_NOTICE_CUSTOM_MESSAGE_MAX)
+      .trim();
+    if (!polished) return { text: raw, status: "failed", provider: provider.name };
+    if (!kakaoPolishPlaceholdersPreserved(raw, polished)) return { text: raw, status: "failed", provider: provider.name };
+    return { text: polished, status: "polished", provider: provider.name };
+  } catch {
+    return { text: raw, status: "failed", provider: provider.name };
+  }
+}
+
+function kakaoNoticePolishLine(job) {
+  const status = String(job.polish_status || "");
+  if (!status || status === "skipped") return "";
+  if (job.source_job_id) return "문구 다듬기: 원본 작업에서 승인된 문구 유지";
+  const provider = String(job.polish_provider || "");
+  const labels = {
+    polished: `문구 다듬기: AI 적용${provider ? ` (${provider})` : ""}`,
+    unavailable: "문구 다듬기: AI 미설정 — 원문 그대로 사용",
+    failed: "문구 다듬기: AI 실패 — 원문 그대로 사용",
+  };
+  return labels[status] || "";
+}
+
+function kakaoNoticeSampleLines(job) {
+  const first = (job.recipients || []).find((item) => item.status === "ready") || job.recipients?.[0] || null;
+  const source = first?.message || (job.target === "local_group" ? job.custom_message : "");
+  const sample = maskKakaoNoticeMessage(source || "");
+  const lines = [];
+  const polishLine = kakaoNoticePolishLine(job);
+  if (polishLine) lines.push(polishLine);
+  if (sample) {
+    lines.push("<b>발송 문구 미리보기(개인 코드는 마스킹)</b>");
+    lines.push(htmlEscape(sample));
+  }
+  return lines;
 }
 
 function kakaoNoticeMessage(row, code, env, customMessage = "") {
@@ -2607,6 +2749,13 @@ async function createKakaoNoticeJob(env, command, request) {
     rows = await kakaoNoticeRowsForSession(env, sessionId);
   }
 
+  // 운영자 멘트만 AI 다듬기 대상. 이름/코드 등 개인 데이터는 이후 Worker가 결정적으로 삽입한다.
+  const rawCustomMessage = String(command.customMessage || "").trim().slice(0, KAKAO_NOTICE_CUSTOM_MESSAGE_MAX);
+  const polish = await polishKakaoNoticeMessage(env, rawCustomMessage, {
+    kind: command.target === "local_group" ? "local_group" : "member_notice",
+  });
+  const customMessage = polish.text;
+
   const recipients = [];
   const skipped = [];
   for (const row of rows) {
@@ -2621,7 +2770,7 @@ async function createKakaoNoticeJob(env, command, request) {
       booking_id: row.booking_id || "",
       name: row.name || "",
       kakao_display_name: kakaoNoticeSearchName(row.name),
-      message: kakaoNoticeMessage(row, code, env, command.customMessage),
+      message: kakaoNoticeMessage(row, code, env, customMessage),
       status: "pending",
       error: "",
     });
@@ -2637,7 +2786,10 @@ async function createKakaoNoticeJob(env, command, request) {
     target_label: targetLabel,
     local_group_name: String(command.localGroupName || "").trim().slice(0, 120),
     session_id: sessionId || "",
-    custom_message: String(command.customMessage || "").trim().slice(0, 2000),
+    custom_message: customMessage.slice(0, KAKAO_NOTICE_CUSTOM_MESSAGE_MAX),
+    original_custom_message: rawCustomMessage,
+    polish_status: polish.status,
+    polish_provider: polish.provider,
     recipients,
     skipped,
     created_at: now(),
@@ -2688,7 +2840,10 @@ async function createKakaoNoticeRetryJob(env, command, request) {
     source_job_id: sourceJob.id,
     local_group_name: String(sourceJob.local_group_name || "").slice(0, 120),
     session_id: String(sourceJob.session_id || ""),
-    custom_message: String(sourceJob.custom_message || "").slice(0, 2000),
+    custom_message: String(sourceJob.custom_message || "").slice(0, KAKAO_NOTICE_CUSTOM_MESSAGE_MAX),
+    original_custom_message: String(sourceJob.original_custom_message || "").slice(0, KAKAO_NOTICE_CUSTOM_MESSAGE_MAX),
+    polish_status: String(sourceJob.polish_status || ""),
+    polish_provider: String(sourceJob.polish_provider || ""),
     recipients,
     skipped: [],
     created_at: now(),
@@ -3222,7 +3377,7 @@ async function kakaoNoticeJobsPayload(env, status = "") {
     data: jobs.map((job) => ({
       ...job,
       total: Number(job.recipients?.length || 0),
-      sent: (job.recipients || []).filter((item) => item.status === "sent").length,
+      sent: kakaoNoticeSentCount(job),
       failed: (job.recipients || []).filter((item) => item.status === "failed").length,
     })),
   };
@@ -3294,9 +3449,9 @@ async function finishKakaoNoticeJob(env, jobId, body, request) {
         sent_at: result.sent_at || "",
       }));
     if (appended.length) item.recipients = [...item.recipients, ...appended].slice(0, 500);
-    const failed = item.recipients.filter((recipient) => ["failed", "blocked", "prepare_failed", "skipped"].includes(recipient.status)).length;
-    const ready = item.recipients.filter((recipient) => recipient.status === "ready" || recipient.status === "sent").length;
-    const sent = item.recipients.filter((recipient) => recipient.status === "sent").length;
+    const failed = kakaoNoticeFailureCount(item);
+    const ready = kakaoNoticeReadyCount(item);
+    const sent = kakaoNoticeSentCount(item);
     const dryRun = item.recipients.filter((recipient) => recipient.status === "dry_run").length;
     item.ready_count = ready;
     item.status = isProgress ? (body.status || item.status) : body.status || (failed ? "failed" : dryRun ? "dry_run_done" : "done");
@@ -3345,18 +3500,9 @@ async function finishKakaoNoticeJob(env, jobId, body, request) {
   }
   if (["prepared", "prepare_failed", "prepare_blocked"].includes(job.status)) {
     const ready = kakaoNoticeReadyCount(job);
-    const total = Number(job.recipients?.length || 0);
     await sendTelegram(
       env,
-      [
-        "<b>ARSEN 카톡 대상 준비 결과</b>",
-        `작업ID: <code>${htmlEscape(jobId)}</code>`,
-        `상태: ${htmlEscape(job.status)}`,
-        `준비 완료: ${ready}명`,
-        `준비 실패/제외: ${Math.max(0, total - ready)}명`,
-        ready > 0 ? "" : "발송 가능한 대상이 없어 발송 승인을 막았습니다.",
-        ready > 0 ? "아래 승인 버튼을 누르면 준비 완료 대상만 전송합니다." : "",
-      ].filter(Boolean).join("\n"),
+      safeJobForTelegram(job),
       ready > 0 ? kakaoNoticeKeyboard(env, jobId) : kakaoNoticeStopKeyboard(jobId),
       "button"
     );
