@@ -3,14 +3,23 @@
 Claude Code 세션에서 member-system 전체 기능 검증(신청/회원/관리자/카카오/스터디/후기/YoonBot)과
 안전 범위 리팩토링을 진행한 기록. 코덱스 등 다른 채널이 이어서 작업할 때 참고한다.
 
-## 커밋 목록 (이 세션)
+## 커밋 목록 (이 세션, 오래된 것 → 최신 순)
 
-| hash | 내용 |
-|---|---|
-| `bf428a2` | fix: 테마 버튼 disabled 스타일 고착 해소 + YOONBOT 브랜드 표기 통일 |
-| `2a8121a` | feat: 무료강의 신청 백엔드 검증 + status.html 테마 정합 |
-| `81c1daf` | feat: 스터디/카카오 공지/회원 레벨 (병렬 세션 코덱스 작업물 반영 커밋) |
-| (이후) | chore: 발송 스크립트 경로 하드코딩 제거 + 본 문서 |
+Claude Code 채널이 작성한 커밋(★)과 병렬 세션(코덱스 채널) 작업물을 반영/포함한 커밋을 함께 적는다.
+
+| hash | 작성 | 내용 |
+|---|---|---|
+| `bf428a2` | ★ Claude Code | fix: 테마 버튼 disabled 스타일 고착 해소 + YOONBOT 브랜드 표기 통일 |
+| `2a8121a` | ★ Claude Code | feat: 무료강의 신청 백엔드 검증 + status.html 테마 정합 |
+| `81c1daf` | 코덱스 작업물, Claude Code 커밋 | feat: 스터디/카카오 공지/회원 레벨 (병렬 세션 작업물 반영) |
+| `2c8c1f4` | ★ Claude Code | chore: 발송 스크립트 경로 하드코딩 제거 + 세션 규칙 문서화 |
+| `5babe30` | 코덱스 채널 | feat(kakao-notice): 발송 전 승인 단계 AI 문구 다듬기 + 승인 미리보기 개선 |
+| `0edbfe0` | 코덱스 채널 | docs(kakao-notice): AI 문구 다듬기 설정 변수 문서화 |
+| `30f6566` | ★ Claude Code | polish: 안내 명칭 구분 + 예약 상태색 복원 + 테마 자산 캐시 키 갱신 |
+| `0791e11` | ★ Claude Code | docs: 2026-07-07 운영 배포 기록 추가 |
+
+배포 시점 기준 main = codex 브랜치 = origin 모두 `0791e11` (또는 이후) 로 동기화됨.
+병렬 세션(코덱스)이 계속 작업 중일 수 있으니 그 채널에서 `git pull` 로 동기화 후 이어갈 것.
 
 ## 확립된 규칙 (계약 테스트로 보호됨 — 어기면 pytest 실패)
 
@@ -44,6 +53,14 @@ Claude Code 세션에서 member-system 전체 기능 검증(신청/회원/관리
 5. **경로 하드코딩 금지** — `scripts/kakao_notice_sender.py`의 `/Users/yoon/...` 절대경로를
    `Path.home()` 기준으로 정리. 신규 스크립트도 동일 원칙 (`KAKAO_GROUP_DB` 환경변수 재정의 지원).
 
+6. **테마 자산 캐시 키** — 테마 CSS(`arsen-theme.css` / `themes/*.css`)를 수정하면 반드시
+   `theme-loader.js`의 `THEME_ASSET_VERSION`과 전 페이지의 `?v=` 쿼리 키를 같은 값으로 올린다.
+   현재 값은 `button-state-colors-v3`. 안 올리면 재방문 브라우저가 구버전 CSS를 캐시에서 계속 쓴다.
+
+7. **예약 카드 상태색 예외** — 테마는 `.state-label`을 blue로 통일하지만, 예약 카드의 상태 라벨만
+   예외로 상태색을 유지한다 (`.booking-card.confirmed .state-label`=green,
+   `.booking-card.pending .state-label`=amber). 상태 구분이 운영 판단에 쓰이므로 이 예외는 유지할 것.
+
 ## 검증 절차 (수정 후 필수)
 
 ```bash
@@ -72,17 +89,32 @@ npm --prefix cloudflare run check              # worker 문법 + copy/launcher �
 - build-pages.mjs에 kakao-members.html / study.html 포함됨.
 - .gitignore: *.db / *.log / private/ 등 추적 0건 확인.
 
-## 남은 관찰 사항 (수정 안 함 — 후속 판단 필요)
+## 후속 다듬기 (커밋 `30f6566` 에서 처리 완료)
 
-- admin.html 내 "무료강의 안내 복사" vs "준비물 안내 복사" 명칭 혼용 — 통일하려면
-  `cloudflare/scripts/check-admin-copy-contracts.mjs`의 고정 문구와 함께 움직여야 한다.
-- 상담 목록의 "관리자 인증 상태에서 원문 표시" 문구가 모호하다는 관찰 (기능은 정상).
-- status.html의 `.state-label` 색상이 테마 `!important` 규칙에 의해 상태별 색(green/amber) 대신
-  blue로 통일 렌더링됨 — 저대비는 아니고 일관성 문제. 상태색 복원이 필요하면 테마 쪽 규칙 조정.
+이전에 "남은 관찰 사항"으로 적었던 3건은 모두 처리했다. 재작업 불필요.
+
+- **안내 명칭 구분** — "준비물 안내"(유료 준비물)와 "무료강의 안내"(무료)는 서로 다른 기능이라
+  통일이 아니라 구분이 맞다. 무료 쪽 모달 명칭에서 "준비물"을 제거(`무료강의 준비물 안내 문구`
+  → `무료강의 안내 문구`)하고 `tests/test_admin_frontend_contract.py` 문구 기대값도 함께 갱신.
+- **상담 마스킹 문구 명확화** — admin.html 상담 탭 helper 문구를 "관리자 인증 상태에서 원문 표시"
+  → "관리자 권한으로 원문을 조회해 표시합니다 (조회 기록이 남습니다)"로 수정. 조회 감사 로그는 실기능.
+- **예약 상태색 복원** — `arsen-theme.css`/`arsen-modern.css`에 예외 규칙 추가:
+  `.booking-card.confirmed .state-label` = green, `.booking-card.pending .state-label` = amber.
+  (기본 `.state-label`은 여전히 blue 통일 규칙을 따르되, 예약 카드 상태 라벨만 상태색 유지.)
+- **테마 자산 캐시 키 통일** — 전 프론트 페이지의 `theme-loader.js?v=` / `arsen-theme.css?v=` 키를
+  `button-state-colors-v3`로 통일(`theme-loader.js`의 `THEME_ASSET_VERSION`도 동일). 재방문
+  브라우저의 구버전 CSS 캐시(버튼 고착 버그 포함)를 무효화하기 위함. 테마 CSS를 바꿀 때는
+  이 키도 함께 올려야 사용자 브라우저에 반영된다.
+
+## 현재 남은 관찰 사항 (수정 안 함)
+
+- 없음. 이번 세션에서 발견한 안전 수정 범위 항목은 모두 처리했다.
+  추가 개선(예: 대규모 파일 분리, DB 스키마 변경, 인증 방식 변경)은 승인 범위 밖이라 손대지 않았다.
 
 ## 운영 배포 기록 (2026-07-07)
 
-- main 병합: `14f4566` → `30f6566` (fast-forward, 12커밋) 후 push 완료.
+- main 병합: `14f4566` → `30f6566` (fast-forward) 후 push, 이어 배포 기록 커밋 `0791e11`까지 push 완료.
+  main = codex 브랜치 = origin 모두 동일 HEAD로 동기화.
 - 배포 전 D1 백업: `cloudflare/.data/backups/arsen_member_system-2026-07-06T23-55-53-891Z.sql` (565KB, git 미추적).
 - `npm --prefix cloudflare run deploy:cloudflare` 실행 — 7단계 전부 성공,
   로컬 데이터 import는 건너뜀 (운영 D1 데이터 보존), 마이그레이션은 추가형 ALTER만.
