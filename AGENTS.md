@@ -29,5 +29,9 @@
 - Page colors use shared theme variables (`var(--chip)`, `var(--ink)`, ...);
   no hardcoded dark hex values in theme-managed pages such as status.html.
 - No hardcoded `/Users/...` paths in scripts; use `Path.home()` with env overrides.
+- Kakao notice AI polish: only the operator custom message is sent to the AI; member
+  names/access codes/contacts are inserted deterministically in worker.js after polish.
+  `[[호칭]]`/`[[이름]]` placeholders must be preserved (count-checked); any failure
+  falls back to the original text. See docs/kakao_notice_polish_session_2026-07-07_ko.md.
 - Verify with: `./venv/bin/python -m pytest -q tests/` and `npm --prefix cloudflare run check`.
   `compare:production` count mismatches are expected (local test DB vs production D1).
