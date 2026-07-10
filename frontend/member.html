@@ -27,7 +27,7 @@
       radial-gradient(circle at 86% 4%, rgba(53, 95, 146, 0.1), transparent 24rem),
       linear-gradient(180deg, #ffffff 0%, var(--bg) 42%, #ffffff 100%);
     color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
     line-height: 1.55;
   }
   a { color: inherit; }
@@ -43,12 +43,15 @@
   .brand-mark {
     display: grid;
     place-items: center;
-    width: 38px;
-    height: 38px;
-    border: 1px solid var(--line-strong);
-    border-radius: 8px;
-    background: #0a0a0a;
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    background:
+      linear-gradient(135deg, rgba(53, 95, 146, 0.96), rgba(15, 143, 98, 0.88)),
+      #0f172a;
     color: #ffffff;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18);
+    font-size: 0.72rem;
   }
   .top-links { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
   .top-links a, .link-button {
@@ -328,10 +331,12 @@
   }
 
   body.member-page .brand-mark {
-    border-color: #d8dee8;
-    background: #0a0a0a;
+    border-color: transparent;
+    background:
+      linear-gradient(135deg, rgba(53, 95, 146, 0.96), rgba(15, 143, 98, 0.88)),
+      #0f172a;
     color: #ffffff;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18);
   }
 
   body.member-page .top-links a,
@@ -578,7 +583,7 @@
 <body class="member-page">
 <div class="shell">
   <nav class="topbar" aria-label="회원 페이지 상단">
-    <a class="brand" href="/"><span class="brand-mark">AI</span><span>ARSEN</span></a>
+    <a class="brand" href="https://arsen-ai.com/"><span class="brand-mark">AI</span><span>ARSEN AI</span></a>
     <div class="top-links">
       <a href="/frontend/education.html">강의 안내</a>
       <a href="/frontend/status.html">예약 확인</a>

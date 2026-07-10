@@ -29,7 +29,7 @@ PLANS = {
         "name": "Monthly",
         "amount_krw": 99000,
         "license_days": 31,
-        "description": "1개월 단위로 YoonBot을 사용합니다.",
+        "description": "1개월 단위로 YOONBOT을 사용합니다.",
     },
     "yearly": {
         "code": "yearly",
@@ -85,7 +85,7 @@ def _mask_phone(phone: str) -> str:
 def _plan(plan_code: str) -> dict:
     plan = PLANS.get((plan_code or "").strip().lower())
     if not plan:
-        raise ValueError("지원하지 않는 YoonBot 플랜입니다.")
+        raise ValueError("지원하지 않는 YOONBOT 플랜입니다.")
     return plan
 
 
@@ -103,7 +103,7 @@ def products() -> dict:
     return {
         "product": {
             "code": PRODUCT_CODE,
-            "name": "YoonBot",
+            "name": "YOONBOT",
             "payment_mode": "toss_payments" if ready else "manual_bank_transfer",
             "auto_charge": ready,
         },
@@ -429,7 +429,7 @@ def build_toss_payment_payload(order: dict) -> dict:
         "auto_charge": True,
         "client_key": config["client_key"],
         "toss_order_id": toss_order_id,
-        "order_name": f"YoonBot {order.get('plan_code', 'monthly').capitalize()} 라이선스",
+        "order_name": f"YOONBOT {order.get('plan_code', 'monthly').capitalize()} 라이선스",
         "amount": {"value": int(order.get("amount_krw") or 0), "currency": "KRW"},
         "success_url": f"{base_url}/frontend/yoonbot.html?payment=success",
         "fail_url": f"{base_url}/frontend/yoonbot.html?payment=fail",
@@ -489,7 +489,7 @@ def confirm_toss_payment(
 
     Validation steps (in order):
     1. Order exists → raises ValueError (404-worthy)
-    2. Order is YoonBot product → raises ValueError (400)
+    2. Order is YOONBOT product → raises ValueError (400)
     3. Order status is payment_pending → raises ValueError if already done (400)
     4. toss_order_id matches server-computed value → raises ValueError (400)
     5. client_amount matches server-stored amount_krw → raises ValueError (400)
@@ -504,7 +504,7 @@ def confirm_toss_payment(
         raise ValueError("주문을 찾을 수 없습니다.")
 
     if order.get("product_code", PRODUCT_CODE) != PRODUCT_CODE:
-        raise ValueError("YoonBot 주문이 아닙니다.")
+        raise ValueError("YOONBOT 주문이 아닙니다.")
 
     status = order.get("status", "")
     if status in {"canceled", "refunded"}:
@@ -658,7 +658,7 @@ LAUNCHER_DOWNLOAD_URL = (
 def customer_license_message(license_key: str, license_item: dict) -> str:
     return "\n".join(
         [
-            "[YoonBot 라이선스 안내]",
+            "[YOONBOT 라이선스 안내]",
             f"라이선스 키: {license_key}",
             f"만료일: {license_item.get('expires_at')}",
             "",

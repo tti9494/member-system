@@ -1,6 +1,8 @@
 /* Member System Theme Sync v0.1.1
    Shared ARSEN public theme layer for application, reservation, review, and admin pages. */
 
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css");
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -2690,6 +2692,13 @@ body.ops-tool-page .muted,
 body.ops-tool-page .status-line,
 body.ops-tool-page .empty {
   color: var(--muted) !important;
+}
+
+body.ops-tool-page .status-line {
+  background: rgba(16, 23, 34, 0.94) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  padding: 10px 12px !important;
 }
 
 body.ops-tool-page .panel,

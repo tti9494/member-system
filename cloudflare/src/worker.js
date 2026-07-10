@@ -47,7 +47,7 @@ const YOONBOT_PLANS = Object.freeze([
     name: "Monthly",
     amount_krw: 99000,
     license_days: 31,
-    description: "1개월 단위로 YoonBot을 사용합니다.",
+    description: "1개월 단위로 YOONBOT을 사용합니다.",
   },
   {
     code: "yearly",
@@ -1525,7 +1525,7 @@ function yoonbotProducts(env) {
   return {
     product: {
       code: YOONBOT_PRODUCT_CODE,
-      name: "YoonBot",
+      name: "YOONBOT",
       payment_mode: tossReady ? "toss_payments" : "manual_bank_transfer",
       auto_charge: tossReady,
     },
@@ -1600,7 +1600,7 @@ function buildTossPaymentPayload(env, order, orderId) {
     auto_charge: true,
     client_key: clientKey,
     toss_order_id: tossOrderId,
-    order_name: `YoonBot ${planCode.charAt(0).toUpperCase() + planCode.slice(1)} 라이선스`,
+    order_name: `YOONBOT ${planCode.charAt(0).toUpperCase() + planCode.slice(1)} 라이선스`,
     amount: { value: Number(order.amount_krw || 0), currency: "KRW" },
     success_url: `${baseUrl}/frontend/yoonbot.html?payment=success`,
     fail_url: `${baseUrl}/frontend/yoonbot.html?payment=fail`,
@@ -1649,7 +1649,7 @@ async function confirmTossPayment(env, internalOrderId, body, tossConfirmFn) {
   const order = await getYoonbotOrder(env, internalOrderId);
   if (!order) return { ok: false, message: "주문을 찾을 수 없습니다.", status: 404 };
   if ((order.product_code || YOONBOT_PRODUCT_CODE) !== YOONBOT_PRODUCT_CODE) {
-    return { ok: false, message: "YoonBot 주문이 아닙니다.", status: 400 };
+    return { ok: false, message: "YOONBOT 주문이 아닙니다.", status: 400 };
   }
   if (YOONBOT_ORDER_TERMINAL_STATUSES.has(order.status)) {
     return { ok: false, message: "취소/환불된 주문은 결제 확인할 수 없습니다.", status: 400 };
@@ -1753,7 +1753,7 @@ async function createYoonbotOrder(env, body) {
   const productCode = String(body.product_code || YOONBOT_PRODUCT_CODE).trim().toLowerCase();
   if (productCode !== YOONBOT_PRODUCT_CODE) return { response: fail(400, "지원하지 않는 상품입니다.") };
   const plan = yoonbotPlan(body.plan_code || "monthly");
-  if (!plan) return { response: fail(400, "지원하지 않는 YoonBot 플랜입니다.") };
+  if (!plan) return { response: fail(400, "지원하지 않는 YOONBOT 플랜입니다.") };
   const buyerName = String(body.buyer_name || "").trim().slice(0, 80);
   if (!buyerName) return { response: fail(400, "구매자 이름을 입력하세요.") };
   const email = normalizeEmail(body.buyer_email);
@@ -1967,7 +1967,7 @@ async function setYoonbotOrderTerminalStatus(env, orderId, status, timestampColu
 
 function yoonbotCustomerLicenseMessage(licenseKey, licenseItem) {
   return [
-    "[YoonBot 라이선스 안내]",
+    "[YOONBOT 라이선스 안내]",
     `라이선스 키: ${licenseKey}`,
     `만료일: ${licenseItem.expires_at}`,
     "",
@@ -1995,7 +1995,7 @@ async function issueYoonbotOrderLicense(env, orderId, request) {
     return { ok: false, message: "결제 확인된 주문에서만 라이선스를 발급할 수 있습니다.", status: 400 };
   }
   const plan = yoonbotPlan(order.plan_code);
-  if (!plan) return { ok: false, message: "지원하지 않는 YoonBot 플랜입니다.", status: 400 };
+  if (!plan) return { ok: false, message: "지원하지 않는 YOONBOT 플랜입니다.", status: 400 };
   const expiresAt = licenseIso(addDays(new Date(), plan.license_days));
   const created = await createLicense(env, {
     member_id: order.member_id || null,

@@ -10,6 +10,14 @@
 - Do not output `.env`, `ADMIN_API_KEY`, tokens, passwords, or database contents.
 - Do not edit database files directly.
 - Do not change running services or launchd state without explicit user approval.
+- Legal/privacy stop gate:
+  - Any new application, member, review, consultation, Kakao, Telegram, payment, or newsletter flow must state purpose, required/optional fields, retention, deletion path, and privacy-policy link before collecting personal data.
+  - Keep under-14 handling explicit. If a flow cannot handle legal guardian consent, block under-14 users before submission.
+  - Never log plaintext passwords, approval codes, secrets, resident registration numbers, full phone numbers, raw email addresses, Kakao identifiers, or raw message contents in server logs, Telegram notifications, test output, or exported reports.
+  - Marketing messages require explicit opt-in, opt-out wording, and separate night-time consent for 21:00-08:00 sends. Service notices and advertising must be separated.
+  - Location-based features require a location-law review before launch. Do not collect or infer personal location by default.
+  - Withdrawal/deletion flows must delete or anonymize personal data unless a legal retention duty applies; retained payment/dispute records must be separated from active member data.
+  - Resident registration numbers are forbidden unless a clear statutory basis is documented. Consent is not sufficient.
 
 ## Work Rules
 

@@ -26,7 +26,7 @@
       radial-gradient(circle at 88% 0%, rgba(53, 95, 146, 0.1), transparent 24rem),
       linear-gradient(180deg, #ffffff 0%, var(--page-bg) 45%, #ffffff 100%);
     color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
     line-height: 1.55;
   }
   button, input, select { font: inherit; }
@@ -34,7 +34,19 @@
   .shell { width: min(1280px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 64px; }
   .topbar, .panel-head, .toolbar, .detail-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
   .brand { display: inline-flex; align-items: center; gap: 10px; color: inherit; font-weight: 900; text-decoration: none; }
-  .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 8px; background: #0a0a0a; color: #ffffff; }
+  .brand-mark {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    background:
+      linear-gradient(135deg, rgba(53, 95, 146, 0.96), rgba(15, 143, 98, 0.88)),
+      #0f172a;
+    color: #ffffff;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18);
+    font-size: 0.72rem;
+  }
   .top-links { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
   .top-links a, .button {
     min-height: 38px;
@@ -167,13 +179,13 @@
 <main class="shell">
   <nav class="topbar" aria-label="페이지 이동">
     <a class="brand" href="/frontend/admin.html">
-      <span class="brand-mark">A</span>
-      <span>ARSEN 운영</span>
+      <span class="brand-mark">AI</span>
+      <span>ARSEN AI 운영</span>
     </a>
     <div class="top-links">
       <a href="/frontend/admin.html">전체 관리자</a>
       <a href="/frontend/member.html">회원 페이지</a>
-      <a href="/">고객 페이지</a>
+      <a href="https://arsen-ai.com/">고객 페이지</a>
     </div>
   </nav>
 
