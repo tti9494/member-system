@@ -453,13 +453,13 @@ class BookingPaymentFlowTest(unittest.TestCase):
         # 남은 대기자는 waitlist_rank=1로 재배정
         self.assertEqual(rows[wait2_id]["waitlist_rank"], 1)
 
-    def test_seed_default_sunday_sessions_uses_fixed_office_location(self):
+    def test_seed_default_sunday_sessions_uses_unconfirmed_location(self):
         result = booking_manager.seed_default_sunday_sessions(weeks=1)
         sessions = booking_manager.list_sessions(include_closed=True)
 
         self.assertEqual(len(result["created"]), 3)
         self.assertEqual(result["updated"], [])
-        self.assertEqual({row["location"] for row in sessions}, {"영등포시장역 사무실"})
+        self.assertEqual({row["location"] for row in sessions}, {"추후 공지"})
 
     def test_seed_default_sunday_sessions_reopens_existing_same_time(self):
         result = booking_manager.seed_default_sunday_sessions(weeks=1)
@@ -475,7 +475,7 @@ class BookingPaymentFlowTest(unittest.TestCase):
         self.assertEqual(second_result["updated"], [first_id])
         self.assertEqual(len(sessions), 3)
         self.assertEqual(first["status"], "open")
-        self.assertEqual(first["location"], "영등포시장역 사무실")
+        self.assertEqual(first["location"], "추후 공지")
 
     def test_seed_default_free_class_sessions_creates_free_saturday_session(self):
         result = booking_manager.seed_default_free_class_sessions(weeks=1)

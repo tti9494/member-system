@@ -29,6 +29,40 @@ def test_admin_booking_filter_and_move_ux_contracts():
     assert "sessionDateKey({ starts_at: booking.session_starts_at })" in html
 
 
+def test_session_admin_page_and_course_defaults_contracts():
+    session_admin = (ROOT / "frontend" / "session-admin.html").read_text(encoding="utf-8")
+    admin_html = ADMIN_HTML.read_text(encoding="utf-8")
+    worker_js = WORKER_JS.read_text(encoding="utf-8")
+    booking_manager = (ROOT / "agents" / "booking_manager.py").read_text(encoding="utf-8")
+    build_pages = BUILD_PAGES.read_text(encoding="utf-8")
+
+    for token in [
+        "/admin/sessions",
+        "/admin/bookings?session_id=",
+        "/members/${encodeURIComponent(booking.member_id)}/contact",
+        "/members/${encodeURIComponent(booking.member_id)}/access-code",
+        "/admin/bookings/${encodeURIComponent(booking.id)}/send-payment-guide",
+        "/admin/bookings/${encodeURIComponent(booking.id)}/confirm-payment",
+        "/admin/bookings/${encodeURIComponent(booking.id)}/location-guide",
+        "/admin/preparation-guide",
+        "/admin/bookings/${encodeURIComponent(booking.id)}/move-session",
+        "/admin/bookings/${encodeURIComponent(booking.id)}/state",
+        "카카오톡 문구 복사",
+        "후기 요청 문구 복사",
+    ]:
+        assert token in session_admin
+
+    assert "session-admin.html?session_id=" in admin_html
+    assert "상세 관리" in admin_html
+
+    assert '"session-admin.html"' in build_pages
+    assert 'DEFAULT_TITLE = "AI 결과물 제작 초급 4주반"' in booking_manager
+    assert "DEFAULT_PRICE = 100000" in booking_manager
+    assert 'const DEFAULT_TITLE = "AI 결과물 제작 초급 4주반";' in worker_js
+    assert "const DEFAULT_PRICE = 100000;" in worker_js
+    assert 'const DEFAULT_LOCATION = "추후 공지";' in worker_js
+
+
 def test_admin_member_group_tab_and_download_contracts():
     html = ADMIN_HTML.read_text(encoding="utf-8")
 
@@ -267,15 +301,15 @@ def test_admin_launcher_status_contracts():
     assert "launcher admin status" in release_contract
 
 
-def test_public_entry_points_include_free_application_link():
+def test_public_entry_points_prioritize_paid_application_and_keep_free_legacy_route():
     admin_html = ADMIN_HTML.read_text(encoding="utf-8")
     main_py = MAIN_PY.read_text(encoding="utf-8")
     build_pages = BUILD_PAGES.read_text(encoding="utf-8")
 
     assert "/frontend/join-free.html" in admin_html
     assert "무료 신청서" in admin_html
-    assert "/frontend/join-free.html" in main_py
-    assert "무료 강의 신청" in main_py
+    assert "/frontend/join-full.html" in main_py
+    assert "AI 결과물 제작 초급 4주반 신청" in main_py
     assert "/frontend/class-stories.html" in main_py
     assert "공개 후기 보기" in main_py
     assert "/frontend/yoonbot.html#download" in main_py
@@ -286,8 +320,9 @@ def test_public_entry_points_include_free_application_link():
     assert "스터디 참가" in main_py
     assert "/frontend/member.html" in main_py
     assert "회원 페이지" in main_py
-    assert "/frontend/join-free.html" in build_pages
-    assert "무료 강의 신청" in build_pages
+    assert '"join-free.html"' in build_pages
+    assert "/frontend/join-full.html" in build_pages
+    assert "AI 결과물 제작 초급 4주반 신청" in build_pages
     assert "/frontend/class-stories.html" in build_pages
     assert "공개 후기 보기" in build_pages
     assert "/frontend/yoonbot.html#download" in build_pages

@@ -1,6 +1,8 @@
-const DEFAULT_PRICE = 50000;
-const DEFAULT_TITLE = "AI 기초 셋팅 및 컨설팅 강의 1:4";
-const DEFAULT_LOCATION = "영등포시장역 사무실";
+const DEFAULT_PRICE = 100000;
+const DEFAULT_TITLE = "AI 결과물 제작 초급 4주반";
+const DEFAULT_DESCRIPTION = "AI 도구를 실제 결과물로 연결하는 초급 4주 실습반입니다. 현재 시간과 장소를 수요 확인 중입니다.";
+const DEFAULT_LOCATION = "추후 공지";
+const DEFAULT_MATERIALS = "노트북, 충전기, 사용 중인 AI 계정, 만들고 싶은 결과물 또는 업무 예시";
 const FREE_CLASS_TITLE = "무료 AI 강의";
 const FREE_CLASS_DESCRIPTION = "AI 입문자를 위한 계정 세팅, 실습 방향, 업무 활용 예시를 무료로 안내합니다.";
 const FREE_CLASS_MATERIALS = "노트북 또는 태블릿, 충전기, 사용 중인 AI 계정 정보, 궁금한 자동화 주제";
@@ -6303,17 +6305,17 @@ async function handleAdmin(request, env, path) {
       .bind(
         id,
         body.title || DEFAULT_TITLE,
-        body.description || "",
+        body.description || DEFAULT_DESCRIPTION,
         body.program_type || "ai_basic_setup",
         body.audience_level || "all",
         body.starts_at,
         body.ends_at,
         body.timezone || "Asia/Seoul",
         Number(body.capacity_min || 4),
-        Number(body.capacity_max || 5),
+        Number(body.capacity_max || 8),
         Number(body.price_krw == null || body.price_krw === "" ? DEFAULT_PRICE : body.price_krw),
         body.location || DEFAULT_LOCATION,
-        body.materials || "",
+        body.materials || DEFAULT_MATERIALS,
         body.status || "open",
         body.payment_guide || "",
         created,
@@ -6340,8 +6342,8 @@ async function handleAdmin(request, env, path) {
           const endsAt = new Date(endKst.getTime() - 9 * 60 * 60 * 1000).toISOString();
           const existing = await one(env, "SELECT id FROM sessions WHERE starts_at=?", startsAt);
           if (existing) {
-            await env.DB.prepare("UPDATE sessions SET title=?, ends_at=?, location=?, status='open', updated_at=? WHERE id=?")
-              .bind(DEFAULT_TITLE, endsAt, DEFAULT_LOCATION, now(), existing.id)
+            await env.DB.prepare("UPDATE sessions SET title=?, description=?, ends_at=?, location=?, materials=?, price_krw=?, capacity_min=4, capacity_max=8, status='open', updated_at=? WHERE id=?")
+              .bind(DEFAULT_TITLE, DEFAULT_DESCRIPTION, endsAt, DEFAULT_LOCATION, DEFAULT_MATERIALS, DEFAULT_PRICE, now(), existing.id)
               .run();
             updatedIds.push(existing.id);
           } else {
@@ -6352,9 +6354,9 @@ async function handleAdmin(request, env, path) {
                 id, title, description, program_type, audience_level, starts_at, ends_at, timezone,
                 capacity_min, capacity_max, confirmed_count, price_krw, location, materials, status,
                 payment_guide, created_at, updated_at
-              ) VALUES (?, ?, ?, 'ai_basic_setup', 'all', ?, ?, 'Asia/Seoul', 4, 5, 0, ?, ?, '', 'open', '', ?, ?)`
+              ) VALUES (?, ?, ?, 'ai_basic_setup', 'all', ?, ?, 'Asia/Seoul', 4, 8, 0, ?, ?, ?, 'open', '', ?, ?)`
             )
-              .bind(id, DEFAULT_TITLE, "", startsAt, endsAt, DEFAULT_PRICE, DEFAULT_LOCATION, created, created)
+              .bind(id, DEFAULT_TITLE, DEFAULT_DESCRIPTION, startsAt, endsAt, DEFAULT_PRICE, DEFAULT_LOCATION, DEFAULT_MATERIALS, created, created)
               .run();
             createdIds.push(id);
           }

@@ -3023,7 +3023,6 @@
         </div>
         <div class="top-actions">
           <button class="btn" id="seed-sessions-btn" type="button">유료 일정 생성</button>
-          <button class="btn green" id="seed-free-sessions-btn" type="button">무료 일정 생성</button>
           <button class="btn primary" id="booking-refresh-btn" type="button">예약 새로고침</button>
         </div>
       </div>
@@ -3065,25 +3064,28 @@
       </div>
       <details>
         <summary style="cursor:pointer;margin-top:14px;font-weight:800;color:var(--primary);">새 일정 직접 추가</summary>
+        <div class="booking-actions" style="margin-top:12px;"><button class="btn muted" id="seed-free-sessions-btn" type="button">보조 기능: 무료 일정 생성</button></div>
         <div class="session-form">
           <div class="field"><label>일정 종류</label><select id="new-session-program-type"><option value="ai_basic_setup">유료강의</option><option value="free_class">무료강의</option><option value="study">스터디</option></select></div>
           <div class="field"><label>참가 대상</label><select id="new-session-audience-level"><option value="approved">승인멤버 전체</option><option value="paid_only">유료강의 수강자만</option><option value="beginner">입문/무료강의</option><option value="all">전체</option></select></div>
-          <div class="field"><label>일정명</label><input id="new-session-title" type="text" value="AI 기초 세팅 및 컨설팅 강의 1:4" placeholder="예: 무료 AI 강의"></div>
+          <div class="field"><label>일정명</label><input id="new-session-title" type="text" value="AI 결과물 제작 초급 4주반" placeholder="예: AI 자동화 제작 4주반"></div>
           <div class="field"><label>시작</label><input id="new-session-start" type="datetime-local"></div>
           <div class="field"><label>종료</label><input id="new-session-end" type="datetime-local"></div>
           <div class="field">
             <label>장소</label>
-            <input id="new-session-location" list="session-location-options" type="text" value="영등포시장역 사무실" placeholder="장소를 선택하거나 직접 입력">
+            <input id="new-session-location" list="session-location-options" type="text" value="추후 공지" placeholder="장소를 선택하거나 직접 입력">
             <datalist id="session-location-options">
-              <option value="영등포시장역 사무실"></option>
-              <option value="온라인 Zoom"></option>
+              <option value="영등포"></option>
+              <option value="안양"></option>
+              <option value="강남"></option>
+              <option value="온라인"></option>
               <option value="추후 공지"></option>
             </datalist>
           </div>
-          <div class="field"><label>정원</label><input id="new-session-capacity" type="number" min="1" value="5"></div>
-          <div class="field"><label>가격</label><input id="new-session-price" type="number" min="0" value="50000"></div>
+          <div class="field"><label>정원</label><input id="new-session-capacity" type="number" min="1" value="8"></div>
+          <div class="field"><label>가격</label><input id="new-session-price" type="number" min="0" value="100000"></div>
           <div class="field"><label>상태</label><select id="new-session-status"><option value="open">공개</option><option value="draft">비공개</option></select></div>
-          <div class="field wide"><label>설명</label><textarea id="new-session-description">AI 기초 세팅, 유료 구독 점검, 구현하고 싶은 업무 자동화 방향 설계까지 함께 진행합니다.</textarea></div>
+          <div class="field wide"><label>설명</label><textarea id="new-session-description">AI 도구를 실제 결과물로 연결하는 초급 4주 실습반입니다. 현재 시간과 장소를 수요 확인 중입니다.</textarea></div>
           <div class="field wide"><label>추후 입금 안내 문구 <span class="optional">(선택)</span></label><textarea id="new-session-payment-guide" placeholder="오늘은 비워두셔도 됩니다. 나중에 계좌/예금주/환불 규칙을 확정하면 입력하세요. 공개 일정 목록에는 노출되지 않습니다."></textarea></div>
           <div class="field wide"><button class="btn green" id="create-session-btn" type="button">일정 추가</button></div>
         </div>
@@ -5368,7 +5370,7 @@
     if (!session) return "선택한 일정";
     const date = formatSessionDateKey(sessionDateKey(session));
     const time = `${formatSessionTime(session.starts_at)} - ${formatSessionTime(session.ends_at)}`;
-    return `${date} ${time} · ${session.title || "AI 기초 세팅 및 컨설팅 강의"}`;
+    return `${date} ${time} · ${session.title || "AI 결과물 제작 초급 4주반"}`;
   }
 
 	  function setBookingSessionFilter(sessionId, options = {}) {
@@ -5648,7 +5650,7 @@
 	    const date = formatSessionDateKey(sessionDateKey(session));
 	    const time = `${formatSessionTime(session.starts_at)} - ${formatSessionTime(session.ends_at)}`;
 	    const remaining = sessionRemainingCapacity(session);
-	    return `${date} ${time} · ${session.title || "AI 기초 세팅 및 컨설팅 강의"} · 남은 ${remaining}자리 · ${session.location || "-"}`;
+	    return `${date} ${time} · ${session.title || "AI 결과물 제작 초급 4주반"} · 남은 ${remaining}자리 · ${session.location || "-"}`;
 	  }
 
 	  async function moveBookingSession(booking, targetSessionId, note, targetLabel = "선택한 일정") {
@@ -6490,7 +6492,7 @@
         <div class="session-time-top">
           <div>
             <div class="session-time">${escapeHtml(formatSessionTime(session.starts_at))} - ${escapeHtml(formatSessionTime(session.ends_at))}</div>
-            <div class="booking-title">${escapeHtml(session.title || "AI 기초 세팅 및 컨설팅 강의")}</div>
+	            <div class="booking-title">${escapeHtml(session.title || "AI 결과물 제작 초급 4주반")}</div>
           </div>
           <span class="session-status-pill ${escapeHtml(session.status || "")}">${escapeHtml(sessionStatusLabel(session.status))}</span>
         </div>
@@ -6514,9 +6516,12 @@
         }
       });
       const actions = document.createElement("div");
-		      actions.className = "booking-actions";
-		      actions.append(
-		        actionButton("예약만 보기", "primary", false, openFilteredBookings),
+	      actions.className = "booking-actions";
+	      actions.append(
+	        actionButton("상세 관리", "primary", false, () => {
+	          window.location.assign(`/frontend/session-admin.html?session_id=${encodeURIComponent(session.id)}`);
+	        }),
+	        actionButton("예약만 보기", "primary", false, openFilteredBookings),
 		        actionButton(studySession || freeSession ? "참여자 추가" : "입금자 추가", "primary", session.status === "canceled", () => showManualBookingModal(session)),
         actionButton("공개", "green", session.status === "open", () => updateSessionStatus(session.id, "open")),
         actionButton("비공개", "muted", session.status === "draft", () => updateSessionStatus(session.id, "draft")),
@@ -7935,11 +7940,11 @@
 	        descriptionInput.value = "승인 멤버가 함께 모여 AI 활용 사례와 실습 내용을 점검하는 스터디입니다.";
 	      }
 	    } else {
-	      if (!titleInput.value.trim() || titleInput.value === "무료 AI 강의" || titleInput.value === "ARSEN 멤버 스터디") titleInput.value = "AI 기초 세팅 및 컨설팅 강의 1:4";
-	      if (!priceInput.value || Number(priceInput.value) === 0) priceInput.value = "50000";
+	      if (!titleInput.value.trim() || titleInput.value === "무료 AI 강의" || titleInput.value === "ARSEN 멤버 스터디") titleInput.value = "AI 결과물 제작 초급 4주반";
+	      if (!priceInput.value || Number(priceInput.value) === 0) priceInput.value = "100000";
 	      if (audienceInput.value === "beginner" || audienceInput.value === "approved") audienceInput.value = "all";
 	      if (!descriptionInput.value.trim() || descriptionInput.value.includes("무료로 안내")) {
-	        descriptionInput.value = "AI 기초 세팅, 유료 구독 점검, 구현하고 싶은 업무 자동화 방향 설계까지 함께 진행합니다.";
+	        descriptionInput.value = "AI 도구를 실제 결과물로 연결하는 초급 4주 실습반입니다. 현재 시간과 장소를 수요 확인 중입니다.";
 	      }
     }
   }
@@ -7989,16 +7994,16 @@
 	      await api("/admin/sessions", {
 	        method: "POST",
 		        body: JSON.stringify({
-		          title: $("new-session-title").value.trim() || (studySession ? "ARSEN 멤버 스터디" : freeSession ? "무료 AI 강의" : "AI 기초 세팅 및 컨설팅 강의 1:4"),
+		          title: $("new-session-title").value.trim() || (studySession ? "ARSEN 멤버 스터디" : freeSession ? "무료 AI 강의" : "AI 결과물 제작 초급 4주반"),
 		          description: $("new-session-description").value.trim(),
 		          program_type: programType,
 		          audience_level: $("new-session-audience-level").value || (studySession ? "approved" : freeSession ? "beginner" : "all"),
 		          starts_at: startsAt,
 		          ends_at: endsAt,
 		          location: $("new-session-location").value,
-		          capacity_min: studySession || freeSession ? 1 : Math.min(4, Number($("new-session-capacity").value || 5)),
-		          capacity_max: Number($("new-session-capacity").value || 5),
-		          price_krw: studySession || freeSession ? 0 : Number($("new-session-price").value || 50000),
+		          capacity_min: studySession || freeSession ? 1 : Math.min(4, Number($("new-session-capacity").value || 8)),
+		          capacity_max: Number($("new-session-capacity").value || 8),
+		          price_krw: studySession || freeSession ? 0 : Number($("new-session-price").value || 100000),
 		          status: $("new-session-status").value,
 		          payment_guide: studySession || freeSession ? "" : $("new-session-payment-guide").value.trim(),
 		        }),

@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>일정 상세 관리 · ARSEN</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css">
+  <link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css">
+  <script src="assets/theme-loader.js?v=button-state-colors-v3"></script>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--arsen-surface, #f7f8fb);
+      color: var(--arsen-text, #0a0a0a);
+      font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+      line-height: 1.5;
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; }
+    .hidden { display: none !important; }
+    .page { width: min(1480px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 48px; }
+    .topbar, .panel, .auth-card, .modal-card {
+      border: 1px solid var(--arsen-line, #e5e7eb);
+      background: var(--arsen-card, #fff);
+      box-shadow: var(--arsen-shadow, 0 12px 32px rgba(15, 23, 42, .08));
+    }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 22px; border-radius: 12px; }
+    .eyebrow { margin: 0 0 6px; color: var(--arsen-blue, #355f92); font-size: 12px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: clamp(24px, 3vw, 34px); line-height: 1.15; }
+    h2 { font-size: 18px; line-height: 1.25; }
+    .subtle, .meta, .status-note { color: var(--arsen-muted, #475467); }
+    .subtle { margin-top: 7px; font-size: 14px; }
+    .button {
+      min-height: 38px;
+      border: 1px solid var(--arsen-line-strong, #cfd5df);
+      border-radius: 8px !important;
+      padding: 8px 12px;
+      background: #fff !important;
+      color: var(--arsen-text, #0a0a0a) !important;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.2;
+      transition: transform .18s ease;
+      white-space: nowrap;
+    }
+    .button:hover:not(:disabled) { transform: translateY(-1px); }
+    .button.primary { background: var(--arsen-primary, #0a0a0a) !important; border-color: var(--arsen-primary, #0a0a0a); color: #fff !important; }
+    .button.green { background: var(--arsen-green-soft, #e7f8ef) !important; border-color: var(--arsen-green, #087451); color: var(--arsen-green, #087451) !important; }
+    .button.amber { background: var(--arsen-amber-soft, #fff3d8) !important; border-color: var(--arsen-amber, #b66b05); color: var(--arsen-amber, #b66b05) !important; }
+    .button.red { background: var(--arsen-red-soft, #fde8e6) !important; border-color: var(--arsen-red, #b42318); color: var(--arsen-red, #b42318) !important; }
+    .button:disabled { opacity: .52; transform: none; }
+    .top-actions, .row-actions, .modal-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .auth-card { width: min(560px, 100%); margin: 12vh auto 0; padding: 28px; border-radius: 12px; }
+    .field { display: grid; gap: 7px; margin-top: 18px; }
+    label { color: var(--arsen-text, #0a0a0a); font-size: 14px; font-weight: 800; }
+    input, select {
+      width: 100%; min-height: 44px; border: 1px solid var(--arsen-line-strong, #cfd5df); border-radius: 8px;
+      background: #fff; color: var(--arsen-text, #0a0a0a); padding: 10px 12px;
+    }
+    .remember { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--arsen-muted, #475467); font-size: 13px; font-weight: 700; }
+    .remember input { width: 18px; min-height: 18px; margin: 0; }
+    .notice { margin: 16px 0; min-height: 24px; color: var(--arsen-muted, #475467); font-size: 14px; font-weight: 700; }
+    .notice.ok { color: var(--arsen-green, #087451); }
+    .notice.error { color: var(--arsen-red, #b42318); }
+    .panel { margin-top: 16px; border-radius: 12px; padding: 20px; }
+    .session-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+    .session-title { margin-top: 4px; font-size: clamp(21px, 2.2vw, 30px); line-height: 1.18; }
+    .pill { display: inline-flex; align-items: center; min-height: 28px; border: 1px solid var(--arsen-line, #e5e7eb); border-radius: 999px; padding: 4px 10px; background: var(--arsen-card-soft, #f3f5f8); color: var(--arsen-muted, #475467); font-size: 12px; font-weight: 850; }
+    .pill.open, .pill.confirmed { border-color: var(--arsen-green, #087451); color: var(--arsen-green, #087451); background: var(--arsen-green-soft, #e7f8ef); }
+    .pill.pending { border-color: var(--arsen-amber, #b66b05); color: var(--arsen-amber, #b66b05); background: var(--arsen-amber-soft, #fff3d8); }
+    .pill.canceled, .pill.rejected { border-color: var(--arsen-red, #b42318); color: var(--arsen-red, #b42318); background: var(--arsen-red-soft, #fde8e6); }
+    .metric-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-top: 20px; }
+    .metric { min-width: 0; border: 1px solid var(--arsen-line, #e5e7eb); border-radius: 9px; background: var(--arsen-card-soft, #f3f5f8); padding: 12px; }
+    .metric span { display: block; color: var(--arsen-muted, #475467); font-size: 12px; font-weight: 750; }
+    .metric strong { display: block; margin-top: 5px; color: var(--arsen-text, #0a0a0a); font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; }
+    .table-wrap { overflow-x: auto; margin-top: 16px; border: 1px solid var(--arsen-line, #e5e7eb); border-radius: 10px; }
+    table { width: 100%; min-width: 1280px; border-collapse: collapse; }
+    th, td { padding: 12px; border-bottom: 1px solid var(--arsen-line, #e5e7eb); text-align: left; vertical-align: top; font-size: 13px; }
+    th { position: sticky; top: 0; z-index: 1; background: var(--arsen-card-soft, #f3f5f8); color: var(--arsen-muted, #475467); font-size: 12px; font-weight: 850; }
+    td { color: var(--arsen-text, #0a0a0a); }
+    tr:last-child td { border-bottom: 0; }
+    .name { font-size: 14px; font-weight: 900; }
+    .cell-note { max-width: 230px; color: var(--arsen-muted, #475467); line-height: 1.45; overflow-wrap: anywhere; }
+    .next-action { color: var(--arsen-blue, #355f92); font-weight: 850; }
+    .empty { margin-top: 16px; border: 1px dashed var(--arsen-line-strong, #cfd5df); border-radius: 10px; padding: 24px; color: var(--arsen-muted, #475467); text-align: center; }
+    .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px; background: rgba(15, 23, 42, .48); }
+    .modal-card { width: min(640px, 100%); max-height: 86vh; overflow: auto; border-radius: 12px; padding: 22px; }
+    .modal-copy { margin-top: 14px; white-space: pre-wrap; border: 1px solid var(--arsen-line, #e5e7eb); border-radius: 8px; background: var(--arsen-card-soft, #f3f5f8); padding: 14px; color: var(--arsen-text, #0a0a0a); line-height: 1.55; }
+    .contact-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-top: 12px; border-bottom: 1px solid var(--arsen-line, #e5e7eb); padding-bottom: 12px; }
+    @media (max-width: 1080px) { .metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 700px) {
+      .page { width: min(100% - 20px, 1480px); padding-top: 10px; }
+      .topbar, .session-head { align-items: flex-start; flex-direction: column; }
+      .top-actions { width: 100%; }
+      .top-actions .button { flex: 1; }
+      .panel, .topbar { padding: 16px; }
+      .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .modal { align-items: end; padding: 8px; }
+      .modal-card { max-height: 92vh; }
+    }
+  </style>
+</head>
+<body class="session-admin-page">
+  <main class="page">
+    <section id="auth-view" class="auth-card" aria-label="관리자 인증">
+      <p class="eyebrow">ARSEN operator</p>
+      <h1>일정 상세 관리</h1>
+      <p class="subtle">기존 운영자 비밀번호를 사용합니다. 일정별 신청자와 수동 안내 상태만 관리하며, 이 화면에서는 실제 메시지를 보내지 않습니다.</p>
+      <div class="field">
+        <label for="admin-key">관리자 비밀번호</label>
+        <input id="admin-key" type="password" autocomplete="off" placeholder="관리자 비밀번호">
+      </div>
+      <label class="remember" for="remember-key"><input id="remember-key" type="checkbox"> 이 기기에서 관리자 비밀번호 기억</label>
+      <div class="modal-actions" style="margin-top:18px;"><button id="connect-btn" class="button primary" type="button">일정 불러오기</button><a class="button" href="admin.html">전체 관리자</a></div>
+      <div id="auth-notice" class="notice" role="status"></div>
+    </section>
+
+    <section id="app-view" class="hidden">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">session operations</p>
+          <h1>일정 상세 관리</h1>
+          <p class="subtle">문구 복사와 상태 기록만 수행합니다. 카카오톡·텔레그램 자동 발송은 사용하지 않습니다.</p>
+        </div>
+        <div class="top-actions">
+          <a class="button" href="admin.html">전체 관리자</a>
+          <button id="refresh-btn" class="button primary" type="button">새로고침</button>
+        </div>
+      </header>
+      <div id="notice" class="notice" role="status"></div>
+
+      <section class="panel" aria-label="일정 요약">
+        <div class="session-head">
+          <div>
+            <p id="session-type" class="eyebrow">-</p>
+            <h2 id="session-title" class="session-title">일정을 불러오는 중입니다.</h2>
+            <p id="session-meta" class="subtle">-</p>
+          </div>
+          <span id="session-status" class="pill">-</span>
+        </div>
+        <div id="metric-grid" class="metric-grid"></div>
+      </section>
+
+      <section class="panel" aria-label="신청자 관리">
+        <div class="session-head">
+          <div>
+            <p class="eyebrow">applicants</p>
+            <h2>신청자 운영표</h2>
+            <p class="subtle">연락처는 버튼을 눌렀을 때만 표시됩니다. 문구 복사와 발송 완료 표시는 실제 전송을 하지 않습니다.</p>
+          </div>
+          <span id="booking-count" class="pill">0명</span>
+        </div>
+        <div id="bookings-empty" class="empty hidden">이 일정에 연결된 신청자가 없습니다.</div>
+        <div id="bookings-table-wrap" class="table-wrap hidden">
+          <table>
+            <thead><tr><th>이름</th><th>연락처</th><th>신청일</th><th>승인 / 코드</th><th>입금 안내</th><th>입금 / 예약</th><th>메모 / 목표</th><th>다음 행동</th><th>작업</th></tr></thead>
+            <tbody id="bookings-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <section class="modal-card">
+      <div class="session-head"><div><p class="eyebrow">operator tool</p><h2 id="modal-title">안내</h2></div><button id="modal-close" class="button" type="button">닫기</button></div>
+      <div id="modal-body"></div>
+    </section>
+  </div>
+
+  <script>
+  (() => {
+    const state = {
+      key: localStorage.getItem("memberAdminKey") || sessionStorage.getItem("memberAdminKey") || "",
+      remember: localStorage.getItem("memberAdminKeyRemember") === "1" || Boolean(localStorage.getItem("memberAdminKey")),
+      localAdminPreview: false,
+      sessionId: new URLSearchParams(window.location.search).get("session_id") || "",
+      session: null,
+      bookings: [],
+      sessions: [],
+      preparationGuide: "",
+    };
+    const $ = (id) => document.getElementById(id);
+    const authView = $("auth-view");
+    const appView = $("app-view");
+    const adminKey = $("admin-key");
+    const rememberKey = $("remember-key");
+    adminKey.value = state.key;
+    rememberKey.checked = state.remember;
+
+    function setNotice(message, tone = "") {
+      const target = appView.classList.contains("hidden") ? $("auth-notice") : $("notice");
+      target.textContent = message || "";
+      target.className = `notice ${tone}`.trim();
+    }
+    function adminHeaders() {
+      const headers = { "Content-Type": "application/json" };
+      if (state.key && state.key !== "__local_admin_preview__") headers["X-Admin-Key"] = state.key;
+      return headers;
+    }
+    async function api(path, options = {}) {
+      const response = await fetch(path, { cache: "no-store", ...options, headers: { ...adminHeaders(), ...(options.headers || {}) } });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || data.message || `HTTP ${response.status}`);
+      return data;
+    }
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
+    }
+    function formatDate(value) {
+      if (!value) return "-";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    }
+    function formatMoney(value) { return `${Number(value || 0).toLocaleString()}원`; }
+    function sessionType(session) {
+      const type = session?.program_type || "ai_basic_setup";
+      if (type === "study") return "스터디";
+      if (type === "free_class") return "보조 무료강의";
+      const level = { beginner: "초급", intermediate: "중급", advanced: "고급" }[session?.audience_level] || "초급";
+      return `${level} · 유료강의`;
+    }
+    function bookingStatusLabel(status) {
+      return { requested: "신청", payment_guide_sent: "입금 안내", payment_pending: "입금 대기", payment_confirmed: "입금 확인", confirmed: "예약 확정", completed: "수강 완료", canceled: "취소", rejected: "거절", no_show: "불참" }[status] || status || "-";
+    }
+    function paymentStatusLabel(status) {
+      return { not_sent: "미안내", guide_sent: "안내 완료", pending: "입금 대기", paid: "입금 확인", waived: "면제", refunded: "환불", failed: "실패" }[status] || status || "-";
+    }
+    function bookingNextAction(booking) {
+      if (["canceled", "rejected", "no_show"].includes(booking.status)) return "기록 보관";
+      if (booking.status === "requested" || booking.payment_status === "not_sent") return "입금 안내 문구 복사";
+      if (["payment_guide_sent", "payment_pending", "payment_confirmed"].includes(booking.status)) return "입금 확인 후 예약 확정";
+      if (booking.status === "confirmed") return "장소·준비물 안내";
+      if (booking.status === "completed") return "후기 요청 문구 복사";
+      return "상태 확인";
+    }
+    function bookingPill(label, tone = "") { return `<span class="pill ${escapeHtml(tone)}">${escapeHtml(label)}</span>`; }
+    function copyText(text, successMessage) {
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => setNotice(successMessage || "클립보드에 복사했습니다.", "ok")).catch(() => window.prompt("아래 내용을 복사하세요.", text));
+    }
+    function openModal(title, body) {
+      $("modal-title").textContent = title;
+      $("modal-body").innerHTML = "";
+      $("modal-body").appendChild(body);
+      $("modal").classList.remove("hidden");
+    }
+    function closeModal() { $("modal").classList.add("hidden"); $("modal-body").innerHTML = ""; }
+    function copyModal(title, note, text, label) {
+      const wrap = document.createElement("div");
+      const noteEl = document.createElement("p");
+      noteEl.className = "subtle";
+      noteEl.textContent = note;
+      const preview = document.createElement("pre");
+      preview.className = "modal-copy";
+      preview.textContent = text || "문구가 없습니다.";
+      const actions = document.createElement("div");
+      actions.className = "modal-actions";
+      actions.style.marginTop = "14px";
+      const copy = document.createElement("button");
+      copy.className = "button primary";
+      copy.type = "button";
+      copy.textContent = label;
+      copy.disabled = !text;
+      copy.addEventListener("click", () => copyText(text, `${label}를 복사했습니다.`));
+      actions.append(copy);
+      wrap.append(noteEl, preview, actions);
+      openModal(title, wrap);
+    }
+    function actionButton(label, tone, disabled, handler) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `button ${tone || ""}`.trim();
+      button.textContent = label;
+      button.disabled = Boolean(disabled);
+      button.addEventListener("click", handler);
+      return button;
+    }
+    function sessionGuide(kind, booking) {
+      const session = state.session || {};
+      const name = booking.applicant_name || booking.member_name || "신청자";
+      const date = formatDate(session.starts_at);
+      const location = session.location || "추후 공지";
+      if (kind === "notice") return `[${session.title || "ARSEN 강의"} 공지]\n${name}님, ${date} 일정 안내입니다.\n장소: ${location}\n변동 사항은 이 메시지로 안내드립니다.`;
+      if (kind === "review") return `[수강 후기 요청]\n${name}님, ${session.title || "이번 강의"}는 어떠셨나요?\n수업에서 만든 결과물이나 느낀 점을 후기 링크에 남겨주시면 운영 검토 후 공개할 수 있습니다.`;
+      return "";
+    }
+    async function revealContact(booking) {
+      if (!booking.member_id) { setNotice("연결된 신청자 정보가 없어 연락처를 표시할 수 없습니다.", "error"); return; }
+      try {
+        const payload = await api(`/members/${encodeURIComponent(booking.member_id)}/contact`);
+        const contact = payload.data || {};
+        const wrap = document.createElement("div");
+        const note = document.createElement("p");
+        note.className = "subtle";
+        note.textContent = "필요한 연락 후 닫으면 연락처 원문이 화면에서 사라집니다.";
+        wrap.appendChild(note);
+        [["전화번호", contact.phone], ["이메일", contact.email]].forEach(([label, value]) => {
+          const row = document.createElement("div"); row.className = "contact-row";
+          const text = document.createElement("strong"); text.textContent = `${label}: ${value || "-"}`;
+          row.append(text, actionButton(`${label} 복사`, "primary", !value, () => copyText(value, `${label}를 복사했습니다.`)));
+          wrap.appendChild(row);
+        });
+        openModal(`${contact.name || booking.applicant_name || "신청자"} 연락처`, wrap);
+      } catch (error) { setNotice(error.message, "error"); }
+    }
+    async function copyCodeGuide(booking) {
+      if (!booking.member_id) { setNotice("연결된 신청자 정보가 없어 코드 안내를 만들 수 없습니다.", "error"); return; }
+      try {
+        const payload = await api(`/members/${encodeURIComponent(booking.member_id)}/access-code`);
+        const data = payload.data || {};
+        copyModal("코드 안내 문구", "자동 전송하지 않습니다. 코드를 포함한 문구를 직접 전달한 뒤 ‘코드 전달 완료’로 기록하세요.", data.delivery_message || "", "카카오톡 문구 복사");
+      } catch (error) { setNotice(error.message, "error"); }
+    }
+    async function recordCodeDelivery(booking) {
+      if (!booking.member_id) { setNotice("연결된 신청자 정보가 없어 전달 기록을 남길 수 없습니다.", "error"); return; }
+      try {
+        await api(`/admin/members/${encodeURIComponent(booking.member_id)}/code-delivery-log`, { method: "POST", body: JSON.stringify({ channel: "manual", note: "일정 상세 관리 화면에서 운영자 수동 전달 완료 표시" }) });
+        setNotice("코드 전달 완료 상태를 기록했습니다. 실제 메시지는 자동으로 보내지 않았습니다.", "ok");
+      } catch (error) { setNotice(error.message, "error"); }
+    }
+    async function paymentGuide(booking) {
+      try {
+        const payload = await api(`/admin/bookings/${encodeURIComponent(booking.id)}/send-payment-guide`, { method: "POST", body: JSON.stringify({}) });
+        await loadSession();
+        copyModal("입금 안내 문구", "입금 안내 상태로 변경했습니다. 실제 전송은 하지 않았습니다.", payload.payment_guide || "", "입금 안내 복사");
+        setNotice("입금 안내 상태로 변경하고 문구를 준비했습니다.", "ok");
+      } catch (error) { setNotice(error.message, "error"); }
+    }
+    async function confirmPayment(booking) {
+      if (!window.confirm("입금을 확인하고 예약을 확정할까요? 실제 입금 내역은 별도로 확인해야 합니다.")) return;
+      try {
+        const payload = await api(`/admin/bookings/${encodeURIComponent(booking.id)}/confirm-payment`, { method: "POST", body: JSON.stringify({ payment_note: "일정 상세 관리 화면에서 운영자 수동 입금 확인" }) });
+        await loadSession();
+        setNotice(payload.message || "입금 확인 및 예약 확정을 저장했습니다. 자동 전송은 하지 않았습니다.", "ok");
+      } catch (error) { setNotice(error.message, "error"); }
+    }
+    async function locationGuide(booking) {
+      try {
+        const payload = await api(`/admin/bookings/${encodeURIComponent(booking.id)}/location-guide`, { method: "POST" });
+        copyModal("장소 안내 문구", "자동 전송하지 않습니다. 확정자에게 직접 전달하세요.", payload.location_guide || "", "장소 안내 복사");
+      } catch (error) { setNotice(error.message, "error"); }
+    }
+    function preparationGuide(booking) {
+      const fallback = `[준비물 안내]\n${booking.applicant_name || booking.member_name || "신청자"}님, ${state.session?.title || "강의"} 준비물 안내입니다.\n- 노트북과 충전기\n- 사용 중인 AI 계정\n- 만들고 싶은 결과물 또는 업무 예시\n\n궁금한 점은 이 메시지로 알려주세요.`;
+      copyModal("준비물 안내 문구", "자동 전송하지 않습니다. 저장된 공통 문구가 없으면 기본 준비물 안내를 사용합니다.", state.preparationGuide || fallback, "준비물 안내 복사");
+    }
+    function showMove(booking) {
+      const targets = state.sessions.filter((session) => session.id !== state.session.id && ["open", "full", "draft"].includes(session.status));
+      const wrap = document.createElement("div");
+      const note = document.createElement("p"); note.className = "subtle"; note.textContent = "입금 상태는 유지하고 일정만 이동합니다. 자동 알림은 보내지 않습니다.";
+      const select = document.createElement("select");
+      select.innerHTML = '<option value="">이동할 일정 선택</option>' + targets.map((session) => `<option value="${escapeHtml(session.id)}">${escapeHtml(formatDate(session.starts_at))} · ${escapeHtml(session.title || "일정")} · ${escapeHtml(session.location || "추후 공지")}</option>`).join("");
+      const actions = document.createElement("div"); actions.className = "modal-actions"; actions.style.marginTop = "14px";
+      actions.appendChild(actionButton("일정 이동 저장", "primary", !targets.length, async () => {
+        if (!select.value) { setNotice("이동할 일정을 선택하세요.", "error"); return; }
+        try {
+          await api(`/admin/bookings/${encodeURIComponent(booking.id)}/move-session`, { method: "POST", body: JSON.stringify({ session_id: select.value, note: "일정 상세 관리 화면에서 운영자 수동 이동" }) });
+          closeModal(); await loadSession(); setNotice("예약 일정을 이동했습니다. 자동 알림은 보내지 않았습니다.", "ok");
+        } catch (error) { setNotice(error.message, "error"); }
+      }));
+      wrap.append(note, select, actions); openModal("예약 일정 이동", wrap);
+    }
+    async function cancelBooking(booking) {
+      if (!window.confirm(`${booking.applicant_name || booking.member_name || "신청자"} 예약을 취소로 변경할까요? 기록은 보관됩니다.`)) return;
+      try {
+        await api(`/admin/bookings/${encodeURIComponent(booking.id)}/state`, { method: "POST", body: JSON.stringify({ status: "canceled" }) });
+        await loadSession(); setNotice("예약을 취소 상태로 변경했습니다. 자동 알림은 보내지 않았습니다.", "ok");
+      } catch (error) { setNotice(error.message, "error"); }
+    }
+    function renderSession() {
+      const session = state.session;
+      if (!session) return;
+      const active = state.bookings.filter((booking) => !["canceled", "rejected", "no_show"].includes(booking.status));
+      const confirmed = state.bookings.filter((booking) => ["confirmed", "completed"].includes(booking.status));
+      const remaining = Math.max(Number(session.capacity_max || 0) - active.length, 0);
+      $("session-type").textContent = sessionType(session);
+      $("session-title").textContent = session.title || "일정명 없음";
+      $("session-meta").textContent = `${formatDate(session.starts_at)}${session.ends_at ? ` - ${formatDate(session.ends_at)}` : ""} · ${session.location || "추후 공지"}`;
+      $("session-status").className = `pill ${session.status || ""}`;
+      $("session-status").textContent = { open: "모집 중", draft: "비공개", full: "마감", canceled: "취소" }[session.status] || session.status || "-";
+      const metrics = [
+        ["프로그램", sessionType(session)], ["날짜 / 시간", `${formatDate(session.starts_at)}${session.ends_at ? ` - ${formatDate(session.ends_at)}` : ""}`], ["장소", session.location || "추후 공지"],
+        ["정원", `${Number(session.capacity_max || 0)}명`], ["가격", formatMoney(session.price_krw)], ["신청자", `${state.bookings.length}명`], ["확정 / 잔여", `${confirmed.length}명 / ${remaining}석`],
+      ];
+      $("metric-grid").innerHTML = metrics.map(([label, value]) => `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
+    }
+    function renderBookings() {
+      const body = $("bookings-body"); body.innerHTML = "";
+      $("booking-count").textContent = `${state.bookings.length}명`;
+      $("bookings-empty").classList.toggle("hidden", state.bookings.length > 0);
+      $("bookings-table-wrap").classList.toggle("hidden", state.bookings.length === 0);
+      state.bookings.forEach((booking) => {
+        const tr = document.createElement("tr");
+        const codeStatus = booking.member_id ? "코드 확인 가능" : "회원 연결 필요";
+        const bookingTone = ["confirmed", "completed"].includes(booking.status) ? "confirmed" : ["canceled", "rejected", "no_show"].includes(booking.status) ? "canceled" : "pending";
+        tr.innerHTML = `
+          <td><div class="name">${escapeHtml(booking.applicant_name || booking.member_name || "신청자")}</div><div class="meta">${escapeHtml(booking.member_plan_type || "강의 신청")}</div></td>
+          <td>${bookingPill(booking.phone_masked || "마스킹", "")}</td>
+          <td>${escapeHtml(formatDate(booking.created_at))}</td>
+          <td><div>${bookingPill(codeStatus, booking.member_id ? "" : "pending")}</div></td>
+          <td>${bookingPill(paymentStatusLabel(booking.payment_status), booking.payment_status === "paid" ? "confirmed" : booking.payment_status === "guide_sent" ? "pending" : "")}</td>
+          <td><div>${bookingPill(bookingStatusLabel(booking.status), bookingTone)}</div><div class="meta">${escapeHtml(formatMoney(booking.payment_amount_krw || booking.session_price_krw))}</div></td>
+          <td><div class="cell-note">${escapeHtml(booking.desired_outcome || booking.preparedness || booking.payment_note || "-")}</div></td>
+          <td><div class="next-action">${escapeHtml(bookingNextAction(booking))}</div></td>
+          <td></td>`;
+        const actions = document.createElement("div"); actions.className = "row-actions";
+        const inactive = ["canceled", "rejected", "no_show"].includes(booking.status);
+        actions.append(
+          actionButton("연락처 보기", "", !booking.member_id, () => revealContact(booking)),
+          actionButton("코드 안내 문구 복사", "", !booking.member_id || inactive, () => copyCodeGuide(booking)),
+          actionButton("코드 전달 완료", "green", !booking.member_id || inactive, () => recordCodeDelivery(booking)),
+          actionButton("입금 안내 복사·상태변경", "amber", inactive, () => paymentGuide(booking)),
+          actionButton("입금 확인 / 확정", "green", inactive || booking.status === "confirmed", () => confirmPayment(booking)),
+          actionButton("장소 안내 복사", "", !["confirmed", "completed"].includes(booking.status), () => locationGuide(booking)),
+          actionButton("준비물 안내 복사", "", !["confirmed", "completed"].includes(booking.status), () => preparationGuide(booking)),
+          actionButton("공지 문구 복사", "", inactive, () => copyModal("공지 문구", "자동 전송하지 않습니다. 공지 채널에 직접 붙여넣으세요.", sessionGuide("notice", booking), "공지 문구 복사")),
+          actionButton("후기 요청 문구 복사", "", !["completed", "confirmed"].includes(booking.status), () => copyModal("후기 요청 문구", "자동 전송하지 않습니다. 수강 후 직접 전달하세요.", sessionGuide("review", booking), "후기 요청 문구 복사")),
+          actionButton("일정 이동", "", inactive, () => showMove(booking)),
+          actionButton("취소", "red", inactive, () => cancelBooking(booking)),
+        );
+        tr.lastElementChild.appendChild(actions); body.appendChild(tr);
+      });
+    }
+    async function loadSession() {
+      if (!state.sessionId) { setNotice("일정 식별자가 없습니다. 전체 관리자에서 일정의 ‘상세 관리’를 눌러 열어주세요.", "error"); return; }
+      const [sessionsPayload, bookingsPayload, guidePayload] = await Promise.all([
+        api("/admin/sessions"), api(`/admin/bookings?session_id=${encodeURIComponent(state.sessionId)}`), api("/admin/preparation-guide").catch(() => ({ data: {} })),
+      ]);
+      state.sessions = Array.isArray(sessionsPayload.data) ? sessionsPayload.data : [];
+      state.session = state.sessions.find((session) => session.id === state.sessionId) || null;
+      if (!state.session) throw new Error("해당 일정을 찾을 수 없습니다.");
+      state.bookings = Array.isArray(bookingsPayload.data) ? bookingsPayload.data : [];
+      state.preparationGuide = guidePayload.data?.message || guidePayload.data?.default_message || "";
+      renderSession(); renderBookings();
+    }
+    async function connect() {
+      if (!state.localAdminPreview) state.key = adminKey.value.trim();
+      state.remember = rememberKey.checked;
+      if (!state.key) { setNotice("관리자 비밀번호를 입력하세요.", "error"); return; }
+      if (state.key !== "__local_admin_preview__") {
+        if (state.remember) { localStorage.setItem("memberAdminKey", state.key); localStorage.setItem("memberAdminKeyRemember", "1"); sessionStorage.removeItem("memberAdminKey"); }
+        else { sessionStorage.setItem("memberAdminKey", state.key); localStorage.removeItem("memberAdminKey"); localStorage.removeItem("memberAdminKeyRemember"); }
+      }
+      setNotice("일정 정보를 불러오는 중입니다.");
+      try { await loadSession(); authView.classList.add("hidden"); appView.classList.remove("hidden"); setNotice("일정과 신청자 정보를 불러왔습니다.", "ok"); }
+      catch (error) { setNotice(error.message, "error"); }
+    }
+    $("connect-btn").addEventListener("click", connect);
+    adminKey.addEventListener("keydown", (event) => { if (event.key === "Enter") connect(); });
+    $("refresh-btn").addEventListener("click", async () => { try { await loadSession(); setNotice("일정 정보를 새로고침했습니다.", "ok"); } catch (error) { setNotice(error.message, "error"); } });
+    $("modal-close").addEventListener("click", closeModal);
+    $("modal").addEventListener("click", (event) => { if (event.target === $("modal")) closeModal(); });
+    async function detectLocalAdminPreview() {
+      try {
+        const response = await fetch("/health", { cache: "no-store" });
+        const data = await response.json();
+        state.localAdminPreview = Boolean(data.local_admin_preview);
+      } catch (_) {
+        state.localAdminPreview = false;
+      }
+    }
+    detectLocalAdminPreview().then(() => {
+      if (!state.sessionId) { setNotice("일정 식별자가 없습니다. 전체 관리자에서 일정의 ‘상세 관리’를 눌러 열어주세요.", "error"); return; }
+      if (state.localAdminPreview && !state.key) {
+        state.key = "__local_admin_preview__";
+        adminKey.value = "";
+        adminKey.placeholder = "로컬 미리보기 자동 연결";
+      }
+      if (state.key) connect();
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -9,15 +9,15 @@ sys.path.insert(0, str(Path.home() / "member-system"))
 from db import get_conn
 
 
-DEFAULT_TITLE = "AI 기초 셋팅 및 컨설팅 강의 1:4"
+DEFAULT_TITLE = "AI 결과물 제작 초급 4주반"
 DEFAULT_DESCRIPTION = (
-    "AI 기초 설정, 유료 구독 점검, 구현하고 싶은 업무 자동화 방향 설계까지 함께 진행합니다."
+    "AI 도구를 실제 결과물로 연결하는 초급 4주 실습반입니다. 현재 시간과 장소를 수요 확인 중입니다."
 )
-DEFAULT_MATERIALS = "노트북, 필기구, GPT/Claude 유료 구독, 구현하고 싶은 내용"
-DEFAULT_PRICE = 50000
+DEFAULT_MATERIALS = "노트북, 충전기, 사용 중인 AI 계정, 만들고 싶은 결과물 또는 업무 예시"
+DEFAULT_PRICE = 100000
 DEFAULT_CAPACITY_MIN = 4
-DEFAULT_CAPACITY_MAX = 5
-DEFAULT_LOCATION = "영등포시장역 사무실"
+DEFAULT_CAPACITY_MAX = 8
+DEFAULT_LOCATION = "추후 공지"
 FREE_CLASS_TITLE = "무료 AI 강의"
 FREE_CLASS_DESCRIPTION = "AI 입문자를 위한 계정 세팅, 실습 방향, 업무 활용 예시를 무료로 안내합니다."
 FREE_CLASS_MATERIALS = "노트북 또는 태블릿, 충전기, 사용 중인 AI 계정 정보, 궁금한 자동화 주제"

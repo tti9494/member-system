@@ -215,9 +215,9 @@ class EducationContractSmokeTest(unittest.TestCase):
         web_html = web_page.read_text(encoding="utf-8")
         self.assertIn("https://apply.arsen-ai.com", web_html)
         self.assertIn("강의/교육 - ARSEN AI", web_html)
-        self.assertIn("무료 강의 신청", web_html)
-        self.assertIn("유료 실습 강의", web_html)
-        self.assertIn("https://apply.arsen-ai.com/frontend/join-free.html", web_html)
+        self.assertIn("AI 결과물 제작 초급 4주반", web_html)
+        self.assertIn("https://apply.arsen-ai.com/frontend/join-full.html", web_html)
+        self.assertNotIn("https://apply.arsen-ai.com/frontend/join-free.html", web_html)
         self.assertIn("https://apply.arsen-ai.com/frontend/status.html", web_html)
         self.assertNotIn("'X-Admin-Key'", web_html)
 
