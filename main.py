@@ -15,6 +15,7 @@ from html import escape as html_escape
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import HTMLResponse, FileResponse, Response, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -78,6 +79,12 @@ from agents.order_manager import (
     order_summary as yoonbot_order_summary,
     products as yoonbot_products,
     refund_order as refund_yoonbot_order,
+)
+from agents.education_payment_manager import (
+    build_payment_payload as build_education_payment_payload,
+    confirm_toss_payment as confirm_education_toss_payment,
+    create_or_reuse_order as create_education_payment_order,
+    get_order as get_education_payment_order,
 )
 from agents.telegram_notifier import (
     notify_admin_new_apply, notify_member_approved, notify_member_rejected,
@@ -951,6 +958,11 @@ class TossPaymentConfirmRequest(BaseModel):
     payment_key: str
     order_id: str   # toss_order_id (yb-... format)
     amount: int
+
+
+class EducationPaymentIntentRequest(BaseModel):
+    member_id: str
+    code: str
 
 
 class AdminYoonbotDiscountCreateRequest(BaseModel):
@@ -2472,9 +2484,45 @@ async def admin_consultation_status(consultation_id: str, body: dict, request: R
     return {"ok": True, "data": updated}
 
 
+def _session_datetime_utc(value: object, timezone_name: object) -> Optional[datetime]:
+    value = str(value or "").strip()
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        try:
+            session_tz = ZoneInfo(str(timezone_name or "Asia/Seoul"))
+        except Exception:
+            session_tz = ZoneInfo("Asia/Seoul")
+        parsed = parsed.replace(tzinfo=session_tz)
+    return parsed.astimezone(timezone.utc)
+
+
+def _is_future_public_session(row: dict) -> bool:
+    """Keep completed/invalid sessions out of public booking choices."""
+    parsed = _session_datetime_utc(row.get("starts_at"), row.get("timezone"))
+    return bool(parsed and parsed > datetime.now(timezone.utc))
+
+
+def _require_future_session_start(row: dict) -> None:
+    """Reject admin writes that would make a newly scheduled class immediately stale."""
+    if not _is_future_public_session(row):
+        raise HTTPException(status_code=422, detail="시작 시각은 현재 이후의 일정만 등록할 수 있습니다.")
+
+
+def _require_session_time_order(row: dict) -> None:
+    starts_at = _session_datetime_utc(row.get("starts_at"), row.get("timezone"))
+    ends_at = _session_datetime_utc(row.get("ends_at"), row.get("timezone"))
+    if starts_at is None or ends_at is None or ends_at <= starts_at:
+        raise HTTPException(status_code=422, detail="종료 시각은 시작 시각 이후로 입력하세요.")
+
+
 @app.get("/sessions")
 async def public_sessions(program_type: Optional[str] = None):
-    rows = list_sessions(include_closed=False)
+    rows = [row for row in list_sessions(include_closed=False) if _is_future_public_session(row)]
     if program_type:
         rows = [row for row in rows if str(row.get("program_type") or "").lower() == program_type.lower()]
     safe_rows = []
@@ -2492,7 +2540,7 @@ async def public_sessions(program_type: Optional[str] = None):
 
 @app.get("/study/sessions")
 async def public_study_sessions():
-    rows = list_study_sessions(include_closed=False)
+    rows = [row for row in list_study_sessions(include_closed=False) if _is_future_public_session(row)]
     safe_rows = []
     for row in rows:
         safe = dict(row)
@@ -3099,6 +3147,90 @@ async def public_create_booking(body: PublicBookingRequest, request: Request):
         "message": "스터디 참가 신청이 접수되었습니다. 운영자가 인원과 일정을 확인한 뒤 안내합니다." if study_session else "예약 신청이 접수되었습니다. 운영자가 인원과 일정을 확인한 뒤 안내합니다.",
         "data": _safe_public_booking(booking or {}),
     }
+
+
+@app.post("/member/bookings/{booking_id}/payment-intent")
+async def public_create_education_payment_intent(
+    booking_id: str,
+    body: EducationPaymentIntentRequest,
+    request: Request,
+):
+    """Create or reuse a server-priced paid-class order after code verification."""
+    member = get_member(body.member_id)
+    if not member or member.get("status") != "approved":
+        raise HTTPException(400, detail="승인된 신청자만 결제를 진행할 수 있습니다.")
+    verified = verify_code(body.code, body.member_id)
+    log_action(
+        body.member_id,
+        "education_payment_code_verified" if verified.get("ok") else "education_payment_code_failed",
+        f"booking_id={booking_id}",
+        _client_ip(request),
+    )
+    if not verified.get("ok"):
+        raise HTTPException(400, detail=verified.get("error") or "승인 코드 확인에 실패했습니다.")
+    booking = get_booking(booking_id)
+    if not booking or booking.get("member_id") != body.member_id:
+        raise HTTPException(404, detail="본인 예약을 찾을 수 없습니다.")
+    try:
+        order_result = create_education_payment_order(booking_id=booking_id, member_id=body.member_id)
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc)) from exc
+
+    order = order_result["data"]
+    if order_result.get("already_paid"):
+        return {
+            "ok": True,
+            "message": "이미 결제가 확인된 예약입니다.",
+            "data": order,
+            "booking": _safe_public_booking(get_booking(booking_id) or booking),
+        }
+    payment = build_education_payment_payload(
+        order,
+        order_name=booking.get("session_title") or "ARSEN 유료 강의",
+    )
+    if payment.get("mode") == "manual_bank_transfer":
+        account = _selected_payment_account()
+        if account:
+            payment["manual_account"] = {
+                "label": account.get("label") or "입금 계좌",
+                "bank": account.get("bank") or "",
+                "number": account.get("number") or "",
+                "holder": account.get("holder") or "",
+            }
+        else:
+            payment["message"] = "온라인 결제 설정과 입금 계좌 안내를 준비 중입니다. 운영자 안내를 기다려주세요."
+    log_action(body.member_id, "education_payment_intent_created", f"booking_id={booking_id}", _client_ip(request))
+    return {
+        "ok": True,
+        "message": "결제 정보를 준비했습니다.",
+        "data": order,
+        "payment": payment,
+        "booking": _safe_public_booking(get_booking(booking_id) or booking),
+    }
+
+
+@app.post("/member/education-orders/{order_id}/payments/toss/confirm")
+async def public_confirm_education_toss_payment(
+    order_id: str,
+    body: TossPaymentConfirmRequest,
+    request: Request,
+):
+    """Confirm a Toss return using server-held order id and amount only."""
+    try:
+        result = confirm_education_toss_payment(
+            order_id=order_id,
+            payment_key=body.payment_key,
+            client_amount=body.amount,
+            toss_order_id=body.order_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    order = get_education_payment_order(order_id)
+    booking = get_booking((order or {}).get("booking_id", "")) if order else None
+    log_action("system", "education_toss_payment_confirmed", order_id, _client_ip(request))
+    return {**result, "booking": _safe_public_booking(booking or {})}
 
 
 @app.post("/regen-code/{member_id}")
@@ -4213,6 +4345,8 @@ async def admin_sessions(status: Optional[str] = None, _=Depends(require_admin))
 @app.post("/admin/sessions")
 async def admin_create_session(body: SessionRequest, request: Request, _=Depends(require_admin)):
     data = body.model_dump()
+    _require_future_session_start(data)
+    _require_session_time_order(data)
     session_id = create_session(data)
     log_action(session_id, "session_create", data.get("title"), request.client.host if request.client else None)
     return {"ok": True, "id": session_id, "data": get_session(session_id)}
@@ -4253,6 +4387,12 @@ async def admin_seed_free_class_sessions(body: SeedSessionsRequest, request: Req
 @app.post("/admin/sessions/{session_id}")
 async def admin_update_session(session_id: str, body: SessionUpdateRequest, request: Request, _=Depends(require_admin)):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    current_session = get_session(session_id)
+    if current_session and ("starts_at" in updates or "ends_at" in updates):
+        candidate = {**current_session, **updates}
+        if "starts_at" in updates:
+            _require_future_session_start(candidate)
+        _require_session_time_order(candidate)
     ok = update_session(session_id, updates)
     if not ok:
         raise HTTPException(404, detail="세션을 찾을 수 없거나 변경할 값이 없습니다.")

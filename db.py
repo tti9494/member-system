@@ -266,6 +266,22 @@ def init_db():
             updated_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS education_payment_orders (
+            id TEXT PRIMARY KEY,
+            booking_id TEXT NOT NULL UNIQUE REFERENCES bookings(id) ON DELETE RESTRICT,
+            member_id TEXT NOT NULL REFERENCES members(id) ON DELETE RESTRICT,
+            amount_krw INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'payment_pending',
+            payment_provider TEXT NOT NULL DEFAULT 'manual_bank_transfer',
+            payment_ref TEXT,
+            toss_order_id TEXT NOT NULL UNIQUE,
+            paid_at TEXT,
+            canceled_at TEXT,
+            refunded_at TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS yoonbot_discount_codes (
             id TEXT PRIMARY KEY,
             code TEXT NOT NULL UNIQUE,
@@ -306,6 +322,8 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_orders_status_created ON orders(status, created_at);
         CREATE INDEX IF NOT EXISTS idx_orders_plan_created ON orders(plan_code, created_at);
         CREATE INDEX IF NOT EXISTS idx_orders_license ON orders(license_id);
+        CREATE INDEX IF NOT EXISTS idx_education_payment_orders_status_created ON education_payment_orders(status, created_at);
+        CREATE INDEX IF NOT EXISTS idx_education_payment_orders_member ON education_payment_orders(member_id);
         CREATE INDEX IF NOT EXISTS idx_discount_codes_code ON yoonbot_discount_codes(code);
         CREATE INDEX IF NOT EXISTS idx_discount_codes_enabled_created ON yoonbot_discount_codes(enabled, created_at);
     """)

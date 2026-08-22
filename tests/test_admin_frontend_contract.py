@@ -6,6 +6,7 @@ ADMIN_HTML = ROOT / "frontend" / "admin.html"
 MAIN_PY = ROOT / "main.py"
 BUILD_PAGES = ROOT / "cloudflare" / "scripts" / "build-pages.mjs"
 WORKER_JS = ROOT / "cloudflare" / "src" / "worker.js"
+WRANGLER_TOML = ROOT / "cloudflare" / "wrangler.toml"
 KAKAO_MEMBERS_HTML = ROOT / "frontend" / "kakao-members.html"
 
 
@@ -21,12 +22,29 @@ def test_admin_member_search_and_erase_ux_contracts():
 
 def test_admin_booking_filter_and_move_ux_contracts():
     html = ADMIN_HTML.read_text(encoding="utf-8")
+    worker_js = WORKER_JS.read_text(encoding="utf-8")
+    wrangler_toml = WRANGLER_TOML.read_text(encoding="utf-8")
+    deploy_script = (ROOT / "cloudflare" / "scripts" / "deploy-cloudflare.mjs").read_text(encoding="utf-8")
 
     assert "selectedBookingDateKey" in html
     assert "이 날짜에 연결된 예약" in html
-    assert "시간 카드를 누르면 해당 시간" in html
+    assert "schedule-erp" in html
+    assert "erp-date-row" in html
+    assert "erp-booking-row" in html
+    assert "예정 일정은 가까운 순, 지난 일정은 최근순" in html
+    assert "문자/카카오 실제 전송 기록 없음" in html
+    assert "bookingDeliveryState" in html
+    assert "입금 안내문" in html
+    assert "날짜별 ERP 운영표" in html
+    assert "deleteSessionsForDate" in html
+    assert "이 날짜 전체 삭제" in html
+    assert "취소된 예약 기록은 보관됩니다." in html
     assert 'bookingTab: "bookings"' in html
     assert "sessionDateKey({ starts_at: booking.session_starts_at })" in html
+    assert 'path === "/frontend/admin" || path === "/frontend/admin.html"' in worker_js
+    assert 'headers.set("cache-control", "no-store, max-age=0")' in worker_js
+    assert 'run_worker_first = ["/frontend/admin", "/frontend/admin.html"]' in wrangler_toml
+    assert 'run_worker_first = ["/frontend/admin", "/frontend/admin.html"]' in deploy_script
 
 
 def test_session_admin_page_and_course_defaults_contracts():
@@ -61,6 +79,17 @@ def test_session_admin_page_and_course_defaults_contracts():
     assert 'const DEFAULT_TITLE = "AI 결과물 제작 초급 4주반";' in worker_js
     assert "const DEFAULT_PRICE = 100000;" in worker_js
     assert 'const DEFAULT_LOCATION = "추후 공지";' in worker_js
+
+
+def test_admin_schedule_creation_rejects_past_start_time_contracts():
+    html = ADMIN_HTML.read_text(encoding="utf-8")
+    main_py = MAIN_PY.read_text(encoding="utf-8")
+
+    assert "시작 시각은 현재 이후로 입력하세요." in html
+    assert "종료 시각은 시작 시각 이후로 입력하세요." in html
+    assert "_require_future_session_start(data)" in main_py
+    assert "_require_session_time_order(data)" in main_py
+    assert 'if "starts_at" in updates:' in main_py
 
 
 def test_admin_member_group_tab_and_download_contracts():
@@ -160,9 +189,6 @@ def test_admin_member_modal_free_schedule_and_attendance_contracts():
         "카카오 연결 해제",
         "memberClassHistorySection",
         "new-session-program-type",
-        "seed-free-sessions-btn",
-        "무료 일정 생성",
-        "seed-free-class",
         "무료 참여자로 추가",
         "showFreeClassGuide",
         "무료 안내 복사",
@@ -200,6 +226,27 @@ def test_admin_member_modal_free_schedule_and_attendance_contracts():
     assert "승인 코드 필요" in join_full_html
     assert "입금 확인 후 확정" in join_full_html
     assert "소수정예 실습" in join_full_html
+
+
+def test_admin_new_schedule_ui_is_paid_or_study_only():
+    html = ADMIN_HTML.read_text(encoding="utf-8")
+
+    assert '<option value="ai_basic_setup">유료강의</option>' in html
+    assert '<option value="study">스터디</option>' in html
+    assert '<option value="free_class">무료강의</option>' not in html
+    assert 'id="seed-free-sessions-btn"' not in html
+    assert 'api("/admin/sessions/seed-free-class"' not in html
+    assert 'programType === "free_class"' not in html
+
+
+def test_admin_schedule_board_prioritizes_upcoming_sessions():
+    html = ADMIN_HTML.read_text(encoding="utf-8")
+
+    assert "compareAdminScheduleSessions" in html
+    assert "예정 일정은 가까운 순, 지난 일정은 최근순" in html
+    assert "compareAdminScheduleSessions(a, b, scheduleNow)" in html
+    assert "hasFutureOperationalSession" in html
+    assert "등록된 미래 일정이 없습니다." in html
 
 
 def test_admin_applicant_detail_panel_and_copy_name_contracts():

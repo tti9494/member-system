@@ -198,10 +198,10 @@ const LAUNCHER_NOTICES = Object.freeze([
     type: "update",
     level: "info",
     pinned: true,
-    title: "웹과 Windows 런처가 함께 볼 공지/업데이트 계약을 준비했습니다.",
-    body: "런처 실행 후 최신 공지, 현재 버전, 최신 버전, 프로그램 목록, 릴리스 노트를 같은 JSON/API에서 확인할 수 있도록 구조를 고정합니다.",
-    date: "2026-06-17",
-    published_at: "2026-06-17T14:30:00+09:00",
+    title: "ARSEN Launcher 파일럿 화면을 새롭게 정리했습니다.",
+    body: "프로그램 안내, 서비스 연결 상태, 업데이트 정보와 중요 공지를 첫 화면에서 더 쉽게 확인할 수 있습니다.",
+    date: "2026-07-26",
+    published_at: "2026-07-26T18:00:00+09:00",
     show_in_launcher: true,
     show_in_website: true,
     dismissible: true,
@@ -221,13 +221,13 @@ const LAUNCHER_NOTICES = Object.freeze([
   },
   {
     id: "2026-06-17-windows-handoff",
-    type: "handoff",
+    type: "security",
     level: "info",
     pinned: false,
-    title: "Windows Codex는 런처 실행/설치/업데이트 검증을 담당합니다.",
-    body: "맥 세션은 웹/API/문서와 공통 계약을 관리하고, Windows 세션은 실제 exe 실행, 업데이트 진행률, 보안 경고, 오류 안내를 검증합니다.",
-    date: "2026-06-17",
-    published_at: "2026-06-17T14:40:00+09:00",
+    title: "업데이트 파일은 기기와 보안 정보를 확인한 뒤 저장합니다.",
+    body: "현재 제공 중인 Windows x64 파일은 HTTPS 공식 경로와 SHA-256 체크섬을 검증합니다. 자동 설치나 이전 버전 덮어쓰기는 실행하지 않습니다.",
+    date: "2026-07-26",
+    published_at: "2026-07-26T18:05:00+09:00",
     show_in_launcher: true,
     show_in_website: true,
     dismissible: true,
@@ -6629,12 +6629,21 @@ export async function handleRequest(request, env) {
     const path = url.pathname.replace(/\/+$/, "") || "/";
     const parts = path.split("/").filter(Boolean);
     if ((request.method === "GET" || request.method === "HEAD") && !isApiPath(path) && env.ASSETS) {
+      let assetResponse;
       if (path === "/") {
         const indexUrl = new URL(request.url);
         indexUrl.pathname = "/index.html";
-        return env.ASSETS.fetch(new Request(indexUrl, request));
+        assetResponse = await env.ASSETS.fetch(new Request(indexUrl, request));
+      } else {
+        assetResponse = await env.ASSETS.fetch(request);
       }
-      return env.ASSETS.fetch(request);
+      if (path === "/frontend/admin" || path === "/frontend/admin.html") {
+        const headers = new Headers(assetResponse.headers);
+        headers.set("cache-control", "no-store, max-age=0");
+        headers.set("pragma", "no-cache");
+        return new Response(assetResponse.body, { status: assetResponse.status, statusText: assetResponse.statusText, headers });
+      }
+      return assetResponse;
     }
     let response;
     if (path === "/health") {

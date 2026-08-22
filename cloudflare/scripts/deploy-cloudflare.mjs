@@ -145,6 +145,7 @@ workers_dev = true
 [assets]
 directory = "./dist"
 binding = "ASSETS"
+run_worker_first = ["/frontend/admin", "/frontend/admin.html"]
 
 [[d1_databases]]
 binding = "DB"

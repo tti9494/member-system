@@ -377,6 +377,7 @@ function renderBookingCard(booking) {
   const requestRank = booking.request_rank ? `신청 순번 ${booking.request_rank}번째` : "신청 순번 계산 전";
   const paidRank = booking.paid_rank ? `입금확정 순번 ${booking.paid_rank}번째` : "입금확정 순번 확인 전";
   const amount = booking.payment_amount_krw || booking.session_price_krw;
+  const canPay = !confirmed && Number(amount || 0) > 0 && booking.payment_status !== "waived";
   return `
     <article class="booking-card ${confirmed ? "confirmed" : "pending"}">
       <div class="booking-head">
@@ -420,6 +421,10 @@ function renderBookingCard(booking) {
         <p class="copy-text">예약 취소는 자동 처리되지 않습니다. 아래 버튼은 운영자에게 보낼 취소 요청 문구만 복사합니다.</p>
         <button class="secondary" type="button" data-cancel-copy="${escapeHtml(booking.id)}">운영자에게 취소 요청 문구 복사</button>
       </div>
+      ${canPay ? `<div class="copy-box">
+        <p class="copy-text">온라인 결제가 설정되어 있으면 카드 결제로 이어집니다. 설정 전에는 승인 코드 확인 후 입금 안내만 표시됩니다.</p>
+        <button type="button" data-payment-intent="${escapeHtml(booking.id)}">결제 진행</button>
+      </div>` : ""}
     </article>
   `;
 }
@@ -440,6 +445,9 @@ function renderMember() {
   list.innerHTML = state.bookings.map(renderBookingCard).join("");
   list.querySelectorAll("[data-cancel-copy]").forEach((button) => {
     button.addEventListener("click", () => copyCancelText(button.dataset.cancelCopy));
+  });
+  list.querySelectorAll("[data-payment-intent]").forEach((button) => {
+    button.addEventListener("click", () => startBookingPayment(button.dataset.paymentIntent, button));
   });
 }
 
@@ -469,9 +477,108 @@ function renderSessions() {
 
 async function loadSessions() {
   const data = await api("/sessions");
-  state.sessions = data.data || [];
+  state.sessions = (data.data || []).filter((session) => {
+    const startsAt = new Date(session?.starts_at || "");
+    return Number.isFinite(startsAt.getTime()) && startsAt.getTime() > Date.now();
+  });
   renderSessions();
 }
+
+function upsertBooking(booking) {
+  if (!booking || !booking.id) return;
+  state.bookings = [booking, ...state.bookings.filter((item) => item.id !== booking.id)];
+}
+
+function manualPaymentMessage(payment) {
+  const account = payment?.manual_account;
+  if (!account || !account.number) return payment?.message || "입금 안내를 준비 중입니다. 운영자 안내를 기다려주세요.";
+  const accountLine = [account.label, account.bank, account.number, account.holder].filter(Boolean).join(" · ");
+  return [
+    payment.message || "입금 안내",
+    `입금 계좌: ${accountLine}`,
+    `금액: ${formatAmount(payment.amount_krw)}`,
+    `입금자명/참조: ${payment.payment_reference || "운영자 안내"}`,
+    "입금 확인 후 자리가 확정됩니다.",
+  ].join("\n");
+}
+
+async function loadTossPayments() {
+  if (window.TossPayments) return;
+  await new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://js.tosspayments.com/v2/standard";
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+async function startBookingPayment(bookingId, button) {
+  if (!state.member || !state.code) {
+    setStatus("먼저 승인 코드를 확인하세요.", "error");
+    return;
+  }
+  button.disabled = true;
+  setStatus("결제 정보를 확인하는 중입니다.");
+  try {
+    const payload = await api(`/member/bookings/${encodeURIComponent(bookingId)}/payment-intent`, {
+      method: "POST",
+      body: JSON.stringify({ member_id: state.member.id, code: state.code }),
+    });
+    upsertBooking(payload.booking);
+    renderMember();
+    if (payload.data?.status === "paid") {
+      setStatus("이미 결제가 확인된 예약입니다.", "ok");
+      return;
+    }
+    const payment = payload.payment || {};
+    if (payment.mode !== "toss_payments") {
+      setStatus(manualPaymentMessage(payment), "ok");
+      return;
+    }
+    setStatus("안전한 결제 창을 여는 중입니다.");
+    await loadTossPayments();
+    const tossPayments = TossPayments(payment.client_key);
+    const checkout = await tossPayments.payment({ customerKey: payload.data.id });
+    await checkout.requestPayment({
+      method: "CARD",
+      amount: payment.amount,
+      orderId: payment.toss_order_id,
+      orderName: payment.order_name,
+      successUrl: payment.success_url,
+      failUrl: payment.fail_url,
+    });
+  } catch (error) {
+    setStatus(error.message || "결제 준비에 실패했습니다.", "error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+(async function confirmTossReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const paymentKey = params.get("paymentKey");
+  const tossOrderId = params.get("orderId");
+  const amount = params.get("amount");
+  const educationOrderId = params.get("education_order_id");
+  if (params.get("payment") === "fail") {
+    setStatus("결제가 취소되었거나 실패했습니다. 예약은 유지되며 다시 결제할 수 있습니다.", "error");
+    return;
+  }
+  if (!paymentKey || !tossOrderId || !amount || !educationOrderId) return;
+  setStatus("결제 확인 중입니다.");
+  try {
+    const payload = await api(`/member/education-orders/${encodeURIComponent(educationOrderId)}/payments/toss/confirm`, {
+      method: "POST",
+      body: JSON.stringify({ payment_key: paymentKey, order_id: tossOrderId, amount: Number(amount) }),
+    });
+    history.replaceState({}, document.title, window.location.pathname);
+    setStatus("결제가 확인되어 예약이 확정되었습니다. 승인 코드로 다시 확인하면 최신 상태를 볼 수 있습니다.", "ok");
+    if (payload.booking) upsertBooking(payload.booking);
+  } catch (error) {
+    setStatus(error.message || "결제 확인에 실패했습니다.", "error");
+  }
+})();
 
 $("verify-form").addEventListener("submit", async (event) => {
   event.preventDefault();

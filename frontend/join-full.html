@@ -773,7 +773,10 @@ async function loadSessions() {
   try {
     const res = await fetch('/sessions');
     const data = await res.json();
-    const sessions = data.data || [];
+    const sessions = (data.data || []).filter((session) => {
+      const startsAt = new Date(session?.starts_at || '');
+      return Number.isFinite(startsAt.getTime()) && startsAt.getTime() > Date.now();
+    });
     for (const session of sessions) {
       const option = document.createElement('option');
       option.value = session.id;
@@ -790,7 +793,7 @@ async function loadSessions() {
       option.disabled = session.status === 'full' || session.is_request_full;
       select.appendChild(option);
     }
-    hint.textContent = sessions.length ? '희망 일정만 참고합니다. 실제 예약은 승인 코드 받은 뒤 예약자 확인 페이지에서 다시 선택합니다.' : '현재 공개된 일정이 없습니다. 일정 선택 없이 먼저 신청하셔도 됩니다.';
+    hint.textContent = sessions.length ? '희망 일정만 참고합니다. 실제 예약은 승인 코드 받은 뒤 예약자 확인 페이지에서 다시 선택합니다.' : '현재 신청 가능한 미래 일정이 없습니다. 일정 선택 없이 먼저 신청하셔도 됩니다.';
   } catch (_) {
     hint.textContent = '일정 목록을 불러오지 못했습니다. 일정 선택 없이 먼저 신청하셔도 됩니다.';
   }

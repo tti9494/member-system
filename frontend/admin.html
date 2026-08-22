@@ -2071,113 +2071,195 @@
     font-weight: 800;
   }
 
-  .session-calendar {
+  .schedule-erp {
     display: grid;
-    grid-template-columns: minmax(240px, 0.7fr) minmax(0, 1.3fr);
+    grid-template-columns: minmax(360px, 0.72fr) minmax(680px, 1.45fr);
     gap: 14px;
     align-items: start;
   }
 
-  .session-calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .session-day {
-    min-height: 96px;
-    padding: 12px;
-    border: 1.5px solid var(--border);
-    border-radius: 12px;
-	    background: var(--surface-raised);
-    color: var(--text);
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .session-day.active {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(110, 168, 255, 0.18);
-  }
-
-  .session-day-date {
-    display: block;
-    font-size: 15px;
-    font-weight: 900;
-    line-height: 1.32;
-  }
-
-  .session-day-meta {
-    display: block;
-    margin-top: 6px;
-    color: var(--muted);
-    font-size: 12px;
-    line-height: 1.45;
-  }
-
-  .session-day-detail {
-    min-height: 220px;
+  .erp-pane {
+    min-width: 0;
+    overflow: hidden;
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 14px;
+    border-radius: 12px;
     background: rgba(18, 26, 40, 0.54);
   }
 
-  .session-day-head {
+  .erp-pane-head {
     display: flex;
     justify-content: space-between;
     gap: 12px;
     align-items: flex-start;
-    margin-bottom: 12px;
+    padding: 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-raised);
   }
 
-  .session-day-title {
-    font-size: 18px;
+  .erp-pane-title {
+    font-size: 17px;
     line-height: 1.3;
     font-weight: 900;
   }
 
-  .session-day-sub {
+  .erp-pane-sub {
     margin-top: 4px;
     color: var(--muted);
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1.42;
   }
 
-  .session-time-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 10px;
-    align-items: start;
+  .schedule-attention {
+    margin: 12px 14px 0;
+    border-left: 3px solid var(--amber);
+    padding: 10px 12px;
+    background: var(--amber-soft);
+    color: var(--amber-strong);
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 1.45;
   }
 
-  .session-time-card {
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 13px;
-    background: var(--card);
+  .erp-table-scroll {
+    overflow-x: auto;
+  }
+
+  .erp-table {
+    width: 100%;
+    min-width: 640px;
+    border-collapse: collapse;
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .erp-table.compact {
+    min-width: 560px;
+  }
+
+  .erp-table.applicants {
+    min-width: 1180px;
+  }
+
+  .erp-table th,
+  .erp-table td {
+    padding: 10px 9px;
+    border-bottom: 1px solid rgba(65, 83, 106, 0.52);
+    vertical-align: middle;
+    text-align: left;
+  }
+
+  .erp-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #101a2a;
+    color: var(--muted);
+    font-weight: 850;
+    white-space: nowrap;
+  }
+
+  .erp-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .erp-date-row {
     cursor: pointer;
   }
 
-  .session-time-card.selected {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(110, 168, 255, 0.18);
+  .erp-date-row:hover td,
+  .erp-date-row.active td {
+    background: rgba(110, 168, 255, 0.1);
   }
 
-  .session-time-top {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: flex-start;
+  .erp-date-row.active td:first-child {
+    box-shadow: inset 4px 0 var(--primary);
   }
 
-  .session-time {
-    font-size: 16px;
-    line-height: 1.3;
+  .erp-date-button {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    font: inherit;
     font-weight: 900;
-    color: var(--primary);
+    cursor: pointer;
+  }
+
+  .erp-cell-title {
+    display: block;
+    font-weight: 900;
+    overflow-wrap: anywhere;
+  }
+
+  .erp-cell-sub {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+
+  .erp-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(110px, 1fr));
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .erp-metric {
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: rgba(14, 23, 38, 0.68);
+  }
+
+  .erp-metric-label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .erp-metric-value {
+    margin-top: 3px;
+    font-size: 18px;
+    line-height: 1.2;
+    font-weight: 900;
+  }
+
+  .erp-section-title {
+    padding: 12px 14px 8px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 900;
+  }
+
+  .erp-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 230px;
+  }
+
+  .erp-actions .btn {
+    min-height: 32px;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .erp-delivery-state {
+    font-weight: 850;
+  }
+
+  .erp-delivery-state.confirmed {
+    color: var(--green-strong);
+  }
+
+  .erp-delivery-state.pending {
+    color: var(--amber-strong);
   }
 
   .session-status-pill {
@@ -2210,102 +2292,6 @@
     background: var(--red-soft);
   }
 
-  .session-count-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    margin-top: 10px;
-  }
-
-  .session-count-chip {
-    display: inline-flex;
-    align-items: center;
-    min-height: 30px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    padding: 5px 9px;
-    background: #0e1726;
-    color: var(--muted);
-    font-size: 12px;
-    line-height: 1.25;
-    font-weight: 850;
-  }
-
-  .session-count-chip.pending {
-    border-color: var(--amber);
-    color: var(--amber-strong);
-    background: var(--amber-soft);
-  }
-
-  .session-count-chip.confirmed {
-    border-color: var(--green);
-    color: var(--green-strong);
-    background: var(--green-soft);
-  }
-
-  .session-booking-groups {
-    display: grid;
-    gap: 10px;
-    margin-top: 12px;
-  }
-
-  .session-booking-group {
-    border: 1px solid var(--border);
-    border-radius: 11px;
-    overflow: hidden;
-    background: rgba(14, 23, 38, 0.55);
-  }
-
-  .session-booking-group-title {
-    padding: 9px 11px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface-raised);
-    color: var(--text);
-    font-size: 13px;
-    line-height: 1.35;
-    font-weight: 900;
-  }
-
-  .session-booking-row {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 10px;
-    align-items: stretch;
-    padding: 10px 11px;
-    border-top: 1px solid rgba(65, 83, 106, 0.42);
-  }
-
-  .session-booking-row:first-of-type {
-    border-top: 0;
-  }
-
-  .session-booking-name {
-    font-size: 14px;
-    line-height: 1.35;
-    font-weight: 900;
-    overflow-wrap: anywhere;
-  }
-
-  .session-booking-meta {
-    margin-top: 3px;
-    color: var(--muted);
-    font-size: 12px;
-    line-height: 1.42;
-    overflow-wrap: anywhere;
-  }
-
-  .session-booking-empty {
-    padding: 10px 11px;
-    color: var(--muted);
-    font-size: 13px;
-    line-height: 1.42;
-  }
-
-  .session-time-card > .booking-actions,
-  .session-booking-row .booking-actions {
-    justify-content: flex-start;
-  }
-
   .session-form {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2334,6 +2320,7 @@
     .cloud-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .application-focus-grid { grid-template-columns: 1fr; }
     .layout { grid-template-columns: 1fr; }
+    .schedule-erp { grid-template-columns: 1fr; }
     .member-list { min-height: 280px; max-height: min(420px, 58vh); }
     .section-grid { grid-template-columns: 1fr; }
   }
@@ -2367,9 +2354,9 @@
       grid-template-columns: 1fr;
     }
     .review-board-summary { grid-template-columns: 1fr; }
-    .booking-grid, .session-form, .storage-grid, .security-grid, .operator-export-grid, .session-calendar, .cloud-status-grid { grid-template-columns: 1fr; }
-    .session-calendar-grid { grid-template-columns: 1fr; }
-    .session-day-head, .session-time-top { flex-direction: column; }
+    .booking-grid, .session-form, .storage-grid, .security-grid, .operator-export-grid, .schedule-erp, .cloud-status-grid { grid-template-columns: 1fr; }
+    .erp-pane-head { flex-direction: column; }
+    .erp-summary { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
     .kv { grid-template-columns: 1fr; }
   }
 
@@ -3053,7 +3040,7 @@
       </div>
       <div class="booking-panels">
         <div class="booking-tab-panel active" id="session-tab-panel" role="tabpanel" aria-labelledby="booking-tab-sessions">
-          <h2>공개 일정</h2>
+          <h2>날짜별 ERP 운영표</h2>
           <div id="session-list" class="booking-list"></div>
         </div>
         <div class="booking-tab-panel" id="booking-tab-panel" role="tabpanel" aria-labelledby="booking-tab-bookings">
@@ -3064,9 +3051,8 @@
       </div>
       <details>
         <summary style="cursor:pointer;margin-top:14px;font-weight:800;color:var(--primary);">새 일정 직접 추가</summary>
-        <div class="booking-actions" style="margin-top:12px;"><button class="btn muted" id="seed-free-sessions-btn" type="button">보조 기능: 무료 일정 생성</button></div>
         <div class="session-form">
-          <div class="field"><label>일정 종류</label><select id="new-session-program-type"><option value="ai_basic_setup">유료강의</option><option value="free_class">무료강의</option><option value="study">스터디</option></select></div>
+          <div class="field"><label>일정 종류</label><select id="new-session-program-type"><option value="ai_basic_setup">유료강의</option><option value="study">스터디</option></select></div>
           <div class="field"><label>참가 대상</label><select id="new-session-audience-level"><option value="approved">승인멤버 전체</option><option value="paid_only">유료강의 수강자만</option><option value="beginner">입문/무료강의</option><option value="all">전체</option></select></div>
           <div class="field"><label>일정명</label><input id="new-session-title" type="text" value="AI 결과물 제작 초급 4주반" placeholder="예: AI 자동화 제작 4주반"></div>
           <div class="field"><label>시작</label><input id="new-session-start" type="datetime-local"></div>
@@ -3476,7 +3462,7 @@
   function bookingStatusLabel(status) {
     return {
       requested: "신청 접수",
-      payment_guide_sent: "입금 안내 발송",
+      payment_guide_sent: "입금 안내문 준비",
       payment_pending: "입금 대기",
       payment_confirmed: "입금 확인",
       confirmed: "확정",
@@ -3491,7 +3477,7 @@
   function paymentStatusLabel(status) {
     return {
       not_sent: "안내 전",
-      guide_sent: "안내 발송",
+      guide_sent: "안내문 준비",
       pending: "입금 대기",
       paid: "입금 완료",
       waived: "면제",
@@ -6267,6 +6253,24 @@
     return `${year}-${month}-${day}`;
   }
 
+  function compareAdminScheduleSessions(a, b, nowMs = Date.now()) {
+    const aTime = parseDateValue(a.starts_at)?.getTime();
+    const bTime = parseDateValue(b.starts_at)?.getTime();
+    const bucket = (time) => time == null ? 2 : time >= nowMs ? 0 : 1;
+    const aBucket = bucket(aTime);
+    const bBucket = bucket(bTime);
+    if (aBucket !== bBucket) return aBucket - bBucket;
+    if (aBucket === 1) return bTime - aTime;
+    return (aTime ?? Number.MAX_SAFE_INTEGER) - (bTime ?? Number.MAX_SAFE_INTEGER);
+  }
+
+  function hasFutureOperationalSession(sessions, nowMs = Date.now()) {
+    return sessions.some((session) => {
+      const startsAt = parseDateValue(session.starts_at);
+      return startsAt && startsAt.getTime() >= nowMs && session.status !== "canceled";
+    });
+  }
+
   function formatSessionDateKey(key) {
     if (key === "날짜 미정") return key;
     const date = new Date(`${key}T00:00:00`);
@@ -6293,114 +6297,74 @@
     }[status] || status || "-";
   }
 
-  function sessionBookingGroups(sessionId) {
-    const rows = state.bookings.filter((booking) => booking.session_id === sessionId);
-    return {
-      pending: rows.filter((booking) => isActiveBooking(booking) && booking.status !== "confirmed"),
-      confirmed: rows.filter((booking) => booking.status === "confirmed"),
-      inactive: rows.filter((booking) => !isActiveBooking(booking)),
-    };
-  }
-
 	  function bookingWorkflowLabel(booking) {
 		    if (booking.status === "completed") return "참여 완료";
 		    if (booking.status === "no_show") return "불참";
 		    if (booking.status === "confirmed" && isStudyBooking(booking)) return "참여확정";
 		    if (booking.status === "confirmed") return isFreeBooking(booking) ? "무료 확정" : "입금확정";
-	    if (booking.status === "payment_guide_sent") return "입금 안내 완료";
+	    if (booking.status === "payment_guide_sent") return "입금 안내문 준비";
 	    if (booking.status === "payment_pending") return "입금 대기";
 	    if (booking.status === "payment_confirmed") return "입금 확인 대기";
 	    if (booking.status === "waitlisted") return "대기";
     return "신청 접수";
   }
 
-	  function bookingRankText(booking) {
-	    const requestRank = booking.request_rank ? `신청 ${booking.request_rank}번째` : "신청 순번 -";
-	    const label = isStudyBooking(booking) ? "참여확정" : isFreeBooking(booking) ? "무료확정" : "입금확정";
-	    const paidRank = booking.paid_rank ? `${label} ${booking.paid_rank}번째` : `${label} 전`;
-	    return `${requestRank} · ${paidRank}`;
-	  }
-
-  function appendSessionBookingGroup(container, title, rows, kind) {
-    const group = document.createElement("section");
-    group.className = "session-booking-group";
-    const heading = document.createElement("div");
-    heading.className = "session-booking-group-title";
-    heading.textContent = `${title} ${rows.length}명`;
-    group.appendChild(heading);
-
-	    if (!rows.length) {
-	      const empty = document.createElement("div");
-	      empty.className = "session-booking-empty";
-	      empty.textContent = kind === "confirmed" ? `아직 ${title} 예약자가 없습니다.` : "현재 신청 대기자가 없습니다.";
-	      group.appendChild(empty);
-	      container.appendChild(group);
-	      return;
-	    }
-
-		    for (const booking of rows) {
-		      const studyBooking = isStudyBooking(booking);
-		      const freeBooking = isFreeBooking(booking);
-		      const row = document.createElement("div");
-	      row.className = "session-booking-row";
-	      row.dataset.bookingId = booking.id;
-	      const info = document.createElement("div");
-		      info.innerHTML = `
-		        <div class="session-booking-name">${escapeHtml(booking.applicant_name || booking.member_name || "신청자")}</div>
-		        <div class="session-booking-meta">${escapeHtml(booking.phone_masked || "-")} · ${escapeHtml(bookingKindLabel(booking))} · ${escapeHtml(bookingWorkflowLabel(booking))} · ${escapeHtml(paymentStatusLabel(booking.payment_status))}</div>
-		        <div class="session-booking-meta">${escapeHtml(bookingRankText(booking))} · 신청 ${escapeHtml(formatDate(booking.created_at))}</div>
-		      `;
-	      const actions = document.createElement("div");
-	      actions.className = "booking-actions";
-	      actions.append(
-	        actionButton("연락처 보기", "primary", !booking.member_id, () => revealContact(booking.member_id))
-	      );
-		      if (studyBooking) {
-		        if (booking.status === "confirmed") {
-		          actions.append(
-		            actionButton("참여 완료", "green", false, () => markAttendance(booking.id, "completed")),
-		            actionButton("불참", "amber", false, () => markAttendance(booking.id, "no_show"))
-		          );
-		        } else if (isActiveBooking(booking)) {
-		          actions.append(
-		            actionButton("참여확정", "green", false, () => updateBookingState(booking.id, "confirmed", "waived")),
-		            actionButton("불참", "amber", false, () => markAttendance(booking.id, "no_show"))
-		          );
-		        }
-		      } else if (freeBooking) {
-		        actions.append(
-		          actionButton("무료 안내 복사", "primary", !isActiveBooking(booking) && booking.status !== "completed", () => showFreeClassGuide(booking.id))
-	        );
-	        if (booking.status === "confirmed") {
-	          actions.append(
-	            actionButton("참여 완료", "green", false, () => markAttendance(booking.id, "completed")),
-	            actionButton("불참", "amber", false, () => markAttendance(booking.id, "no_show"))
-	          );
-	        } else if (isActiveBooking(booking)) {
-	          actions.append(
-	            actionButton("무료 확정", "green", false, () => updateBookingState(booking.id, "confirmed", "waived")),
-	            actionButton("불참", "amber", false, () => markAttendance(booking.id, "no_show"))
-	          );
-	        }
-	      } else if (kind !== "confirmed") {
-	        actions.append(
-	          actionButton("입금 안내", "amber", booking.status === "waitlisted", () => sendPaymentGuide(booking.id)),
-	          actionButton("입금확정", "green", booking.status === "waitlisted", () => confirmPayment(booking.id))
-	        );
-	      } else {
-        actions.append(
-          actionButton("장소 안내", "primary", booking.status !== "confirmed", () => showLocationGuide(booking.id))
-        );
-      }
-	      actions.append(
-	        actionButton("일정 이동", "primary", !isActiveBooking(booking), () => showBookingMoveModal(booking)),
-	        actionButton("취소", "red", !isActiveBooking(booking), () => cancelBooking(booking)),
-	        actionButton("삭제", "red", !canDeleteBookingRecord(booking), () => deleteBooking(booking.id, booking.applicant_name || "신청자"))
-	      );
-      row.append(info, actions);
-      group.appendChild(row);
+  function bookingDeliveryState(booking) {
+    if (isStudyBooking(booking) || isFreeBooking(booking)) {
+      return {
+        label: booking.status === "confirmed" ? "참여 상태 처리" : "수동 안내 대상",
+        detail: "문자/카카오 실제 전송 기록 없음",
+        tone: booking.status === "confirmed" ? "confirmed" : "pending",
+      };
     }
-    container.appendChild(group);
+    if (booking.payment_status === "paid" || booking.status === "confirmed") {
+      return {
+        label: "입금 확인 완료",
+        detail: "확정 문자/카카오 실제 전송 기록 없음",
+        tone: "confirmed",
+      };
+    }
+    if (["guide_sent", "pending"].includes(booking.payment_status) || booking.status === "payment_guide_sent") {
+      return {
+        label: "입금 안내문 준비",
+        detail: "문자/카카오 실제 전송 기록 없음",
+        tone: "pending",
+      };
+    }
+    return {
+      label: "입금 안내 전",
+      detail: "문자/카카오 실제 전송 기록 없음",
+      tone: "",
+    };
+  }
+
+  function appendErpBookingActions(container, booking) {
+    const studyBooking = isStudyBooking(booking);
+    const freeBooking = isFreeBooking(booking);
+    container.append(actionButton("연락처", "primary", !booking.member_id, () => revealContact(booking.member_id)));
+    if (studyBooking) {
+      if (booking.status === "confirmed") {
+        container.append(
+          actionButton("참여 완료", "green", false, () => markAttendance(booking.id, "completed")),
+          actionButton("불참", "amber", false, () => markAttendance(booking.id, "no_show"))
+        );
+      } else if (isActiveBooking(booking)) {
+        container.append(actionButton("참여확정", "green", false, () => updateBookingState(booking.id, "confirmed", "waived")));
+      }
+    } else if (freeBooking) {
+      container.append(actionButton("무료 안내문", "primary", !isActiveBooking(booking), () => showFreeClassGuide(booking.id)));
+      if (booking.status !== "confirmed" && isActiveBooking(booking)) {
+        container.append(actionButton("무료 확정", "green", false, () => updateBookingState(booking.id, "confirmed", "waived")));
+      }
+    } else if (booking.status === "confirmed") {
+      container.append(actionButton("장소 안내", "primary", false, () => showLocationGuide(booking.id)));
+    } else if (isActiveBooking(booking)) {
+      container.append(
+        actionButton("입금 안내문", "amber", booking.status === "waitlisted", () => sendPaymentGuide(booking.id)),
+        actionButton("입금확정", "green", booking.status === "waitlisted", () => confirmPayment(booking.id))
+      );
+    }
+    container.append(actionButton("예약 상세", "muted", false, () => setBookingSessionFilter(booking.session_id, { openBookings: true })));
   }
 
   function renderSessions() {
@@ -6409,7 +6373,9 @@
       fields.sessionList.innerHTML = '<div class="empty-state">공개 또는 등록된 일정이 없습니다.</div>';
       return;
     }
-    const sorted = [...state.sessions].sort((a, b) => String(a.starts_at || "").localeCompare(String(b.starts_at || "")));
+    const scheduleNow = Date.now();
+    const sorted = [...state.sessions].sort((a, b) => compareAdminScheduleSessions(a, b, scheduleNow));
+    const hasFutureSchedule = hasFutureOperationalSession(state.sessions, scheduleNow);
     const groups = new Map();
     for (const session of sorted) {
       const key = sessionDateKey(session);
@@ -6421,122 +6387,194 @@
       state.selectedSessionDate = keys[0];
     }
     const selectedSessions = groups.get(state.selectedSessionDate) || [];
+    const selectedBookings = state.bookings
+      .filter((booking) => sessionDateKey({ starts_at: booking.session_starts_at }) === state.selectedSessionDate)
+      .sort((a, b) => String(a.session_starts_at || "").localeCompare(String(b.session_starts_at || "")) || String(a.created_at || "").localeCompare(String(b.created_at || "")));
     const shell = document.createElement("div");
-    shell.className = "session-calendar";
+    shell.className = "schedule-erp";
 
-    const calendar = document.createElement("div");
-    calendar.className = "session-calendar-grid";
+    const calendar = document.createElement("section");
+    calendar.className = "erp-pane";
+    calendar.innerHTML = `
+      <div class="erp-pane-head">
+        <div>
+          <div class="erp-pane-title">날짜별 운영 현황</div>
+          <div class="erp-pane-sub">예정 일정은 가까운 순, 지난 일정은 최근순으로 표시합니다. 날짜를 누르면 해당일 신청자와 입금/안내 상태를 함께 확인합니다.</div>
+        </div>
+      </div>
+    `;
+    if (!hasFutureSchedule) {
+      const attention = document.createElement("div");
+      attention.className = "schedule-attention";
+      attention.textContent = "등록된 미래 일정이 없습니다. 새 일정 직접 추가에서 날짜·장소·주제를 정한 유료강의를 먼저 등록하세요.";
+      calendar.appendChild(attention);
+    }
+    const calendarScroll = document.createElement("div");
+    calendarScroll.className = "erp-table-scroll";
+    const calendarTable = document.createElement("table");
+    calendarTable.className = "erp-table compact";
+    calendarTable.innerHTML = "<thead><tr><th>날짜</th><th>일정</th><th>신청</th><th>확정</th><th>잔여</th></tr></thead>";
+    const calendarBody = document.createElement("tbody");
+
+    const selectDate = (key) => {
+      state.selectedSessionDate = key;
+      state.selectedBookingDateKey = key;
+      const filteredSession = selectedBookingSession();
+      if (filteredSession && sessionDateKey(filteredSession) !== key) state.selectedBookingSessionId = "";
+      renderSessions();
+      renderBookings();
+      const dayBookingCount = state.bookings.filter((booking) => sessionDateKey({ starts_at: booking.session_starts_at }) === key).length;
+      setStatus(`${formatSessionDateKey(key)} 신청자 ${dayBookingCount}건과 입금·문자/카카오 기록 상태를 표시합니다.`, "ok");
+    };
+
     for (const key of keys) {
       const daySessions = groups.get(key) || [];
-      const openCount = daySessions.filter((session) => ["open", "full"].includes(session.status)).length;
-      const pendingCount = daySessions.reduce((total, session) => total + Number(session.requested_count || 0), 0);
+      const dayBookings = state.bookings.filter((booking) => sessionDateKey({ starts_at: booking.session_starts_at }) === key);
+      const activeBookings = dayBookings.filter(isActiveBooking);
       const confirmedCount = daySessions.reduce((total, session) => total + Number(session.confirmed_booking_count ?? session.confirmed_count ?? 0), 0);
+      const remainingCount = daySessions.reduce((total, session) => total + Math.max(0, Number(session.capacity_max || 0) - Number(session.confirmed_booking_count ?? session.confirmed_count ?? 0)), 0);
+      const row = document.createElement("tr");
+      row.className = `erp-date-row${key === state.selectedSessionDate ? " active" : ""}`;
+      row.setAttribute("aria-selected", key === state.selectedSessionDate ? "true" : "false");
+      const dateCell = document.createElement("td");
       const button = document.createElement("button");
       button.type = "button";
-      button.className = `session-day${key === state.selectedSessionDate ? " active" : ""}`;
-      button.innerHTML = `
-        <span class="session-day-date">${escapeHtml(formatSessionDateKey(key))}</span>
-        <span class="session-day-meta">일정 ${daySessions.length}개 · 공개 ${openCount}개<br>신청대기 ${pendingCount}명 · 확정 ${confirmedCount}명</span>
-      `;
-	      button.addEventListener("click", () => {
-	        state.selectedSessionDate = key;
-	        state.selectedBookingDateKey = key;
-	        const filteredSession = selectedBookingSession();
-	        if (filteredSession && sessionDateKey(filteredSession) !== key) {
-	          state.selectedBookingSessionId = "";
-	        }
-	        renderSessions();
-	        renderBookings();
-	        const dayBookingCount = state.bookings.filter((booking) => sessionDateKey({ starts_at: booking.session_starts_at }) === key).length;
-	        setStatus(`${formatSessionDateKey(key)} 예약 ${dayBookingCount}건만 표시합니다. 시간 카드를 누르면 해당 시간 예약만 좁혀봅니다.`, "ok");
-	      });
-      calendar.appendChild(button);
+      button.className = "erp-date-button";
+      button.textContent = formatSessionDateKey(key);
+      button.addEventListener("click", () => selectDate(key));
+      dateCell.appendChild(button);
+      [daySessions.length, activeBookings.length, confirmedCount, remainingCount].forEach((value) => {
+        const cell = document.createElement("td");
+        cell.textContent = String(value);
+        row.appendChild(cell);
+      });
+      row.prepend(dateCell);
+      row.addEventListener("click", (event) => {
+        if (!event.target.closest("button")) selectDate(key);
+      });
+      calendarBody.appendChild(row);
     }
+    calendarTable.appendChild(calendarBody);
+    calendarScroll.appendChild(calendarTable);
+    calendar.appendChild(calendarScroll);
 
-    const detail = document.createElement("div");
-    detail.className = "session-day-detail";
+    const detail = document.createElement("section");
+    detail.className = "erp-pane";
     const head = document.createElement("div");
-    head.className = "session-day-head";
+    head.className = "erp-pane-head";
     head.innerHTML = `
       <div>
-        <div class="session-day-title">${escapeHtml(formatSessionDateKey(state.selectedSessionDate))}</div>
-        <div class="session-day-sub">${selectedSessions.length}개 타임 · 날짜를 선택한 뒤 그날 일정만 관리합니다.</div>
+        <div class="erp-pane-title">${escapeHtml(formatSessionDateKey(state.selectedSessionDate))} 운영표</div>
+        <div class="erp-pane-sub">일정 ${selectedSessions.length}개 · 신청자 ${selectedBookings.length}건 · 입금과 실제 전달 기록을 분리해서 확인합니다.</div>
       </div>
     `;
     const dayActions = document.createElement("div");
     dayActions.className = "booking-actions";
+    const dayActiveBookingCount = selectedBookings.filter(isActiveBooking).length;
     dayActions.append(
       actionButton("이 날짜 전체 공개", "green", false, () => updateSessionsForDate(state.selectedSessionDate, "open")),
-      actionButton("이 날짜 전체 비공개", "muted", false, () => updateSessionsForDate(state.selectedSessionDate, "draft"))
+      actionButton("이 날짜 전체 비공개", "muted", false, () => updateSessionsForDate(state.selectedSessionDate, "draft")),
+      actionButton("이 날짜 전체 삭제", "red", dayActiveBookingCount > 0, () => deleteSessionsForDate(state.selectedSessionDate))
     );
     head.appendChild(dayActions);
     detail.appendChild(head);
 
-	    const timeList = document.createElement("div");
-	    timeList.className = "session-time-list";
-		    for (const session of selectedSessions) {
-		      const studySession = isStudySession(session);
-		      const freeSession = isFreeSession(session);
-		      const sessionKind = sessionKindLabel(session);
-		      const confirmedLabel = studySession ? "참여확정" : freeSession ? "무료확정" : "입금확정";
-		      const activeCount = Number(session.active_booking_count ?? session.confirmed_count ?? 0);
-	      const pendingCount = Number(session.requested_count || 0);
-	      const confirmedCount = Number(session.confirmed_booking_count ?? session.confirmed_count ?? 0);
-      const sessionGroups = sessionBookingGroups(session.id);
-      const item = document.createElement("article");
-      item.className = `session-time-card${state.selectedBookingSessionId === session.id ? " selected" : ""}`;
-      item.tabIndex = 0;
-      item.setAttribute("role", "button");
-      item.setAttribute("aria-label", `${sessionFilterLabel(session)} 예약 신청만 보기`);
-      item.innerHTML = `
-        <div class="session-time-top">
-          <div>
-            <div class="session-time">${escapeHtml(formatSessionTime(session.starts_at))} - ${escapeHtml(formatSessionTime(session.ends_at))}</div>
-	            <div class="booking-title">${escapeHtml(session.title || "AI 결과물 제작 초급 4주반")}</div>
-          </div>
-          <span class="session-status-pill ${escapeHtml(session.status || "")}">${escapeHtml(sessionStatusLabel(session.status))}</span>
-        </div>
-		        <div class="booking-meta">${escapeHtml(sessionKind)} · ${escapeHtml(sessionAudienceLabel(session))} · ${escapeHtml(session.location || "-")} · 정원 ${session.capacity_max || 5}명 · ${Number(session.price_krw || 0).toLocaleString()}원</div>
-		        <div class="session-count-row">
-		          <span class="session-count-chip pending">신청대기 ${pendingCount}명</span>
-		          <span class="session-count-chip confirmed">${confirmedLabel} ${confirmedCount}명</span>
-		          <span class="session-count-chip">일정 연결 ${activeCount}명</span>
-		        </div>
+    const activeSelectedBookings = selectedBookings.filter(isActiveBooking);
+    const confirmedSelectedCount = selectedSessions.reduce((total, session) => total + Number(session.confirmed_booking_count ?? session.confirmed_count ?? 0), 0);
+    const remainingSelectedCount = selectedSessions.reduce((total, session) => total + Math.max(0, Number(session.capacity_max || 0) - Number(session.confirmed_booking_count ?? session.confirmed_count ?? 0)), 0);
+    const summary = document.createElement("div");
+    summary.className = "erp-summary";
+    [["일정", selectedSessions.length], ["유효 신청", activeSelectedBookings.length], ["확정", confirmedSelectedCount], ["잔여 정원", remainingSelectedCount]].forEach(([label, value]) => {
+      const metric = document.createElement("div");
+      metric.className = "erp-metric";
+      metric.innerHTML = `<div class="erp-metric-label">${escapeHtml(label)}</div><div class="erp-metric-value">${escapeHtml(value)}</div>`;
+      summary.appendChild(metric);
+    });
+    detail.appendChild(summary);
+
+    const sessionTitle = document.createElement("div");
+    sessionTitle.className = "erp-section-title";
+    sessionTitle.textContent = "일정·정원 현황";
+    detail.appendChild(sessionTitle);
+    const sessionScroll = document.createElement("div");
+    sessionScroll.className = "erp-table-scroll";
+    const sessionTable = document.createElement("table");
+    sessionTable.className = "erp-table";
+    sessionTable.innerHTML = "<thead><tr><th>시간</th><th>강의/장소</th><th>상태</th><th>정원</th><th>신청대기</th><th>확정</th><th>잔여</th><th>관리</th></tr></thead>";
+    const sessionBody = document.createElement("tbody");
+    for (const session of selectedSessions) {
+      const activeCount = Number(session.active_booking_count ?? session.confirmed_count ?? 0);
+      const pendingCount = Number(session.requested_count || 0);
+      const confirmedCount = Number(session.confirmed_booking_count ?? session.confirmed_count ?? 0);
+      const capacity = Number(session.capacity_max || 0);
+      const row = document.createElement("tr");
+      row.dataset.sessionId = session.id;
+      row.innerHTML = `
+        <td><span class="erp-cell-title">${escapeHtml(formatSessionTime(session.starts_at))}–${escapeHtml(formatSessionTime(session.ends_at))}</span><span class="erp-cell-sub">${escapeHtml(sessionKindLabel(session))}</span></td>
+        <td><span class="erp-cell-title">${escapeHtml(session.title || "AI 결과물 제작 초급 4주반")}</span><span class="erp-cell-sub">${escapeHtml(session.location || "-")} · 연결 ${activeCount}명</span></td>
+        <td><span class="session-status-pill ${escapeHtml(session.status || "")}">${escapeHtml(sessionStatusLabel(session.status))}</span></td>
+        <td>${capacity}</td><td>${pendingCount}</td><td>${confirmedCount}</td><td>${Math.max(0, capacity - confirmedCount)}</td>
       `;
       const openFilteredBookings = () => setBookingSessionFilter(session.id, { openBookings: true });
-      item.addEventListener("click", (event) => {
-        if (event.target.closest("button, a, input, select, textarea")) return;
-        openFilteredBookings();
-      });
-      item.addEventListener("keydown", (event) => {
-        if (event.target.closest("button, a, input, select, textarea")) return;
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          openFilteredBookings();
-        }
-      });
       const actions = document.createElement("div");
-	      actions.className = "booking-actions";
-	      actions.append(
-	        actionButton("상세 관리", "primary", false, () => {
-	          window.location.assign(`/frontend/session-admin.html?session_id=${encodeURIComponent(session.id)}`);
-	        }),
-	        actionButton("예약만 보기", "primary", false, openFilteredBookings),
-		        actionButton(studySession || freeSession ? "참여자 추가" : "입금자 추가", "primary", session.status === "canceled", () => showManualBookingModal(session)),
+      actions.className = "erp-actions";
+      actions.append(
+        actionButton("상세 관리", "primary", false, () => window.location.assign(`/frontend/session-admin.html?session_id=${encodeURIComponent(session.id)}`)),
+        actionButton("예약 보기", "primary", false, openFilteredBookings),
+        actionButton(isStudySession(session) || isFreeSession(session) ? "참여자 추가" : "입금자 추가", "primary", session.status === "canceled", () => showManualBookingModal(session)),
         actionButton("공개", "green", session.status === "open", () => updateSessionStatus(session.id, "open")),
         actionButton("비공개", "muted", session.status === "draft", () => updateSessionStatus(session.id, "draft")),
         actionButton("취소", "red", session.status === "canceled", () => updateSessionStatus(session.id, "canceled")),
         actionButton("삭제", "red", activeCount > 0, () => deleteSession(session.id, activeCount))
       );
-      item.appendChild(actions);
-	      const bookingGroups = document.createElement("div");
-	      bookingGroups.className = "session-booking-groups";
-		      appendSessionBookingGroup(bookingGroups, "신청 대기", sessionGroups.pending, "pending");
-		      appendSessionBookingGroup(bookingGroups, confirmedLabel, sessionGroups.confirmed, "confirmed");
-      item.appendChild(bookingGroups);
-      timeList.appendChild(item);
+      const actionCell = document.createElement("td");
+      actionCell.appendChild(actions);
+      row.appendChild(actionCell);
+      sessionBody.appendChild(row);
     }
-    detail.appendChild(timeList);
+    sessionTable.appendChild(sessionBody);
+    sessionScroll.appendChild(sessionTable);
+    detail.appendChild(sessionScroll);
+
+    const applicantTitle = document.createElement("div");
+    applicantTitle.className = "erp-section-title";
+    applicantTitle.textContent = `신청자·입금·전달 현황 ${selectedBookings.length}건`;
+    detail.appendChild(applicantTitle);
+    const applicantScroll = document.createElement("div");
+    applicantScroll.className = "erp-table-scroll";
+    const applicantTable = document.createElement("table");
+    applicantTable.className = "erp-table applicants";
+    applicantTable.innerHTML = "<thead><tr><th>신청자</th><th>일정</th><th>구분</th><th>예약 상태</th><th>입금 상태</th><th>문자/카카오 전달</th><th>처리시각</th><th>처리</th></tr></thead>";
+    const applicantBody = document.createElement("tbody");
+    if (!selectedBookings.length) {
+      applicantBody.innerHTML = '<tr><td colspan="8" class="empty-state">이 날짜에 연결된 신청자가 없습니다.</td></tr>';
+    }
+    for (const booking of selectedBookings) {
+      const delivery = bookingDeliveryState(booking);
+      const row = document.createElement("tr");
+      row.className = "erp-booking-row";
+      row.dataset.bookingId = booking.id;
+      const statusTone = ["confirmed", "completed"].includes(booking.status) ? "approved" : booking.status === "waitlisted" ? "rejected" : ["canceled", "rejected", "no_show"].includes(booking.status) ? "erased" : "pending";
+      row.innerHTML = `
+        <td><span class="erp-cell-title">${escapeHtml(booking.applicant_name || booking.member_name || "신청자")}</span><span class="erp-cell-sub">${escapeHtml(booking.phone_masked || "-")}</span></td>
+        <td><span class="erp-cell-title">${escapeHtml(formatSessionTime(booking.session_starts_at))}</span><span class="erp-cell-sub">${escapeHtml(booking.session_title || "일정 미지정")}</span></td>
+        <td>${escapeHtml(bookingKindLabel(booking))}</td>
+        <td><span class="pill ${statusTone}">${escapeHtml(bookingWorkflowLabel(booking))}</span><span class="erp-cell-sub">신청 ${booking.request_rank || "-"}번째</span></td>
+        <td><span class="erp-cell-title">${escapeHtml(paymentStatusLabel(booking.payment_status))}</span><span class="erp-cell-sub">${Number(booking.payment_amount_krw || 0).toLocaleString()}원</span></td>
+        <td><span class="erp-delivery-state ${escapeHtml(delivery.tone)}">${escapeHtml(delivery.label)}</span><span class="erp-cell-sub">${escapeHtml(delivery.detail)}</span></td>
+        <td><span class="erp-cell-sub">신청 ${escapeHtml(formatDate(booking.created_at))}</span><span class="erp-cell-sub">확정 ${escapeHtml(formatDate(booking.confirmed_at))}</span></td>
+      `;
+      const actions = document.createElement("div");
+      actions.className = "erp-actions";
+      appendErpBookingActions(actions, booking);
+      const actionCell = document.createElement("td");
+      actionCell.appendChild(actions);
+      row.appendChild(actionCell);
+      applicantBody.appendChild(row);
+    }
+    applicantTable.appendChild(applicantBody);
+    applicantScroll.appendChild(applicantTable);
+    detail.appendChild(applicantScroll);
     shell.append(calendar, detail);
     fields.sessionList.appendChild(shell);
   }
@@ -6567,7 +6605,7 @@
 	      const summary = document.createElement("div");
 	      summary.innerHTML = `
 	        <div class="booking-filter-title">${escapeHtml(formatSessionDateKey(filterDateKey))}</div>
-	        <div class="booking-filter-meta">이 날짜에 연결된 예약 ${rows.length}건만 표시 중입니다. 왼쪽 시간 카드를 누르면 해당 시간만 볼 수 있습니다.</div>
+	        <div class="booking-filter-meta">이 날짜에 연결된 예약 ${rows.length}건만 표시 중입니다. 일정 운영표의 예약 보기에서 시간별로 좁힐 수 있습니다.</div>
 	      `;
 	      fields.bookingFilterSummary.append(
 	        summary,
@@ -6645,7 +6683,7 @@
 	        );
 	      } else {
 	        actions.append(
-	          actionButton("입금 안내", "amber", isConfirmed || isWaitlisted, () => sendPaymentGuide(booking.id)),
+	          actionButton("입금 안내문", "amber", isConfirmed || isWaitlisted, () => sendPaymentGuide(booking.id)),
 	          actionButton("문구 복사", "primary", !guideText, () => copyPaymentGuide(guideText)),
 	          actionButton("입금 확인/확정", "green", isConfirmed || isWaitlisted, () => confirmPayment(booking.id)),
 	          actionButton("장소 안내", "primary", !isConfirmed, () => showLocationGuide(booking.id)),
@@ -6875,6 +6913,27 @@
       await refreshScheduleAfterMutation(data.message || "일정을 삭제했습니다.");
     } catch (error) {
       setStatus(error.message, "error");
+    }
+  }
+
+  async function deleteSessionsForDate(dateKey) {
+    const targets = state.sessions.filter((session) => sessionDateKey(session) === dateKey);
+    if (!targets.length) return;
+    const activeCount = state.bookings.filter((booking) => (
+      sessionDateKey({ starts_at: booking.session_starts_at }) === dateKey && isActiveBooking(booking)
+    )).length;
+    if (activeCount > 0) {
+      setStatus(`이 날짜에는 활성 신청 ${activeCount}건이 있어 전체 삭제할 수 없습니다. 신청을 먼저 취소하거나 일정 전체 비공개를 사용하세요.`, "error");
+      return;
+    }
+    if (!window.confirm(`${formatSessionDateKey(dateKey)} 일정 ${targets.length}개를 모두 완전히 삭제할까요? 취소된 예약 기록은 보관됩니다.`)) return;
+    try {
+      await Promise.all(targets.map((session) => api(`/admin/sessions/${encodeURIComponent(session.id)}`, { method: "DELETE" })));
+      state.selectedSessionDate = "";
+      state.selectedBookingDateKey = "";
+      await refreshScheduleAfterMutation(`${formatSessionDateKey(dateKey)} 일정 ${targets.length}개를 모두 삭제했습니다.`);
+    } catch (error) {
+      await refreshScheduleAfterMutation(`날짜 전체 삭제 중 일부 일정이 남았습니다: ${error.message}`, { statusTone: "error" });
     }
   }
 
@@ -7925,25 +7984,18 @@
 	    const priceInput = $("new-session-price");
 	    const descriptionInput = $("new-session-description");
 	    const audienceInput = $("new-session-audience-level");
-	    if (programType === "free_class") {
-	      if (!titleInput.value.trim() || titleInput.value.includes("컨설팅 강의")) titleInput.value = "무료 AI 강의";
-	      if (!priceInput.value || Number(priceInput.value) === 50000) priceInput.value = "0";
-	      if (audienceInput.value === "approved" || audienceInput.value === "all" || audienceInput.value === "paid_only") audienceInput.value = "beginner";
-	      if (!descriptionInput.value.trim() || descriptionInput.value.includes("유료 구독")) {
-	        descriptionInput.value = "AI 입문자에게 필요한 계정 세팅, 실습 방향, 업무 활용 예시를 무료로 안내합니다.";
-	      }
-	    } else if (programType === "study") {
-	      if (!titleInput.value.trim() || titleInput.value === "무료 AI 강의" || titleInput.value.includes("컨설팅 강의")) titleInput.value = "ARSEN 멤버 스터디";
+	    if (programType === "study") {
+	      if (!titleInput.value.trim() || titleInput.value.includes("컨설팅 강의")) titleInput.value = "ARSEN 멤버 스터디";
 	      if (!priceInput.value || Number(priceInput.value) === 50000) priceInput.value = "0";
 	      if (audienceInput.value === "beginner" || audienceInput.value === "all") audienceInput.value = "approved";
-	      if (!descriptionInput.value.trim() || descriptionInput.value.includes("무료로 안내") || descriptionInput.value.includes("유료 구독")) {
+	      if (!descriptionInput.value.trim() || descriptionInput.value.includes("유료 구독")) {
 	        descriptionInput.value = "승인 멤버가 함께 모여 AI 활용 사례와 실습 내용을 점검하는 스터디입니다.";
 	      }
 	    } else {
-	      if (!titleInput.value.trim() || titleInput.value === "무료 AI 강의" || titleInput.value === "ARSEN 멤버 스터디") titleInput.value = "AI 결과물 제작 초급 4주반";
+	      if (!titleInput.value.trim() || titleInput.value === "ARSEN 멤버 스터디") titleInput.value = "AI 결과물 제작 초급 4주반";
 	      if (!priceInput.value || Number(priceInput.value) === 0) priceInput.value = "100000";
 	      if (audienceInput.value === "beginner" || audienceInput.value === "approved") audienceInput.value = "all";
-	      if (!descriptionInput.value.trim() || descriptionInput.value.includes("무료로 안내")) {
+	      if (!descriptionInput.value.trim()) {
 	        descriptionInput.value = "AI 도구를 실제 결과물로 연결하는 초급 4주 실습반입니다. 현재 시간과 장소를 수요 확인 중입니다.";
 	      }
     }
@@ -7957,7 +8009,7 @@
   });
   fields.bulkEraseMembersBtn.addEventListener("click", bulkEraseSelectedMembers);
 	  $("seed-sessions-btn").addEventListener("click", async () => {
-    if (!window.confirm("저장된 기본 규칙으로 4주치 유료 강의 일정을 생성할까요? 이미 같은 시간이 있으면 장소와 공개 상태를 정리합니다.")) return;
+    if (!window.confirm("현재 운영 기준은 수요일 19:00입니다. 저장된 기본 일요일 규칙으로 4주치 유료 강의 일정을 생성할까요? 생성 전에는 수동 일정의 날짜·장소·주제를 먼저 확인하세요.")) return;
     try {
       const data = await api("/admin/sessions/seed-default-sunday", {
         method: "POST",
@@ -7968,44 +8020,41 @@
       setStatus(error.message, "error");
     }
   });
-	  $("seed-free-sessions-btn").addEventListener("click", async () => {
-    if (!window.confirm("다가오는 토요일 오전 기준으로 4주치 무료강의 일정을 생성할까요? 생성 후 시간과 장소는 일정 카드에서 수정하세요.")) return;
-    try {
-      const data = await api("/admin/sessions/seed-free-class", {
-        method: "POST",
-        body: JSON.stringify({ weeks: 4 }),
-      });
-      await refreshScheduleAfterMutation(`무료 일정 처리 완료: 새로 생성 ${data.created || 0}건, 기존 정리 ${data.updated || 0}건`);
-    } catch (error) {
-      setStatus(error.message, "error");
-    }
-  });
 	  $("create-session-btn").addEventListener("click", async () => {
 	    const startsAt = toIsoFromLocalInput($("new-session-start").value);
 	    const endsAt = toIsoFromLocalInput($("new-session-end").value);
 		    const programType = $("new-session-program-type").value || "ai_basic_setup";
 		    const studySession = programType === "study";
-		    const freeSession = programType === "free_class";
 	    if (!startsAt || !endsAt) {
 	      setStatus("시작/종료 시간을 입력하세요.", "error");
+	      return;
+	    }
+	    const startsAtMs = new Date(startsAt).getTime();
+	    const endsAtMs = new Date(endsAt).getTime();
+	    if (Number.isNaN(startsAtMs) || startsAtMs <= Date.now()) {
+	      setStatus("시작 시각은 현재 이후로 입력하세요.", "error");
+	      return;
+	    }
+	    if (Number.isNaN(endsAtMs) || endsAtMs <= startsAtMs) {
+	      setStatus("종료 시각은 시작 시각 이후로 입력하세요.", "error");
 	      return;
 	    }
 	    try {
 	      await api("/admin/sessions", {
 	        method: "POST",
 		        body: JSON.stringify({
-		          title: $("new-session-title").value.trim() || (studySession ? "ARSEN 멤버 스터디" : freeSession ? "무료 AI 강의" : "AI 결과물 제작 초급 4주반"),
+		          title: $("new-session-title").value.trim() || (studySession ? "ARSEN 멤버 스터디" : "AI 결과물 제작 초급 4주반"),
 		          description: $("new-session-description").value.trim(),
 		          program_type: programType,
-		          audience_level: $("new-session-audience-level").value || (studySession ? "approved" : freeSession ? "beginner" : "all"),
+		          audience_level: $("new-session-audience-level").value || (studySession ? "approved" : "all"),
 		          starts_at: startsAt,
 		          ends_at: endsAt,
 		          location: $("new-session-location").value,
-		          capacity_min: studySession || freeSession ? 1 : Math.min(4, Number($("new-session-capacity").value || 8)),
+		          capacity_min: studySession ? 1 : Math.min(4, Number($("new-session-capacity").value || 8)),
 		          capacity_max: Number($("new-session-capacity").value || 8),
-		          price_krw: studySession || freeSession ? 0 : Number($("new-session-price").value || 100000),
+		          price_krw: studySession ? 0 : Number($("new-session-price").value || 100000),
 		          status: $("new-session-status").value,
-		          payment_guide: studySession || freeSession ? "" : $("new-session-payment-guide").value.trim(),
+		          payment_guide: studySession ? "" : $("new-session-payment-guide").value.trim(),
 		        }),
 	      });
       await refreshScheduleAfterMutation("새 일정을 추가했습니다.");
