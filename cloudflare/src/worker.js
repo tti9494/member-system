@@ -236,7 +236,7 @@ const LAUNCHER_NOTICES = Object.freeze([
 // YOONBOT Windows app public update contract. Fully separated from the
 // Arsen Content Launcher artifact: different name, storage key/binding,
 // asset path, and content type.
-const YOONBOT_ARTIFACT_NAME = "yoonbot-1.1.0-win-x64.exe";
+const YOONBOT_ARTIFACT_NAME = "YoonBot-Setup-1.1.0.exe";
 const YOONBOT_ARTIFACT_KEY = YOONBOT_ARTIFACT_NAME;
 const YOONBOT_ASSET_MANIFEST_PATH = `/yoonbot-artifacts/${YOONBOT_ARTIFACT_NAME}.manifest.json`;
 const YOONBOT_EXE_CONTENT_TYPE = "application/vnd.microsoft.portable-executable";

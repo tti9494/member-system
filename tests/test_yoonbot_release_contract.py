@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT))
 
 import db
 
-ARTIFACT_NAME = "yoonbot-1.1.0-win-x64.exe"
+ARTIFACT_NAME = "YoonBot-Setup-1.1.0.exe"
 ARTIFACT_ENDPOINT = f"/api/yoonbot/artifacts/{ARTIFACT_NAME}"
 EXE_CONTENT_TYPE = "application/vnd.microsoft.portable-executable"
 YOONBOT_ENV_VARS = (

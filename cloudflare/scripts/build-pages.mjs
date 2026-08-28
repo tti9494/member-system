@@ -18,7 +18,7 @@ const launcherArtifactChunkSize = 20 * 1024 * 1024;
 // YOONBOT Windows artifact is optional: skipped when the file is absent so the
 // public release contract stays fail-closed (download_ready=false) until the
 // real 1.1.0 exe is staged. Separate name/dir from the launcher ZIP.
-const yoonbotArtifactName = "yoonbot-1.1.0-win-x64.exe";
+const yoonbotArtifactName = "YoonBot-Setup-1.1.0.exe";
 const yoonbotArtifactSource = resolve(
   process.env.YOONBOT_ARTIFACT_SOURCE_DIR || resolve(homedir(), ".arsen-work-bus", "artifacts", "yoonbot"),
   yoonbotArtifactName

@@ -280,7 +280,7 @@ LAUNCHER_ARTIFACT_DIR = Path.home() / ".arsen-work-bus" / "artifacts" / "launche
 # YOONBOT Windows app public update contract. Fully separated from the
 # Arsen Content Launcher artifact: different name, storage dir, content type.
 YOONBOT_ARTIFACT_DIR = Path.home() / ".arsen-work-bus" / "artifacts" / "yoonbot"
-YOONBOT_ARTIFACT_NAME = "yoonbot-1.1.0-win-x64.exe"
+YOONBOT_ARTIFACT_NAME = "YoonBot-Setup-1.1.0.exe"
 YOONBOT_EXE_CONTENT_TYPE = "application/vnd.microsoft.portable-executable"
 YOONBOT_RELEASE_BASE = {
     "id": "yoonbot-windows",

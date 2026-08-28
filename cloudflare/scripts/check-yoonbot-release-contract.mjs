@@ -1,6 +1,6 @@
 import { handleRequest } from "../src/worker.js";
 
-const EXPECTED_ARTIFACT = "yoonbot-1.1.0-win-x64.exe";
+const EXPECTED_ARTIFACT = "YoonBot-Setup-1.1.0.exe";
 const EXPECTED_ENDPOINT = `/api/yoonbot/artifacts/${EXPECTED_ARTIFACT}`;
 const EXPECTED_CONTENT_TYPE = "application/vnd.microsoft.portable-executable";
 const TEST_SHA256 = "a".repeat(64);
