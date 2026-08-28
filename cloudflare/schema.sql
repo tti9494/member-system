@@ -96,6 +96,22 @@ CREATE TABLE IF NOT EXISTS bookings (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS education_payment_orders (
+  id TEXT PRIMARY KEY,
+  booking_id TEXT NOT NULL UNIQUE REFERENCES bookings(id) ON DELETE RESTRICT,
+  member_id TEXT NOT NULL REFERENCES members(id) ON DELETE RESTRICT,
+  amount_krw INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'payment_pending',
+  payment_provider TEXT NOT NULL DEFAULT 'manual_bank_transfer',
+  payment_ref TEXT,
+  toss_order_id TEXT NOT NULL UNIQUE,
+  paid_at TEXT,
+  canceled_at TEXT,
+  refunded_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS operator_settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
@@ -281,6 +297,8 @@ CREATE INDEX IF NOT EXISTS idx_sessions_status_start ON sessions(status, starts_
 CREATE INDEX IF NOT EXISTS idx_bookings_session ON bookings(session_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_member ON bookings(member_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
+CREATE INDEX IF NOT EXISTS idx_education_payment_orders_status_created ON education_payment_orders(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_education_payment_orders_member ON education_payment_orders(member_id);
 CREATE INDEX IF NOT EXISTS idx_review_instructors_status_sort ON review_instructors(status, sort_order);
 CREATE INDEX IF NOT EXISTS idx_review_entries_status_date ON review_entries(status, class_date);
 CREATE INDEX IF NOT EXISTS idx_review_entries_instructor ON review_entries(instructor_id);

@@ -1701,6 +1701,203 @@ async function confirmTossPaymentByTossId(env, tossOrderId, body, tossConfirmFn)
   return confirmTossPayment(env, order.id, body, tossConfirmFn);
 }
 
+function educationPaymentRef(orderId) {
+  return `ARSEN-${String(orderId || "").replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+}
+
+function educationTossOrderId(orderId) {
+  return `ae-${String(orderId || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 30)}`;
+}
+
+function educationOrderPublic(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    booking_id: row.booking_id,
+    amount_krw: Number(row.amount_krw || 0),
+    status: row.status || "payment_pending",
+    payment_provider: row.payment_provider || "manual_bank_transfer",
+    payment_reference: educationPaymentRef(row.id),
+    toss_order_id: row.toss_order_id || educationTossOrderId(row.id),
+    created_at: row.created_at || "",
+    paid_at: row.paid_at || null,
+  };
+}
+
+async function getEducationOrderRow(env, orderId) {
+  return one(env, "SELECT * FROM education_payment_orders WHERE id=?", orderId);
+}
+
+async function createOrReuseEducationOrder(env, bookingId, memberId) {
+  const booking = await one(
+    env,
+    `SELECT b.*, s.title AS session_title, s.price_krw AS session_price_krw
+     FROM bookings b
+     LEFT JOIN sessions s ON s.id=b.session_id
+     WHERE b.id=? AND b.member_id=?`,
+    bookingId,
+    memberId
+  );
+  if (!booking) return { ok: false, status: 404, message: "본인 예약을 찾을 수 없습니다." };
+  if (![...PENDING_BOOKING_STATUSES, "confirmed"].includes(booking.status)) {
+    return { ok: false, status: 400, message: "취소되었거나 처리할 수 없는 예약입니다." };
+  }
+  if (booking.payment_status === "paid") {
+    return { ok: false, status: 400, message: "이미 결제 확인된 예약입니다." };
+  }
+  const amount = Number(booking.payment_amount_krw || booking.session_price_krw || 0);
+  if (amount <= 0 || booking.payment_status === "waived") {
+    return { ok: false, status: 400, message: "이 예약은 온라인 결제 대상이 아닙니다." };
+  }
+
+  const existing = await one(
+    env,
+    "SELECT * FROM education_payment_orders WHERE booking_id=? ORDER BY created_at DESC LIMIT 1",
+    bookingId
+  );
+  if (existing) {
+    if (existing.status === "paid") return { ok: true, data: educationOrderPublic(existing), already_paid: true };
+    if (!["canceled", "refunded"].includes(existing.status)) {
+      return { ok: true, data: educationOrderPublic(existing), reused: true };
+    }
+    return { ok: false, status: 400, message: "취소 또는 환불된 결제 주문은 운영자 확인 후 다시 진행할 수 있습니다." };
+  }
+
+  const orderId = crypto.randomUUID();
+  const timestamp = now();
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT OR IGNORE INTO education_payment_orders (
+        id, booking_id, member_id, amount_krw, status, payment_provider,
+        toss_order_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 'payment_pending', 'manual_bank_transfer', ?, ?, ?)`
+    ).bind(orderId, bookingId, memberId, amount, educationTossOrderId(orderId), timestamp, timestamp),
+    env.DB.prepare(
+      `UPDATE bookings
+       SET status=CASE WHEN status='requested' THEN 'payment_pending' ELSE status END,
+           payment_status=CASE WHEN payment_status IN ('not_sent','pending') THEN 'pending' ELSE payment_status END,
+           updated_at=?
+       WHERE id=?`
+    ).bind(timestamp, bookingId),
+  ]);
+  const created = await one(env, "SELECT * FROM education_payment_orders WHERE booking_id=?", bookingId);
+  return { ok: true, data: educationOrderPublic(created), reused: created?.id !== orderId };
+}
+
+async function educationPaymentPayload(env, order, orderName) {
+  const provider = String(env.YOONBOT_PAYMENT_PROVIDER || "");
+  const clientKey = String(env.TOSS_PAYMENTS_CLIENT_KEY || "");
+  const secretKey = String(env.TOSS_PAYMENTS_SECRET_KEY || "");
+  if (provider !== "toss_payments" || !clientKey || !secretKey) {
+    const account = await selectedPaymentAccount(env);
+    const payload = {
+      mode: "manual_bank_transfer",
+      auto_charge: false,
+      payment_reference: order.payment_reference,
+      amount_krw: order.amount_krw,
+      message: "온라인 결제 설정 확인 중입니다. 아래 입금 안내 또는 운영자 안내에 따라 진행하세요.",
+    };
+    if (account) {
+      payload.manual_account = {
+        label: account.label || "입금 계좌",
+        bank: account.bank || "",
+        number: account.number || "",
+        holder: account.holder || "",
+      };
+    }
+    return payload;
+  }
+  const baseUrl = publicBaseUrl(env).replace(/\/$/, "");
+  return {
+    mode: "toss_payments",
+    auto_charge: true,
+    client_key: clientKey,
+    toss_order_id: order.toss_order_id,
+    order_name: String(orderName || "ARSEN 유료 강의").slice(0, 100),
+    amount: { value: Number(order.amount_krw || 0), currency: "KRW" },
+    success_url: `${baseUrl}/frontend/status.html?payment=success&education_order_id=${encodeURIComponent(order.id)}`,
+    fail_url: `${baseUrl}/frontend/status.html?payment=fail&education_order_id=${encodeURIComponent(order.id)}`,
+  };
+}
+
+async function educationPaymentKeyFingerprint(env, paymentKey) {
+  if (!String(env.CODE_SECRET_KEY || "")) throw new Error("CODE_SECRET_KEY is not configured");
+  const digest = await hmacHex(`education-payment:${paymentKey}`, env, "CODE_SECRET_KEY");
+  return `toss:${digest.slice(0, 48)}`;
+}
+
+function constantTimeTextEqual(left, right) {
+  const a = new TextEncoder().encode(String(left || ""));
+  const b = new TextEncoder().encode(String(right || ""));
+  let difference = a.length ^ b.length;
+  for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+    difference |= (a[index] || 0) ^ (b[index] || 0);
+  }
+  return difference === 0;
+}
+
+async function confirmEducationTossPayment(env, orderId, body, tossConfirmFn) {
+  const order = await getEducationOrderRow(env, orderId);
+  if (!order) return { ok: false, status: 404, message: "결제 주문을 찾을 수 없습니다." };
+  if (["canceled", "refunded"].includes(order.status)) {
+    return { ok: false, status: 400, message: "취소 또는 환불된 주문은 결제 확인할 수 없습니다." };
+  }
+  if (!body.payment_key || !String(env.CODE_SECRET_KEY || "")) {
+    return { ok: false, status: 503, message: "온라인 결제 설정이 완료되지 않았습니다." };
+  }
+  const fingerprint = await educationPaymentKeyFingerprint(env, body.payment_key);
+  if (order.status === "paid") {
+    if (constantTimeTextEqual(order.payment_ref, fingerprint)) return { ok: true, data: educationOrderPublic(order), idempotent: true };
+    return { ok: false, status: 400, message: "이미 결제 처리된 주문입니다." };
+  }
+  if (body.order_id !== order.toss_order_id) {
+    return { ok: false, status: 400, message: "orderId가 서버 값과 일치하지 않습니다." };
+  }
+  const serverAmount = Number(order.amount_krw || 0);
+  if (Number(body.amount) !== serverAmount) {
+    return { ok: false, status: 400, message: "결제 금액이 주문 금액과 일치하지 않습니다." };
+  }
+  if (!String(env.TOSS_PAYMENTS_SECRET_KEY || "")) {
+    return { ok: false, status: 503, message: "온라인 결제 설정이 완료되지 않았습니다." };
+  }
+  let tossResponse;
+  try {
+    tossResponse = await (tossConfirmFn || confirmTossPaymentWithToss)(env, body.payment_key, body.order_id, serverAmount);
+  } catch (err) {
+    return { ok: false, status: 502, message: String(err.message || "Toss 결제 확인에 실패했습니다.") };
+  }
+  const tossStatus = String((tossResponse || {}).status || "");
+  if (tossStatus && tossStatus !== "DONE") {
+    return { ok: false, status: 400, message: `Toss 결제 상태가 완료가 아닙니다: ${tossStatus}` };
+  }
+  if (tossResponse?.totalAmount != null && Number(tossResponse.totalAmount) !== serverAmount) {
+    return { ok: false, status: 400, message: "Toss 응답 금액이 주문 금액과 일치하지 않습니다." };
+  }
+
+  const timestamp = now();
+  await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE education_payment_orders
+       SET status='paid', payment_provider='toss_payments', payment_ref=?, paid_at=?, updated_at=?
+       WHERE id=? AND status='payment_pending'`
+    ).bind(fingerprint, timestamp, timestamp, orderId),
+    env.DB.prepare(
+      `UPDATE bookings
+       SET status='confirmed', payment_status='paid', payment_note='온라인 결제 확인',
+           confirmed_at=COALESCE(confirmed_at, ?), updated_at=?
+       WHERE id=? AND EXISTS (
+         SELECT 1 FROM education_payment_orders
+         WHERE id=? AND status='paid' AND payment_ref=?
+       )`
+    ).bind(timestamp, timestamp, order.booking_id, orderId, fingerprint),
+  ]);
+  const refreshed = await getEducationOrderRow(env, orderId);
+  if (refreshed?.status === "paid" && constantTimeTextEqual(refreshed.payment_ref, fingerprint)) {
+    return { ok: true, data: educationOrderPublic(refreshed) };
+  }
+  return { ok: false, status: 409, message: "결제 주문 상태가 변경되어 다시 확인이 필요합니다." };
+}
+
 const DISCOUNT_CODE_RE = /^[A-Z0-9_\-]{1,64}$/;
 
 function normalizeDiscountCode(code) {
@@ -6690,6 +6887,49 @@ export async function handleRequest(request, env) {
       response = await handleMemberReviewCreate(request, env);
     } else if (path === "/member/bookings" && request.method === "POST") {
       response = await handlePublicBooking(request, env);
+    } else if (
+      parts[0] === "member" &&
+      parts[1] === "bookings" &&
+      parts[2] &&
+      parts[3] === "payment-intent" &&
+      request.method === "POST"
+    ) {
+      const bookingId = parts[2];
+      const body = await readJson(request);
+      const member = await one(env, "SELECT * FROM members WHERE id=?", body.member_id || "");
+      if (!member || member.status !== "approved") response = fail(400, "승인된 신청자만 결제를 진행할 수 있습니다.");
+      else if (!(await accessCodeMatches(member, body.code, env))) response = fail(400, "승인 코드 확인에 실패했습니다.");
+      else {
+        const result = await createOrReuseEducationOrder(env, bookingId, member.id);
+        if (!result.ok) response = fail(result.status || 400, result.message || "결제 주문을 준비하지 못했습니다.");
+        else {
+          const booking = await getBooking(env, bookingId);
+          if (result.already_paid) response = json({ ok: true, message: "이미 결제가 확인된 예약입니다.", data: result.data, booking: safePublicBooking(booking) });
+          else {
+            const payment = await educationPaymentPayload(env, result.data, booking?.session_title || "ARSEN 유료 강의");
+            await logAction(env, member.id, "education_payment_intent_created", `booking_id=${bookingId}`, request);
+            response = json({ ok: true, message: "결제 정보를 준비했습니다.", data: result.data, payment, booking: safePublicBooking(booking) });
+          }
+        }
+      }
+    } else if (
+      parts[0] === "member" &&
+      parts[1] === "education-orders" &&
+      parts[2] &&
+      parts[3] === "payments" &&
+      parts[4] === "toss" &&
+      parts[5] === "confirm" &&
+      request.method === "POST"
+    ) {
+      const orderId = parts[2];
+      const result = await confirmEducationTossPayment(env, orderId, await readJson(request));
+      if (!result.ok) response = fail(result.status || 400, result.message || "결제 확인에 실패했습니다.");
+      else {
+        const order = await getEducationOrderRow(env, orderId);
+        const booking = order ? await getBooking(env, order.booking_id) : null;
+        await logAction(env, "system", "education_toss_payment_confirmed", orderId, request);
+        response = json({ ...result, booking: safePublicBooking(booking) });
+      }
     } else if (path === "/auth/kakao/start" && request.method === "GET") {
       response = await handleKakaoStart(request, env);
     } else if (path === "/auth/kakao/callback" && request.method === "GET") {

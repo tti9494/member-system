@@ -633,3 +633,26 @@ def test_apply_free_plan_backend_validation_contracts():
     assert "theme-loader.js" in status_html
     assert "#d9e5f2" not in status_html
     assert "#0c131b" not in status_html
+
+
+def test_education_payment_fastapi_cloudflare_parity_contract():
+    main_py = MAIN_PY.read_text(encoding="utf-8")
+    worker_js = WORKER_JS.read_text(encoding="utf-8")
+    schema = (ROOT / "cloudflare" / "schema.sql").read_text(encoding="utf-8")
+    status_html = (ROOT / "frontend" / "status.html").read_text(encoding="utf-8")
+
+    assert '@app.post("/member/bookings/{booking_id}/payment-intent")' in main_py
+    assert '@app.post("/member/education-orders/{order_id}/payments/toss/confirm")' in main_py
+    assert 'parts[3] === "payment-intent"' in worker_js
+    assert 'parts[1] === "education-orders"' in worker_js
+    assert 'parts[5] === "confirm"' in worker_js
+    assert "createOrReuseEducationOrder" in worker_js
+    assert "confirmEducationTossPayment" in worker_js
+    assert "educationPaymentKeyFingerprint" in worker_js
+    assert "constantTimeTextEqual" in worker_js
+    assert "payment_ref=?, paid_at=?" in worker_js
+    assert "payment=success&education_order_id=" in worker_js
+    assert "CREATE TABLE IF NOT EXISTS education_payment_orders" in schema
+    assert "idx_education_payment_orders_status_created" in schema
+    assert "/member/bookings/${encodeURIComponent(bookingId)}/payment-intent" in status_html
+    assert "/member/education-orders/${encodeURIComponent(educationOrderId)}/payments/toss/confirm" in status_html
