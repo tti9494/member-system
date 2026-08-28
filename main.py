@@ -277,6 +277,40 @@ PREPARATION_GUIDE_PATH = Path.home() / "member-system" / "private" / "preparatio
 SITE_THEME_PATH = Path.home() / "member-system" / "private" / "site_theme.json"
 LAUNCHER_MANIFEST_PATH = Path.home() / "arsen-dashboard" / "data" / "launcher_ops.json"
 LAUNCHER_ARTIFACT_DIR = Path.home() / ".arsen-work-bus" / "artifacts" / "launcher"
+# YOONBOT Windows app public update contract. Fully separated from the
+# Arsen Content Launcher artifact: different name, storage dir, content type.
+YOONBOT_ARTIFACT_DIR = Path.home() / ".arsen-work-bus" / "artifacts" / "yoonbot"
+YOONBOT_ARTIFACT_NAME = "yoonbot-1.1.0-win-x64.exe"
+YOONBOT_EXE_CONTENT_TYPE = "application/vnd.microsoft.portable-executable"
+YOONBOT_RELEASE_BASE = {
+    "id": "yoonbot-windows",
+    "name": "YOONBOT",
+    "product_code": "yoonbot",
+    "platform": "win32",
+    "arch": "x64",
+    "package_type": "exe",
+    "executable": YOONBOT_ARTIFACT_NAME,
+    "latest_version": "1.1.0",
+    "minimum_supported_version": "1.0.0",
+    "release_channel": "stable",
+    "artifact_name": YOONBOT_ARTIFACT_NAME,
+    "release_notes": [
+        "YOONBOT 1.1.0 Windows 업데이트입니다.",
+        "공식 HTTPS 다운로드와 SHA-256 검증 정보를 함께 제공합니다.",
+    ],
+}
+YOONBOT_NOTICES = [
+    {
+        "id": "2026-08-28-yoonbot-1-1-0-update",
+        "type": "update",
+        "level": "info",
+        "pinned": True,
+        "title": "YOONBOT 1.1.0 업데이트 안내",
+        "body": "업데이트 파일은 공식 HTTPS 경로와 SHA-256 검증 정보가 준비된 경우에만 내려받기가 활성화됩니다.",
+        "published_at": "2026-08-28T09:00:00+09:00",
+        "dismissible": True,
+    },
+]
 DEFAULT_SITE_THEME_ID = "arsen-modern"
 SITE_THEME_PROFILES = [
     {
@@ -314,8 +348,8 @@ def _safe_launcher_artifact_name(artifact_name: str) -> bool:
     return bool(artifact_name) and artifact_name == Path(artifact_name).name and "/" not in artifact_name and "\\" not in artifact_name
 
 
-def _launcher_public_base_url(request: Request) -> str:
-    configured = os.getenv("ARSEN_LAUNCHER_ARTIFACT_BASE_URL", "").strip().rstrip("/")
+def _public_artifact_base_url(request: Request, env_var: str) -> str:
+    configured = os.getenv(env_var, "").strip().rstrip("/")
     if configured.startswith("https://"):
         return configured
     forwarded_proto = request.headers.get("x-forwarded-proto", request.url.scheme)
@@ -325,6 +359,10 @@ def _launcher_public_base_url(request: Request) -> str:
     forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
     host = forwarded_host.split(",")[0].strip()
     return f"https://{host}"
+
+
+def _launcher_public_base_url(request: Request) -> str:
+    return _public_artifact_base_url(request, "ARSEN_LAUNCHER_ARTIFACT_BASE_URL")
 
 
 def _public_launcher_release(raw_launcher: Any, request: Request) -> dict[str, Any]:
@@ -469,6 +507,79 @@ def _admin_launcher_status(request: Request) -> dict[str, Any]:
         "programs": programs,
         "notices": notices,
     }
+
+def _is_sha256_hex(value: str) -> bool:
+    normalized = (value or "").strip().lower()
+    return len(normalized) == 64 and all(ch in "0123456789abcdef" for ch in normalized)
+
+
+_YOONBOT_SHA256_CACHE: dict[tuple[str, int, int], str] = {}
+
+
+def _yoonbot_artifact_sha256(artifact_path: Path) -> str:
+    stat = artifact_path.stat()
+    cache_key = (str(artifact_path), stat.st_mtime_ns, stat.st_size)
+    cached = _YOONBOT_SHA256_CACHE.get(cache_key)
+    if cached:
+        return cached
+    digest = hashlib.sha256()
+    with artifact_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    value = digest.hexdigest()
+    _YOONBOT_SHA256_CACHE.clear()
+    _YOONBOT_SHA256_CACHE[cache_key] = value
+    return value
+
+
+def _yoonbot_release_contract(request: Request) -> dict[str, Any]:
+    release: dict[str, Any] = {
+        key: (list(value) if isinstance(value, list) else value)
+        for key, value in YOONBOT_RELEASE_BASE.items()
+    }
+    artifact_endpoint = f"/api/yoonbot/artifacts/{YOONBOT_ARTIFACT_NAME}"
+    release["artifact_endpoint"] = artifact_endpoint
+    # Fail-closed defaults: no verified artifact means no download offer.
+    release["download_ready"] = False
+    release["artifact_download_url"] = ""
+    release["sha256"] = ""
+    release["size_bytes"] = 0
+
+    configured_url = os.getenv("YOONBOT_ARTIFACT_DOWNLOAD_URL", "").strip()
+    if configured_url:
+        configured_sha = os.getenv("YOONBOT_ARTIFACT_SHA256", "").strip().lower()
+        configured_size_raw = os.getenv("YOONBOT_ARTIFACT_SIZE_BYTES", "").strip()
+        configured_size = int(configured_size_raw) if configured_size_raw.isdigit() else 0
+        if configured_url.startswith("https://") and _is_sha256_hex(configured_sha) and configured_size > 0:
+            release["download_ready"] = True
+            release["artifact_download_url"] = configured_url
+            release["sha256"] = configured_sha
+            release["size_bytes"] = configured_size
+        return release
+
+    artifact_path = YOONBOT_ARTIFACT_DIR / YOONBOT_ARTIFACT_NAME
+    if not artifact_path.is_file():
+        return release
+    size_bytes = artifact_path.stat().st_size
+    sha256 = _yoonbot_artifact_sha256(artifact_path)
+    base_url = _public_artifact_base_url(request, "ARSEN_YOONBOT_ARTIFACT_BASE_URL")
+    download_url = f"{base_url}{artifact_endpoint}" if base_url else ""
+    release["sha256"] = sha256
+    release["size_bytes"] = size_bytes
+    release["artifact_download_url"] = download_url
+    release["download_ready"] = bool(download_url and size_bytes > 0 and _is_sha256_hex(sha256))
+    return release
+
+
+def _yoonbot_public_manifest(request: Request) -> dict[str, Any]:
+    return {
+        "schema_version": "arsen.yoonbot_manifest.v1",
+        "server_time": datetime.now(timezone.utc).isoformat(),
+        "notices": [dict(notice) for notice in YOONBOT_NOTICES],
+        "release": _yoonbot_release_contract(request),
+        "source": "member-system-fastapi",
+    }
+
 
 DEFAULT_PREPARATION_GUIDE = """[강의 준비물 안내]
 입금 확인되신 분들께 공통 안내드립니다.
@@ -3894,6 +4005,33 @@ async def public_launcher_artifact(artifact_name: str):
         str(artifact_path),
         media_type="application/zip",
         filename=artifact_name,
+    )
+
+
+@app.get("/api/yoonbot/manifest")
+async def api_yoonbot_public_manifest(request: Request):
+    return _yoonbot_public_manifest(request)
+
+
+@app.get("/api/yoonbot/release")
+async def api_yoonbot_public_release(request: Request):
+    return _yoonbot_release_contract(request)
+
+
+@app.api_route("/api/yoonbot/artifacts/{artifact_name}", methods=["GET", "HEAD"])
+async def api_yoonbot_public_artifact(artifact_name: str):
+    if not _safe_launcher_artifact_name(artifact_name) or not artifact_name.lower().endswith(".exe"):
+        raise HTTPException(status_code=400, detail="invalid_artifact_name")
+    if artifact_name != YOONBOT_ARTIFACT_NAME:
+        raise HTTPException(status_code=404, detail="yoonbot_artifact_missing")
+    artifact_path = YOONBOT_ARTIFACT_DIR / artifact_name
+    if not artifact_path.is_file():
+        raise HTTPException(status_code=404, detail="yoonbot_artifact_missing")
+    return FileResponse(
+        str(artifact_path),
+        media_type=YOONBOT_EXE_CONTENT_TYPE,
+        filename=artifact_name,
+        headers={"x-content-type-options": "nosniff"},
     )
 
 

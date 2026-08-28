@@ -1,6 +1,7 @@
 import { createReadStream } from "node:fs";
 import { cp, mkdir, open, rm, stat, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,6 +15,15 @@ const launcherArtifactSource = `/Users/yoon/.arsen-work-bus/artifacts/launcher/$
 const launcherArtifactExpectedSize = 147951169;
 const launcherArtifactExpectedSha256 = "3B0AB1E9A2295BC45757848C28EF96F6885CC7D5AFEA790DF8AAC8A25808FA75";
 const launcherArtifactChunkSize = 20 * 1024 * 1024;
+// YOONBOT Windows artifact is optional: skipped when the file is absent so the
+// public release contract stays fail-closed (download_ready=false) until the
+// real 1.1.0 exe is staged. Separate name/dir from the launcher ZIP.
+const yoonbotArtifactName = "yoonbot-1.1.0-win-x64.exe";
+const yoonbotArtifactSource = resolve(
+  process.env.YOONBOT_ARTIFACT_SOURCE_DIR || resolve(homedir(), ".arsen-work-bus", "artifacts", "yoonbot"),
+  yoonbotArtifactName
+);
+const yoonbotArtifactChunkSize = 20 * 1024 * 1024;
 const frontendHtmlFiles = [
   "admin.html",
   "class-dashboard.html",
@@ -120,6 +130,52 @@ async function writeLauncherArtifactChunks(sourceInfo) {
   );
 }
 
+async function writeYoonbotArtifactChunks() {
+  if (!(await exists(yoonbotArtifactSource))) return;
+  const info = await stat(yoonbotArtifactSource);
+  if (!info.size) return;
+  const sha256 = (await sha256File(yoonbotArtifactSource)).toLowerCase();
+  const artifactDir = resolve(dist, "yoonbot-artifacts");
+  await mkdir(artifactDir, { recursive: true });
+  const handle = await open(yoonbotArtifactSource, "r");
+  const chunks = [];
+  let offset = 0;
+  let index = 0;
+  try {
+    while (offset < info.size) {
+      const length = Math.min(yoonbotArtifactChunkSize, info.size - offset);
+      const buffer = Buffer.allocUnsafe(length);
+      const { bytesRead } = await handle.read(buffer, 0, length, offset);
+      if (bytesRead !== length) {
+        throw new Error(`Yoonbot artifact chunk read failed at byte ${offset}: expected ${length}, got ${bytesRead}`);
+      }
+      const chunk = buffer.subarray(0, bytesRead);
+      const chunkName = `${yoonbotArtifactName}.part-${String(index).padStart(3, "0")}`;
+      await writeFile(resolve(artifactDir, chunkName), chunk);
+      chunks.push({
+        path: `/yoonbot-artifacts/${chunkName}`,
+        size_bytes: bytesRead,
+        sha256: createHash("sha256").update(chunk).digest("hex").toLowerCase(),
+      });
+      offset += bytesRead;
+      index += 1;
+    }
+  } finally {
+    await handle.close();
+  }
+
+  await writeFile(
+    resolve(artifactDir, `${yoonbotArtifactName}.manifest.json`),
+    `${JSON.stringify({
+      artifact_name: yoonbotArtifactName,
+      size_bytes: info.size,
+      sha256,
+      chunk_size_bytes: yoonbotArtifactChunkSize,
+      chunks,
+    }, null, 2)}\n`
+  );
+}
+
 if (!(await exists(sourceFrontend))) {
   throw new Error(`Missing frontend source: ${sourceFrontend}`);
 }
@@ -191,6 +247,7 @@ a span{display:block;margin-top:4px;color:#b8c6d9;font-weight:600;font-size:.95r
 `
   );
   await writeLauncherArtifactChunks(launcherArtifactSourceInfo);
+  await writeYoonbotArtifactChunks();
 }
 
 console.log(checkOnly ? "cloudflare pages build inputs ok" : `cloudflare pages dist ready: ${dist}`);

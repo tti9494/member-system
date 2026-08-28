@@ -233,6 +233,42 @@ const LAUNCHER_NOTICES = Object.freeze([
     dismissible: true,
   },
 ]);
+// YOONBOT Windows app public update contract. Fully separated from the
+// Arsen Content Launcher artifact: different name, storage key/binding,
+// asset path, and content type.
+const YOONBOT_ARTIFACT_NAME = "yoonbot-1.1.0-win-x64.exe";
+const YOONBOT_ARTIFACT_KEY = YOONBOT_ARTIFACT_NAME;
+const YOONBOT_ASSET_MANIFEST_PATH = `/yoonbot-artifacts/${YOONBOT_ARTIFACT_NAME}.manifest.json`;
+const YOONBOT_EXE_CONTENT_TYPE = "application/vnd.microsoft.portable-executable";
+const YOONBOT_RELEASE = Object.freeze({
+  id: "yoonbot-windows",
+  name: "YOONBOT",
+  product_code: YOONBOT_PRODUCT_CODE,
+  platform: "win32",
+  arch: "x64",
+  package_type: "exe",
+  executable: YOONBOT_ARTIFACT_NAME,
+  latest_version: "1.1.0",
+  minimum_supported_version: "1.0.0",
+  release_channel: "stable",
+  artifact_name: YOONBOT_ARTIFACT_NAME,
+  release_notes: [
+    "YOONBOT 1.1.0 Windows 업데이트입니다.",
+    "공식 HTTPS 다운로드와 SHA-256 검증 정보를 함께 제공합니다.",
+  ],
+});
+const YOONBOT_NOTICES = Object.freeze([
+  {
+    id: "2026-08-28-yoonbot-1-1-0-update",
+    type: "update",
+    level: "info",
+    pinned: true,
+    title: "YOONBOT 1.1.0 업데이트 안내",
+    body: "업데이트 파일은 공식 HTTPS 경로와 SHA-256 검증 정보가 준비된 경우에만 내려받기가 활성화됩니다.",
+    published_at: "2026-08-28T09:00:00+09:00",
+    dismissible: true,
+  },
+]);
 const LAUNCHER_TIERS = Object.freeze([
   { id: "free", name: "무료 체험", audience: "가망 고객", internal_only: false, daily_limits: { keyword_discovery: 10, draft_generation: 3 }, enabled_features: ["키워드 발굴", "초안 일부 미리보기", "기본 품질 점수"], locked_features: ["초안 저장", "전체 본문 보기", "플랫폼별 발행 준비", "계정 연결"] },
   { id: "basic", name: "기본", audience: "개인 블로거", internal_only: false, daily_limits: { draft_generation: 10, connected_channels: 1 }, enabled_features: ["전체 초안", "초안 저장", "기본 재작성", "복사/내보내기"], locked_features: ["대량 작업 큐", "고급 검증 루프", "여러 채널 연결"] },
@@ -469,6 +505,165 @@ async function adminLauncherStatusPayload(env, request) {
     warnings,
     programs,
     notices,
+  };
+}
+
+function isSha256Hex(value) {
+  return /^[0-9a-f]{64}$/.test(String(value || "").trim().toLowerCase());
+}
+
+async function yoonbotAssetManifest(env, request) {
+  if (!env.ASSETS || typeof env.ASSETS.fetch !== "function") return null;
+  const manifestUrl = new URL(request.url);
+  manifestUrl.pathname = YOONBOT_ASSET_MANIFEST_PATH;
+  manifestUrl.search = "";
+  const response = await env.ASSETS.fetch(new Request(manifestUrl, { method: "GET" }));
+  if (!response.ok) return null;
+  const manifest = await response.json().catch(() => null);
+  if (manifest?.artifact_name !== YOONBOT_ARTIFACT_NAME) return null;
+  if (!Number.isFinite(Number(manifest.size_bytes)) || Number(manifest.size_bytes) <= 0) return null;
+  if (!isSha256Hex(manifest.sha256)) return null;
+  if (!Array.isArray(manifest.chunks) || !manifest.chunks.length) return null;
+  return manifest;
+}
+
+async function yoonbotR2Contract(env) {
+  if (!env.YOONBOT_RELEASES || typeof env.YOONBOT_RELEASES.head !== "function") return null;
+  const object = await env.YOONBOT_RELEASES.head(YOONBOT_ARTIFACT_KEY);
+  if (!object) return null;
+  const sha256 = String(object.customMetadata?.sha256 || "").trim().toLowerCase();
+  const sizeBytes = Number(object.size || 0);
+  if (!isSha256Hex(sha256) || !(sizeBytes > 0)) return null;
+  return { sha256, size_bytes: sizeBytes };
+}
+
+// Fail-closed: download_ready only with a verified HTTPS URL plus a real
+// 64-hex SHA-256 and size. Never invent checksum, size, or availability.
+async function yoonbotArtifactContract(env, request) {
+  const closed = { download_ready: false, artifact_download_url: "", sha256: "", size_bytes: 0 };
+  const explicitUrl = String(env.YOONBOT_ARTIFACT_DOWNLOAD_URL || "").trim();
+  if (explicitUrl) {
+    const sha256 = String(env.YOONBOT_ARTIFACT_SHA256 || "").trim().toLowerCase();
+    const sizeBytes = Number(env.YOONBOT_ARTIFACT_SIZE_BYTES || 0);
+    if (explicitUrl.startsWith("https://") && isSha256Hex(sha256) && sizeBytes > 0) {
+      return { download_ready: true, artifact_download_url: explicitUrl, sha256, size_bytes: sizeBytes };
+    }
+    return closed;
+  }
+  const origin = new URL(request.url);
+  if (origin.protocol !== "https:") return closed;
+  const selfDownloadUrl = `${origin.origin}/api/yoonbot/artifacts/${YOONBOT_ARTIFACT_NAME}`;
+  const assetManifest = await yoonbotAssetManifest(env, request);
+  if (assetManifest) {
+    return {
+      download_ready: true,
+      artifact_download_url: selfDownloadUrl,
+      sha256: String(assetManifest.sha256).trim().toLowerCase(),
+      size_bytes: Number(assetManifest.size_bytes),
+    };
+  }
+  const r2Contract = await yoonbotR2Contract(env);
+  if (r2Contract) {
+    return { download_ready: true, artifact_download_url: selfDownloadUrl, ...r2Contract };
+  }
+  return closed;
+}
+
+function yoonbotArtifactHeaders(sizeBytes) {
+  const headers = new Headers();
+  headers.set("content-type", YOONBOT_EXE_CONTENT_TYPE);
+  headers.set("content-disposition", `attachment; filename="${YOONBOT_ARTIFACT_NAME}"`);
+  headers.set("content-length", String(sizeBytes));
+  headers.set("cache-control", "public, max-age=31536000, immutable");
+  headers.set("x-content-type-options", "nosniff");
+  return headers;
+}
+
+async function yoonbotAssetArtifactResponse(env, request) {
+  const manifest = await yoonbotAssetManifest(env, request);
+  if (!manifest) return null;
+  const headers = yoonbotArtifactHeaders(manifest.size_bytes);
+  if (request.method === "HEAD") return new Response(null, { headers });
+
+  const body = new ReadableStream({
+    async start(controller) {
+      try {
+        for (const chunk of manifest.chunks) {
+          const chunkUrl = new URL(request.url);
+          chunkUrl.pathname = chunk.path;
+          chunkUrl.search = "";
+          const response = await env.ASSETS.fetch(new Request(chunkUrl, { method: "GET" }));
+          if (!response.ok || !response.body) throw new Error(`yoonbot_artifact_chunk_missing:${chunk.path}`);
+          const reader = response.body.getReader();
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              controller.enqueue(value);
+            }
+          } finally {
+            reader.releaseLock();
+          }
+        }
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+  return new Response(body, { headers });
+}
+
+async function yoonbotArtifactResponse(env, request) {
+  const explicitUrl = String(env.YOONBOT_ARTIFACT_DOWNLOAD_URL || "").trim();
+  if (explicitUrl.startsWith("https://")) return Response.redirect(explicitUrl, 302);
+
+  const assetResponse = await yoonbotAssetArtifactResponse(env, request);
+  if (assetResponse) return assetResponse;
+
+  if (!env.YOONBOT_RELEASES || typeof env.YOONBOT_RELEASES.get !== "function") {
+    return fail(503, "yoonbot_artifact_storage_not_configured");
+  }
+
+  const object = await env.YOONBOT_RELEASES.get(YOONBOT_ARTIFACT_KEY);
+  if (!object) return fail(404, "yoonbot_artifact_missing");
+
+  const headers = new Headers();
+  headers.set("content-type", YOONBOT_EXE_CONTENT_TYPE);
+  headers.set("content-disposition", `attachment; filename="${YOONBOT_ARTIFACT_NAME}"`);
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("accept-ranges", "bytes");
+  if (object.size) headers.set("content-length", String(object.size));
+  if (object.httpEtag) headers.set("etag", object.httpEtag);
+  return new Response(request.method === "HEAD" ? null : object.body, { headers });
+}
+
+async function yoonbotReleasePayload(env, request) {
+  const contract = await yoonbotArtifactContract(env, request);
+  return {
+    ...YOONBOT_RELEASE,
+    artifact_endpoint: `/api/yoonbot/artifacts/${YOONBOT_ARTIFACT_NAME}`,
+    ...contract,
+  };
+}
+
+function yoonbotNoticesPayload() {
+  return YOONBOT_NOTICES
+    .map((notice) => ({ ...notice }))
+    .sort((left, right) => {
+      const pinned = Number(Boolean(right.pinned)) - Number(Boolean(left.pinned));
+      if (pinned) return pinned;
+      return String(right.published_at || "").localeCompare(String(left.published_at || ""));
+    });
+}
+
+async function yoonbotManifestPayload(env, request) {
+  return {
+    schema_version: "arsen.yoonbot_manifest.v1",
+    server_time: now(),
+    notices: yoonbotNoticesPayload(),
+    release: await yoonbotReleasePayload(env, request),
+    source: "member-system-cloudflare",
   };
 }
 
@@ -6974,6 +7169,14 @@ export async function handleRequest(request, env) {
       response = token
         ? json(await verifyLicense(env, await readJson(request), request, token))
         : fail(401, "라이선스 인증 토큰이 필요합니다.");
+    } else if (path === "/api/yoonbot/manifest" && request.method === "GET") {
+      response = json(await yoonbotManifestPayload(env, request));
+    } else if (path === "/api/yoonbot/release" && request.method === "GET") {
+      response = json(await yoonbotReleasePayload(env, request));
+    } else if (path === `/api/yoonbot/artifacts/${YOONBOT_ARTIFACT_NAME}` && (request.method === "GET" || request.method === "HEAD")) {
+      response = await yoonbotArtifactResponse(env, request);
+    } else if (path.startsWith("/api/yoonbot/artifacts/") && (request.method === "GET" || request.method === "HEAD")) {
+      response = fail(404, "yoonbot_artifact_missing");
     } else if (path === "/api/yoonbot/products" && request.method === "GET") {
       response = json({ ok: true, ...yoonbotProducts(env) });
     } else if (path === "/api/yoonbot/orders" && request.method === "POST") {
