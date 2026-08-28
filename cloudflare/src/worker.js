@@ -527,14 +527,31 @@ async function yoonbotAssetManifest(env, request) {
   return manifest;
 }
 
-async function yoonbotR2Contract(env) {
-  if (!env.YOONBOT_RELEASES || typeof env.YOONBOT_RELEASES.head !== "function") return null;
-  const object = await env.YOONBOT_RELEASES.head(YOONBOT_ARTIFACT_KEY);
+// Single validation rule for an R2 object: shared by the release contract
+// (head) and the direct GET/HEAD artifact path so an object that fails the
+// contract can never be served.
+function yoonbotR2ObjectContract(object) {
   if (!object) return null;
   const sha256 = String(object.customMetadata?.sha256 || "").trim().toLowerCase();
   const sizeBytes = Number(object.size || 0);
   if (!isSha256Hex(sha256) || !(sizeBytes > 0)) return null;
   return { sha256, size_bytes: sizeBytes };
+}
+
+async function yoonbotR2Contract(env) {
+  if (!env.YOONBOT_RELEASES || typeof env.YOONBOT_RELEASES.head !== "function") return null;
+  return yoonbotR2ObjectContract(await env.YOONBOT_RELEASES.head(YOONBOT_ARTIFACT_KEY));
+}
+
+// Single validation rule for the explicit external URL: HTTPS + real 64-hex
+// SHA-256 + positive size, or nothing. Shared by release and artifact paths.
+function yoonbotExplicitUrlContract(env) {
+  const explicitUrl = String(env.YOONBOT_ARTIFACT_DOWNLOAD_URL || "").trim();
+  if (!explicitUrl) return null;
+  const sha256 = String(env.YOONBOT_ARTIFACT_SHA256 || "").trim().toLowerCase();
+  const sizeBytes = Number(env.YOONBOT_ARTIFACT_SIZE_BYTES || 0);
+  if (!explicitUrl.startsWith("https://") || !isSha256Hex(sha256) || !(sizeBytes > 0)) return null;
+  return { download_ready: true, artifact_download_url: explicitUrl, sha256, size_bytes: sizeBytes };
 }
 
 // Fail-closed: download_ready only with a verified HTTPS URL plus a real
@@ -543,12 +560,7 @@ async function yoonbotArtifactContract(env, request) {
   const closed = { download_ready: false, artifact_download_url: "", sha256: "", size_bytes: 0 };
   const explicitUrl = String(env.YOONBOT_ARTIFACT_DOWNLOAD_URL || "").trim();
   if (explicitUrl) {
-    const sha256 = String(env.YOONBOT_ARTIFACT_SHA256 || "").trim().toLowerCase();
-    const sizeBytes = Number(env.YOONBOT_ARTIFACT_SIZE_BYTES || 0);
-    if (explicitUrl.startsWith("https://") && isSha256Hex(sha256) && sizeBytes > 0) {
-      return { download_ready: true, artifact_download_url: explicitUrl, sha256, size_bytes: sizeBytes };
-    }
-    return closed;
+    return yoonbotExplicitUrlContract(env) || closed;
   }
   const origin = new URL(request.url);
   if (origin.protocol !== "https:") return closed;
@@ -616,7 +628,11 @@ async function yoonbotAssetArtifactResponse(env, request) {
 
 async function yoonbotArtifactResponse(env, request) {
   const explicitUrl = String(env.YOONBOT_ARTIFACT_DOWNLOAD_URL || "").trim();
-  if (explicitUrl.startsWith("https://")) return Response.redirect(explicitUrl, 302);
+  if (explicitUrl) {
+    const explicitContract = yoonbotExplicitUrlContract(env);
+    if (!explicitContract) return fail(404, "yoonbot_artifact_not_verified");
+    return Response.redirect(explicitContract.artifact_download_url, 302);
+  }
 
   const assetResponse = await yoonbotAssetArtifactResponse(env, request);
   if (assetResponse) return assetResponse;
@@ -627,13 +643,15 @@ async function yoonbotArtifactResponse(env, request) {
 
   const object = await env.YOONBOT_RELEASES.get(YOONBOT_ARTIFACT_KEY);
   if (!object) return fail(404, "yoonbot_artifact_missing");
+  const r2Contract = yoonbotR2ObjectContract(object);
+  if (!r2Contract) return fail(404, "yoonbot_artifact_not_verified");
 
   const headers = new Headers();
   headers.set("content-type", YOONBOT_EXE_CONTENT_TYPE);
   headers.set("content-disposition", `attachment; filename="${YOONBOT_ARTIFACT_NAME}"`);
   headers.set("x-content-type-options", "nosniff");
   headers.set("accept-ranges", "bytes");
-  if (object.size) headers.set("content-length", String(object.size));
+  headers.set("content-length", String(r2Contract.size_bytes));
   if (object.httpEtag) headers.set("etag", object.httpEtag);
   return new Response(request.method === "HEAD" ? null : object.body, { headers });
 }

@@ -65,8 +65,13 @@ assert(externalArtifact.status === 302, "external artifact must redirect");
 assert(externalArtifact.headers.get("location") === EXTERNAL_URL, "external artifact redirect URL mismatch");
 
 // 4) Explicit URL without a valid sha256/size: fail-closed, no partial trust.
-const badExternal = await request("/api/yoonbot/release", { YOONBOT_ARTIFACT_DOWNLOAD_URL: EXTERNAL_URL });
+//    The direct artifact endpoint must not redirect to an unverified URL either.
+const badExternalEnv = { YOONBOT_ARTIFACT_DOWNLOAD_URL: EXTERNAL_URL };
+const badExternal = await request("/api/yoonbot/release", badExternalEnv);
 assertClosedRelease(badExternal.body, "external without sha256");
+const badExternalArtifact = await handleRequest(new Request(`https://apply.arsen-ai.com${EXPECTED_ENDPOINT}`), badExternalEnv);
+assert(badExternalArtifact.status === 404, "unverified external artifact must return 404, not redirect");
+assert(!badExternalArtifact.headers.get("location"), "unverified external artifact must not expose a redirect location");
 const httpExternal = await request("/api/yoonbot/release", {
   YOONBOT_ARTIFACT_DOWNLOAD_URL: `http://downloads.example.test/${EXPECTED_ARTIFACT}`,
   YOONBOT_ARTIFACT_SHA256: TEST_SHA256,
@@ -99,6 +104,7 @@ const fakeYoonbotR2 = {
     return {
       size: r2Bytes.length,
       httpEtag: '"yoonbot-etag"',
+      customMetadata: { sha256: TEST_SHA256 },
       body: r2Bytes,
       writeHttpMetadata() {},
     };
@@ -121,7 +127,8 @@ const r2Head = await handleRequest(new Request(`https://apply.arsen-ai.com${EXPE
 assert(r2Head.status === 200, "R2 yoonbot artifact HEAD must return 200");
 assert(r2Head.headers.get("content-length") === String(r2Bytes.length), "R2 yoonbot artifact HEAD content-length mismatch");
 
-// 8) R2 object without verified sha256 metadata: manifest stays fail-closed.
+// 8) R2 object without verified sha256 metadata: manifest stays fail-closed
+//    AND the direct artifact endpoint never serves the file.
 const unverifiedR2 = {
   async head() {
     return { size: r2Bytes.length, customMetadata: {} };
@@ -132,6 +139,24 @@ const unverifiedR2 = {
 };
 const unverifiedRelease = await request("/api/yoonbot/release", { YOONBOT_RELEASES: unverifiedR2 });
 assertClosedRelease(unverifiedRelease.body, "R2 without sha256 metadata");
+const unverifiedGet = await handleRequest(new Request(`https://apply.arsen-ai.com${EXPECTED_ENDPOINT}`), { YOONBOT_RELEASES: unverifiedR2 });
+assert(unverifiedGet.status === 404, "unverified R2 artifact GET must return 404");
+assert(unverifiedGet.headers.get("content-type") !== EXPECTED_CONTENT_TYPE, "unverified R2 artifact GET must not serve the exe");
+const unverifiedHead = await handleRequest(new Request(`https://apply.arsen-ai.com${EXPECTED_ENDPOINT}`, { method: "HEAD" }), { YOONBOT_RELEASES: unverifiedR2 });
+assert(unverifiedHead.status === 404, "unverified R2 artifact HEAD must return 404");
+
+const badShaR2 = {
+  async head() {
+    return { size: r2Bytes.length, customMetadata: { sha256: "not-a-real-sha" } };
+  },
+  async get() {
+    return { size: r2Bytes.length, customMetadata: { sha256: "not-a-real-sha" }, body: r2Bytes, writeHttpMetadata() {} };
+  },
+};
+const badShaRelease = await request("/api/yoonbot/release", { YOONBOT_RELEASES: badShaR2 });
+assertClosedRelease(badShaRelease.body, "R2 with malformed sha256 metadata");
+const badShaGet = await handleRequest(new Request(`https://apply.arsen-ai.com${EXPECTED_ENDPOINT}`), { YOONBOT_RELEASES: badShaR2 });
+assert(badShaGet.status === 404, "malformed-sha R2 artifact GET must return 404");
 
 // 9) Bundled asset chunks: ready + streamed GET and HEAD.
 const chunkA = new Uint8Array([1, 2]);

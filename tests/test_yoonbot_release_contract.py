@@ -164,6 +164,9 @@ class YoonbotReleaseContractTest(unittest.TestCase):
 
         os.environ.pop("YOONBOT_ARTIFACT_SHA256")
         self._assert_closed(self.client.get("/api/yoonbot/release").json())
+        artifact = self.client.get(ARTIFACT_ENDPOINT, follow_redirects=False)
+        self.assertNotIn(artifact.status_code, (301, 302, 307, 308))
+        self.assertEqual(artifact.status_code, 404)
 
     def test_artifact_get_and_head_use_exe_attachment_nosniff(self):
         payload = self._write_artifact()
