@@ -299,6 +299,53 @@ def init_db():
             updated_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS yoonbot_templates (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            content TEXT,
+            version INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS yoonbot_devices (
+            id TEXT PRIMARY KEY,
+            token_hash TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            platform TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            last_heartbeat_at TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS yoonbot_jobs (
+            id TEXT PRIMARY KEY,
+            idempotency_key TEXT UNIQUE NOT NULL,
+            template_id TEXT REFERENCES yoonbot_templates(id) ON DELETE SET NULL,
+            device_id TEXT NOT NULL REFERENCES yoonbot_devices(id) ON DELETE CASCADE,
+            target_alias TEXT NOT NULL DEFAULT 'self-test',
+            action TEXT NOT NULL,
+            execution_mode TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'draft',
+            quality_status TEXT,
+            hold_reason TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            claimed_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS yoonbot_job_results (
+            id TEXT PRIMARY KEY,
+            job_id TEXT NOT NULL UNIQUE REFERENCES yoonbot_jobs(id) ON DELETE CASCADE,
+            status TEXT NOT NULL,
+            quality_status TEXT,
+            reason_code TEXT,
+            hold_reason TEXT,
+            processed_count INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_members_phone_hash ON members(phone_hash);
         CREATE INDEX IF NOT EXISTS idx_members_email_hash ON members(email_hash);
         CREATE INDEX IF NOT EXISTS idx_members_status ON members(status);
@@ -326,6 +373,8 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_education_payment_orders_member ON education_payment_orders(member_id);
         CREATE INDEX IF NOT EXISTS idx_discount_codes_code ON yoonbot_discount_codes(code);
         CREATE INDEX IF NOT EXISTS idx_discount_codes_enabled_created ON yoonbot_discount_codes(enabled, created_at);
+        CREATE INDEX IF NOT EXISTS idx_yb_jobs_status_created ON yoonbot_jobs(status, created_at);
+        CREATE INDEX IF NOT EXISTS idx_yb_jobs_device_status ON yoonbot_jobs(device_id, status);
     """)
     _ensure_column(conn, "members", "available_time_slots", "TEXT")
     _ensure_column(conn, "members", "kakao_id", "TEXT")

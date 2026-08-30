@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YOONBOT Lab · 개발자 제어판</title>
+<link data-arsen-theme="active" rel="stylesheet" href="assets/arsen-theme.css">
+<style>
+  body {
+    background: linear-gradient(180deg, #edf5f3 0, var(--page, #f4f5f7) 320px);
+    color: var(--ink, #1a1a1a);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 2rem;
+    margin: 0;
+  }
+  .container { max-width: 1120px; margin: 0 auto; }
+  .hero { display:flex; justify-content:space-between; gap:1rem; align-items:flex-end; margin:1.25rem 0; }
+  .eyebrow { color:#13705d; font-size:.78rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+  h1 { font-size: clamp(1.7rem, 4vw, 2.35rem); margin:.25rem 0; letter-spacing:-.04em; }
+  .subtitle { margin:0; color:#52605d; }
+  .badge { padding:.45rem .7rem; border-radius:999px; background:#e4f4ef; color:#0f6957; font-size:.78rem; font-weight:800; white-space:nowrap; }
+  .section { margin-bottom: 1.25rem; background: color-mix(in srgb, var(--surface, #fff) 96%, transparent); padding: 1.4rem; border: 1px solid var(--line, #d8e1df); border-radius: 14px; box-shadow:0 14px 34px rgba(22,55,49,.06); }
+  .section h2 { margin-top:0; font-size:1.05rem; }
+  .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:.55rem; align-items:center; }
+  .form-group { margin-bottom: 1rem; }
+  label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+  input, select, textarea { width: 100%; padding: 0.5rem; border: 1px solid var(--line, #e2e8f0); border-radius: 4px; box-sizing: border-box; }
+  button { padding: .65rem 1rem; background-color: var(--primary, #176d5c); color: white; border: none; border-radius: 8px; cursor: pointer; transition: transform 0.2s, opacity .2s; font-weight:700; }
+  button:active { transform: scale(0.98); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  button.secondary { background:#e8efed; color:#253b37; }
+  button.danger { background-color: var(--danger, #dc2626); }
+  .token-box { display: none; margin-top: 1rem; padding: 1rem; border: 1px dashed var(--danger, #dc2626); background-color: #fff9f9; }
+  .token-box span { font-family: monospace; word-break: break-all; font-size: 1.1rem; }
+  .table-wrap { overflow:auto; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; min-width:720px; }
+  th, td { border: 1px solid var(--line, #e2e8f0); padding: 0.5rem; text-align: left; }
+  th { background-color: var(--surface, #ffffff); }
+  .notice { color:#8a4c10; background:#fff7e8; border:1px solid #f2d4a5; border-radius:10px; padding:.8rem 1rem; font-size: 0.9rem; margin-bottom: 1rem; font-weight: bold; }
+  .status { min-height:1.4rem; color:#344a45; font-size:.9rem; }
+  .results { white-space:pre-wrap; word-break:break-word; background:#101b19; color:#dcece8; border-radius:10px; padding:1rem; min-height:3rem; }
+  .links a { color: var(--primary, #2563eb); text-decoration: none; }
+  .links a:hover { text-decoration: underline; }
+  @media (max-width:720px) { body{padding:1rem}.hero{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="links">
+    <a href="admin.html">&larr; 전체 관리자 화면</a>
+  </div>
+  <header class="hero">
+    <div><div class="eyebrow">Developer Control Plane</div><h1>YOONBOT Lab</h1><p class="subtitle">Mac·Windows 기능을 안전하게 검증하는 개발자 제어판</p></div>
+    <span class="badge">DRY-RUN ONLY</span>
+  </header>
+  <p class="notice">실제 카카오 전송은 비활성화되어 있습니다. 모든 완료 작업은 운영자 검토를 위해 자동으로 ‘보류’됩니다.</p>
+
+  <div class="section" id="auth-section">
+    <h2>관리자 연결</h2>
+    <div class="form-group">
+      <label for="admin-key">관리자 비밀번호</label>
+      <input type="password" id="admin-key" autocomplete="off" placeholder="이 화면을 닫으면 즉시 사라집니다">
+    </div>
+    <div class="toolbar"><button id="btn-connect">연결</button><button id="btn-lock" class="secondary">잠금</button><button id="btn-refresh-all" class="secondary">전체 새로고침</button></div>
+    <p id="status" class="status" role="status" aria-live="polite">연결되지 않았습니다.</p>
+  </div>
+
+  <div class="section">
+    <h2>테스트 장비</h2>
+    <div class="form-group">
+      <label for="dev-name">장비 이름</label>
+      <input type="text" id="dev-name" placeholder="예: Mac Air 개발기">
+    </div>
+    <div class="form-group">
+      <label for="dev-platform">운영체제</label>
+      <select id="dev-platform">
+        <option value="macos">macOS</option>
+        <option value="windows">Windows</option>
+      </select>
+    </div>
+    <button id="btn-create-dev">장비 등록</button>
+    <div class="token-box" id="token-box">
+      <strong>장비 토큰 — 지금만 표시됩니다:</strong>
+      <span id="raw-token-display"></span>
+      <div style="margin-top: 0.5rem;">
+        <button id="btn-copy-token">복사</button>
+        <button id="btn-clear-token" class="danger">지우기</button>
+      </div>
+    </div>
+    <div class="table-wrap"><table id="table-devices">
+      <thead><tr><th>ID</th><th>이름</th><th>운영체제</th><th>상태</th><th>최근 연결</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <button id="btn-refresh-dev" class="secondary" style="margin-top: 1rem;">장비 새로고침</button>
+  </div>
+
+  <div class="section">
+    <h2>메시지 템플릿</h2>
+    <div class="form-group">
+      <label for="tpl-name">템플릿 이름</label>
+      <input type="text" id="tpl-name" placeholder="예: 일정 안내 미리보기">
+    </div>
+    <div class="form-group">
+      <label for="tpl-content">내용</label>
+      <textarea id="tpl-content" rows="3" placeholder="실제 전송 없이 미리보기만 생성합니다"></textarea>
+    </div>
+    <button id="btn-create-tpl">템플릿 저장</button>
+    <div class="table-wrap"><table id="table-templates">
+      <thead><tr><th>ID</th><th>이름</th><th>버전</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <button id="btn-refresh-tpl" class="secondary" style="margin-top: 1rem;">템플릿 새로고침</button>
+  </div>
+
+  <div class="section">
+    <h2>기능 테스트 작업</h2>
+    <div class="form-group">
+      <label for="job-idempotency">중복 방지 키</label>
+      <input type="text" id="job-idempotency" placeholder="예: ui-check-001">
+    </div>
+    <div class="form-group">
+      <label for="job-device">장비 ID</label>
+      <input type="text" id="job-device" placeholder="dev_...">
+    </div>
+    <div class="form-group">
+      <label for="job-template">템플릿 ID (선택)</label>
+      <input type="text" id="job-template" placeholder="tpl_...">
+    </div>
+    <div class="form-group">
+      <label for="job-alias">테스트 대상 별칭</label>
+      <input type="text" id="job-alias" placeholder="실제 연락처가 아닌 별칭" value="self-test">
+    </div>
+    <div class="form-group">
+      <label for="job-action">검증 기능</label>
+      <select id="job-action">
+        <option value="detect_app">detect_app</option>
+        <option value="detect_window">detect_window</option>
+        <option value="capture_ui">capture_ui</option>
+        <option value="validate_license">validate_license</option>
+        <option value="preview_message">preview_message</option>
+        <option value="simulate_schedule">simulate_schedule</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="job-mode">실행 모드</label>
+      <select id="job-mode">
+        <option value="dry_run">dry_run</option>
+        <option value="input_only">input_only</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="job-quality">초기 품질 판정</label>
+      <select id="job-quality"><option value="pass">통과 — 승인 대기</option><option value="">미판정 — 초안</option><option value="review_needed">검토 필요 — 보류</option><option value="blocked">차단 — 보류</option></select>
+    </div>
+    <div class="form-group">
+      <label for="job-hold-reason">보류 사유 (보류 판정 시 필수)</label>
+      <input type="text" id="job-hold-reason" maxlength="500" placeholder="민감정보 없이 사유만 입력하세요">
+    </div>
+    <button id="btn-create-job">테스트 작업 만들기</button>
+
+    <div class="table-wrap"><table id="table-jobs">
+      <thead><tr><th>ID</th><th>장비</th><th>기능</th><th>모드</th><th>상태</th><th>품질</th><th>보류 사유</th><th>작업</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <button id="btn-refresh-jobs" class="secondary" style="margin-top: 1rem;">작업 새로고침</button>
+    <h3>선택한 작업 결과</h3><pre id="job-results" class="results">아직 조회한 결과가 없습니다.</pre>
+  </div>
+</div>
+
+<script>
+  let adminKey = "";
+  const BASE_URL = "/admin/yoonbot/lab";
+
+  function getHeaders() {
+    return { "Content-Type": "application/json", "X-Admin-Key": adminKey };
+  }
+
+  function setStatus(message, isError = false) {
+    const el = document.getElementById("status");
+    el.textContent = message;
+    el.style.color = isError ? "#a83232" : "#176d5c";
+  }
+
+  document.getElementById("btn-connect").addEventListener("click", async () => {
+    const el = document.getElementById("admin-key");
+    adminKey = el.value.trim();
+    el.value = "";
+    if (!adminKey) { setStatus("관리자 비밀번호를 입력하세요.", true); return; }
+    const connected = await refreshDevices();
+    if (!connected) { adminKey = ""; return; }
+    await Promise.all([refreshTemplates(), refreshJobs()]);
+    setStatus("YOONBOT Lab에 연결했습니다. 비밀번호는 현재 화면의 메모리에만 보관됩니다.");
+  });
+
+  document.getElementById("btn-lock").addEventListener("click", () => {
+    adminKey = "";
+    clearToken();
+    ["#table-devices tbody", "#table-templates tbody", "#table-jobs tbody"].forEach(selector => document.querySelector(selector).replaceChildren());
+    document.getElementById("job-results").textContent = "아직 조회한 결과가 없습니다.";
+    setStatus("잠금 상태입니다.");
+  });
+
+  document.getElementById("btn-refresh-all").addEventListener("click", refreshAll);
+
+  async function apiCall(path, options = {}) {
+    if (!adminKey) { setStatus("먼저 관리자 연결을 완료하세요.", true); return null; }
+    try {
+      const res = await fetch(BASE_URL + path, { ...options, headers: getHeaders() });
+      if (!res.ok) {
+        let detail = "요청을 처리하지 못했습니다.";
+        try { detail = (await res.json()).detail || detail; } catch (_) { /* generic message */ }
+        setStatus(`오류 ${res.status}: ${detail}`, true);
+        return null;
+      }
+      return await res.json();
+    } catch (e) {
+      setStatus("서버에 연결할 수 없습니다.", true);
+      return null;
+    }
+  }
+
+  async function refreshAll() {
+    if (!adminKey) { setStatus("먼저 관리자 연결을 완료하세요.", true); return; }
+    await Promise.all([refreshDevices(), refreshTemplates(), refreshJobs()]);
+    setStatus("최신 상태로 갱신했습니다.");
+  }
+
+  // Devices
+  document.getElementById("btn-create-dev").addEventListener("click", async () => {
+    const name = document.getElementById("dev-name").value;
+    const platform = document.getElementById("dev-platform").value;
+    const data = await apiCall("/devices", { method: "POST", body: JSON.stringify({ name, platform }) });
+    if (data) {
+      document.getElementById("raw-token-display").textContent = data.token;
+      document.getElementById("token-box").style.display = "block";
+      setStatus("장비를 등록했습니다. 토큰을 안전한 장비 설정에 복사한 뒤 화면에서 지우세요.");
+      refreshDevices();
+    }
+  });
+  document.getElementById("btn-copy-token").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(document.getElementById("raw-token-display").textContent);
+      setStatus("장비 토큰을 클립보드에 복사했습니다.");
+    } catch (_) { setStatus("클립보드 복사 권한이 없습니다. 토큰을 직접 선택해 복사하세요.", true); }
+  });
+  function clearToken() {
+    document.getElementById("raw-token-display").textContent = "";
+    document.getElementById("token-box").style.display = "none";
+  }
+  document.getElementById("btn-clear-token").addEventListener("click", clearToken);
+  document.getElementById("btn-refresh-dev").addEventListener("click", refreshDevices);
+  async function refreshDevices() {
+    const data = await apiCall("/devices");
+    if (!data) return false;
+    const tbody = document.querySelector("#table-devices tbody");
+    tbody.replaceChildren();
+    data.devices.forEach(d => {
+      const tr = document.createElement("tr");
+      ["id", "name", "platform", "status", "last_heartbeat_at"].forEach(k => {
+        const td = document.createElement("td");
+        td.textContent = d[k] || "-";
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    return true;
+  }
+
+  // Templates
+  document.getElementById("btn-create-tpl").addEventListener("click", async () => {
+    const name = document.getElementById("tpl-name").value;
+    const content = document.getElementById("tpl-content").value;
+    const data = await apiCall("/templates", { method: "POST", body: JSON.stringify({ name, content, version: 1 }) });
+    if (data) { setStatus("템플릿을 저장했습니다."); refreshTemplates(); }
+  });
+  document.getElementById("btn-refresh-tpl").addEventListener("click", refreshTemplates);
+  async function refreshTemplates() {
+    const data = await apiCall("/templates");
+    if (!data) return;
+    const tbody = document.querySelector("#table-templates tbody");
+    tbody.replaceChildren();
+    data.templates.forEach(t => {
+      const tr = document.createElement("tr");
+      ["id", "name", "version"].forEach(k => {
+        const td = document.createElement("td");
+        td.textContent = t[k] || "-";
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Jobs
+  document.getElementById("btn-create-job").addEventListener("click", async () => {
+    const body = {
+      idempotency_key: document.getElementById("job-idempotency").value,
+      device_id: document.getElementById("job-device").value,
+      target_alias: document.getElementById("job-alias").value,
+      action: document.getElementById("job-action").value,
+      execution_mode: document.getElementById("job-mode").value
+    };
+    const tpl = document.getElementById("job-template").value;
+    if (tpl) body.template_id = tpl;
+    const qs = document.getElementById("job-quality").value;
+    if (qs) body.quality_status = qs;
+    const holdReason = document.getElementById("job-hold-reason").value.trim();
+    if (holdReason) body.hold_reason = holdReason;
+
+    const data = await apiCall("/jobs", { method: "POST", body: JSON.stringify(body) });
+    if (data) { setStatus(`테스트 작업 ${data.id}을 만들었습니다.`); refreshJobs(); }
+  });
+  document.getElementById("btn-refresh-jobs").addEventListener("click", refreshJobs);
+
+  async function approveJob(id) {
+    await apiCall(`/jobs/${id}/approve`, { method: "POST" });
+    refreshJobs();
+  }
+  async function cancelJob(id) {
+    await apiCall(`/jobs/${id}/cancel`, { method: "POST" });
+    refreshJobs();
+  }
+  async function showResults(id) {
+    const data = await apiCall(`/jobs/${id}/results`);
+    if (data) document.getElementById("job-results").textContent = data.results.length ? JSON.stringify(data.results, null, 2) : "아직 보고된 결과가 없습니다.";
+  }
+
+  async function refreshJobs() {
+    const data = await apiCall("/jobs");
+    if (!data) return;
+    const tbody = document.querySelector("#table-jobs tbody");
+    tbody.replaceChildren();
+    data.jobs.forEach(j => {
+      const tr = document.createElement("tr");
+      ["id", "device_id", "action", "execution_mode", "status", "quality_status", "hold_reason"].forEach(k => {
+        const td = document.createElement("td");
+        td.textContent = j[k] || "-";
+        tr.appendChild(td);
+      });
+      const actionsTd = document.createElement("td");
+
+      const btnApprove = document.createElement("button");
+      btnApprove.textContent = "승인";
+      btnApprove.disabled = j.status !== "pending_approval";
+      btnApprove.onclick = () => approveJob(j.id);
+
+      const btnCancel = document.createElement("button");
+      btnCancel.textContent = "취소";
+      btnCancel.classList.add("danger");
+      btnCancel.disabled = !["draft", "pending_approval", "approved", "held"].includes(j.status);
+      btnCancel.onclick = () => cancelJob(j.id);
+
+      const btnResults = document.createElement("button");
+      btnResults.textContent = "결과";
+      btnResults.classList.add("secondary");
+      btnResults.onclick = () => showResults(j.id);
+
+      actionsTd.appendChild(btnApprove);
+      actionsTd.appendChild(btnCancel);
+      actionsTd.appendChild(btnResults);
+      tr.appendChild(actionsTd);
+
+      tbody.appendChild(tr);
+    });
+  }
+</script>
+</body>
+</html>

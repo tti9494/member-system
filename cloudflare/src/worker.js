@@ -6089,9 +6089,31 @@ function vcardEscape(value) {
   return String(value || "").replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
 }
 
+// ── YOONBOT LAB PHASE A2 HELPERS ──────────────────────────────
+const LAB_ACTIONS = ["detect_app", "detect_window", "capture_ui", "validate_license", "preview_message", "simulate_schedule"];
+const LAB_MODES = ["dry_run", "input_only"];
+const LAB_QUALITY_STATUSES = ["pass", "review_needed", "retry_summary", "fail", "blocked"];
+
+async function requireAgentToken(request, env) {
+  const token = bearerToken(request);
+  if (!token) return { ok: false, response: fail(401, "Invalid agent token") };
+  const tokenHash = await sha256Hex(token);
+  const row = await one(env, "SELECT id, status FROM yoonbot_devices WHERE token_hash=?", tokenHash);
+  if (!row) return { ok: false, response: fail(401, "Invalid agent token") };
+  if (row.status !== "active") return { ok: false, response: fail(403, "Device inactive") };
+  return { ok: true, deviceId: row.id };
+}
+
+function yoonbotLabNoStore(response) {
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Expires", "0");
+  return response;
+}
+
 async function handleAdmin(request, env, path) {
   const auth = requireAdmin(request, env);
-  if (!auth.ok) return auth.response;
+  if (!auth.ok) return path.startsWith("/admin/yoonbot/lab") ? yoonbotLabNoStore(auth.response) : auth.response;
   const method = request.method;
   const parts = path.split("/").filter(Boolean);
 
@@ -7131,6 +7153,129 @@ async function handleAdmin(request, env, path) {
     }
   }
 
+  // ── YOONBOT LAB PHASE A2 ADMIN ROUTES ───────────────────────
+  if (path === "/admin/yoonbot/lab/devices" && method === "GET") {
+    const rows = await all(env, "SELECT id, name, platform, status, last_heartbeat_at FROM yoonbot_devices");
+    return yoonbotLabNoStore(json({ devices: rows }));
+  }
+  if (path === "/admin/yoonbot/lab/devices" && method === "POST") {
+    const body = await readJson(request);
+    if (Object.keys(body).some(k => k !== "name" && k !== "platform")) return yoonbotLabNoStore(fail(400, "Validation error: invalid format or extra fields"));
+    const name = String(body.name || "").trim();
+    const platform = String(body.platform || "");
+    if (!name || name.length > 100) return yoonbotLabNoStore(fail(400, "Invalid name length"));
+    if (platform !== "macos" && platform !== "windows") return yoonbotLabNoStore(fail(400, "Invalid platform"));
+
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    const rawToken = Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
+    const tokenHash = await sha256Hex(rawToken);
+
+    const deviceId = `dev_${crypto.randomUUID().replace(/-/g, "").substring(0, 12)}`;
+    const t = iso();
+    await env.DB.prepare("INSERT INTO yoonbot_devices (id, token_hash, name, platform, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'active', ?, ?)")
+      .bind(deviceId, tokenHash, name, platform, t, t).run();
+    await logAction(env, "system", "create_device", `platform:${platform}`, request);
+    return yoonbotLabNoStore(json({ id: deviceId, token: rawToken, name, platform }));
+  }
+  if (parts[0] === "admin" && parts[1] === "yoonbot" && parts[2] === "lab" && parts[3] === "devices" && parts[5] === "deactivate" && method === "POST") {
+    const dev = await one(env, "SELECT status FROM yoonbot_devices WHERE id=?", parts[4]);
+    if (!dev) return yoonbotLabNoStore(fail(404, "Device not found"));
+    if (dev.status !== "active") return yoonbotLabNoStore(fail(400, "Invalid transition"));
+    await env.DB.prepare("UPDATE yoonbot_devices SET status='inactive', updated_at=? WHERE id=?").bind(iso(), parts[4]).run();
+    await logAction(env, "system", "deactivate_device", "", request);
+    return yoonbotLabNoStore(json({ ok: true }));
+  }
+
+  if (path === "/admin/yoonbot/lab/templates" && method === "GET") {
+    const rows = await all(env, "SELECT id, name, version, created_at, updated_at FROM yoonbot_templates");
+    return yoonbotLabNoStore(json({ templates: rows }));
+  }
+  if (path === "/admin/yoonbot/lab/templates" && method === "POST") {
+    const body = await readJson(request);
+    if (Object.keys(body).some(k => !["name", "content", "version"].includes(k))) return yoonbotLabNoStore(fail(400, "Validation error: invalid format or extra fields"));
+    const name = String(body.name || "").trim();
+    const content = String(body.content || "");
+    const version = body.version !== undefined ? Number(body.version) : 1;
+    if (!name || name.length > 100) return yoonbotLabNoStore(fail(400, "Invalid name length"));
+    if (!content.trim() || content.length > 10000) return yoonbotLabNoStore(fail(400, "Invalid content length"));
+    if (!Number.isInteger(version) || version < 1) return yoonbotLabNoStore(fail(400, "Invalid version"));
+
+    const tplId = `tpl_${crypto.randomUUID().replace(/-/g, "").substring(0, 12)}`;
+    const t = iso();
+    await env.DB.prepare("INSERT INTO yoonbot_templates (id, name, content, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(tplId, name, content, version, t, t).run();
+    return yoonbotLabNoStore(json({ id: tplId }));
+  }
+
+  if (path === "/admin/yoonbot/lab/jobs" && method === "GET") {
+    const rows = await all(env, "SELECT id, idempotency_key, template_id, device_id, target_alias, action, execution_mode, status, quality_status, hold_reason, created_at, updated_at, claimed_at FROM yoonbot_jobs");
+    return yoonbotLabNoStore(json({ jobs: rows }));
+  }
+  if (path === "/admin/yoonbot/lab/jobs" && method === "POST") {
+    const body = await readJson(request);
+    if (Object.keys(body).some(k => !["idempotency_key", "device_id", "template_id", "target_alias", "action", "execution_mode", "quality_status", "hold_reason"].includes(k))) {
+      return yoonbotLabNoStore(fail(400, "Validation error: invalid format or extra fields"));
+    }
+    if (!LAB_ACTIONS.includes(body.action)) return yoonbotLabNoStore(fail(400, "Invalid action"));
+    if (!LAB_MODES.includes(body.execution_mode)) return yoonbotLabNoStore(fail(400, "Invalid execution_mode"));
+    if (!/^[A-Za-z0-9._:-]{1,128}$/.test(body.idempotency_key || "")) return yoonbotLabNoStore(fail(400, "Invalid idempotency_key"));
+    if (!/^[A-Za-z0-9._-]{1,64}$/.test(body.target_alias || "")) return yoonbotLabNoStore(fail(400, "Invalid target_alias"));
+    if (body.quality_status != null && !LAB_QUALITY_STATUSES.includes(body.quality_status)) return yoonbotLabNoStore(fail(400, "Invalid quality_status"));
+    if (body.hold_reason && (String(body.hold_reason).length > 500 || /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(String(body.hold_reason)))) return yoonbotLabNoStore(fail(400, "Invalid hold_reason"));
+    if (["review_needed", "retry_summary", "fail", "blocked"].includes(body.quality_status) && !body.hold_reason) return yoonbotLabNoStore(fail(400, "Held job requires hold_reason"));
+
+    const dev = await one(env, "SELECT id FROM yoonbot_devices WHERE id=? AND status='active'", body.device_id);
+    if (!dev) return yoonbotLabNoStore(fail(400, "Invalid device"));
+
+    if (body.template_id) {
+      const tpl = await one(env, "SELECT id FROM yoonbot_templates WHERE id=?", body.template_id);
+      if (!tpl) return yoonbotLabNoStore(fail(400, "Template missing"));
+    }
+
+    const existing = await one(env, "SELECT * FROM yoonbot_jobs WHERE idempotency_key=?", body.idempotency_key);
+    if (existing) {
+      if (existing.device_id !== body.device_id || existing.target_alias !== body.target_alias ||
+          existing.action !== body.action || existing.execution_mode !== body.execution_mode ||
+          existing.template_id !== (body.template_id || null)) {
+        return yoonbotLabNoStore(fail(409, "Idempotency conflict"));
+      }
+      return yoonbotLabNoStore(json({ id: existing.id, status: existing.status }));
+    }
+
+    const jobId = `job_${crypto.randomUUID().replace(/-/g, "").substring(0, 12)}`;
+    let status = "draft";
+    if (body.quality_status === "pass") status = "pending_approval";
+    else if (["review_needed", "retry_summary", "fail", "blocked"].includes(body.quality_status)) status = "held";
+
+    const t = iso();
+    await env.DB.prepare("INSERT INTO yoonbot_jobs (id, idempotency_key, template_id, device_id, target_alias, action, execution_mode, status, quality_status, hold_reason, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(jobId, body.idempotency_key, body.template_id || null, body.device_id, body.target_alias, body.action, body.execution_mode, status, body.quality_status || null, body.hold_reason || null, t, t).run();
+    await logAction(env, "system", "create_job", `state:${status}`, request);
+    return yoonbotLabNoStore(json({ id: jobId, status }));
+  }
+
+  if (parts[0] === "admin" && parts[1] === "yoonbot" && parts[2] === "lab" && parts[3] === "jobs" && parts[5] === "results" && method === "GET") {
+    const rows = await all(env, "SELECT id, status, quality_status, reason_code, hold_reason, processed_count, created_at FROM yoonbot_job_results WHERE job_id=?", parts[4]);
+    return yoonbotLabNoStore(json({ results: rows }));
+  }
+  if (parts[0] === "admin" && parts[1] === "yoonbot" && parts[2] === "lab" && parts[3] === "jobs" && parts[5] === "approve" && method === "POST") {
+    const job = await one(env, "SELECT status FROM yoonbot_jobs WHERE id=?", parts[4]);
+    if (!job) return yoonbotLabNoStore(fail(404, "Job not found"));
+    if (job.status !== "pending_approval") return yoonbotLabNoStore(fail(400, "Can only approve pending_approval"));
+    await env.DB.prepare("UPDATE yoonbot_jobs SET status='approved', updated_at=? WHERE id=?").bind(iso(), parts[4]).run();
+    await logAction(env, "system", "approve_job", "state:approved", request);
+    return yoonbotLabNoStore(json({ ok: true }));
+  }
+  if (parts[0] === "admin" && parts[1] === "yoonbot" && parts[2] === "lab" && parts[3] === "jobs" && parts[5] === "cancel" && method === "POST") {
+    const job = await one(env, "SELECT status FROM yoonbot_jobs WHERE id=?", parts[4]);
+    if (!job) return yoonbotLabNoStore(fail(404, "Job not found"));
+    if (!["draft", "pending_approval", "approved", "held"].includes(job.status)) return yoonbotLabNoStore(fail(400, "Cannot cancel terminal/claimed state"));
+    await env.DB.prepare("UPDATE yoonbot_jobs SET status='cancelled', updated_at=? WHERE id=?").bind(iso(), parts[4]).run();
+    await logAction(env, "system", "cancel_job", "state:cancelled", request);
+    return yoonbotLabNoStore(json({ ok: true }));
+  }
+
   return fail(404, "Cloudflare member-system endpoint not found");
 }
 
@@ -7399,6 +7544,101 @@ export async function handleRequest(request, env) {
         }
       } else {
         response = fail(405, "지원하지 않는 요청입니다.");
+      }
+    // ── YOONBOT LAB PHASE A2 AGENT ROUTES ────────────────────────
+    } else if (path === "/api/yoonbot/agent/heartbeat" && request.method === "POST") {
+      const auth = await requireAgentToken(request, env);
+      if (!auth.ok) { response = yoonbotLabNoStore(auth.response); }
+      else {
+        const t = iso();
+        await env.DB.prepare("UPDATE yoonbot_devices SET last_heartbeat_at=?, updated_at=? WHERE id=?").bind(t, t, auth.deviceId).run();
+        response = yoonbotLabNoStore(json({ ok: true }));
+      }
+    } else if (path === "/api/yoonbot/agent/claim" && request.method === "POST") {
+      const auth = await requireAgentToken(request, env);
+      if (!auth.ok) { response = yoonbotLabNoStore(auth.response); }
+      else {
+        const t = iso();
+        await env.DB.prepare("UPDATE yoonbot_devices SET last_heartbeat_at=?, updated_at=? WHERE id=?").bind(t, t, auth.deviceId).run();
+        const job = await one(env, "SELECT id FROM yoonbot_jobs WHERE device_id=? AND status='approved' ORDER BY created_at ASC LIMIT 1", auth.deviceId);
+        if (!job) {
+          response = yoonbotLabNoStore(json({ job: null }));
+        } else {
+          const res = await env.DB.prepare("UPDATE yoonbot_jobs SET status='claimed', claimed_at=?, updated_at=? WHERE id=? AND status='approved'").bind(t, t, job.id).run();
+          if (res.meta && res.meta.changes === 0) {
+            response = yoonbotLabNoStore(json({ job: null }));
+          } else {
+            const j = await one(env, "SELECT id, idempotency_key, template_id, target_alias, action, execution_mode FROM yoonbot_jobs WHERE id=?", job.id);
+            await logAction(env, "system", "claim_job", `device_id:${auth.deviceId} state:claimed`, request);
+            response = yoonbotLabNoStore(json({ job: j }));
+          }
+        }
+      }
+    } else if (path.startsWith("/api/yoonbot/agent/jobs/") && path.endsWith("/result") && request.method === "POST") {
+      const auth = await requireAgentToken(request, env);
+      if (!auth.ok) { response = yoonbotLabNoStore(auth.response); }
+      else {
+        const parts = path.split("/");
+        const jobId = parts[5];
+        const body = await readJson(request);
+        let valid = true;
+        let errMessage = "";
+
+        if (Object.keys(body).some(k => !["status", "quality_status", "reason_code", "hold_reason", "processed_count"].includes(k))) { valid = false; errMessage = "Validation error: invalid format or extra fields"; }
+        else if (body.processed_count !== undefined && (!Number.isInteger(body.processed_count) || body.processed_count < 0 || body.processed_count > 10000)) { valid = false; errMessage = "Invalid processed_count"; }
+        else if (body.reason_code && (String(body.reason_code).length > 100 || !/^[A-Za-z0-9._:-]+$/.test(String(body.reason_code)))) { valid = false; errMessage = "Invalid reason_code"; }
+        else if (body.hold_reason && (String(body.hold_reason).length > 500 || /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(String(body.hold_reason)))) { valid = false; errMessage = "Invalid hold_reason"; }
+
+        if (!valid) {
+          response = yoonbotLabNoStore(fail(400, errMessage));
+        } else {
+          const job = await one(env, "SELECT id, status, execution_mode FROM yoonbot_jobs WHERE id=? AND device_id=?", jobId, auth.deviceId);
+          if (!job) { response = yoonbotLabNoStore(fail(404, "Job not found or not assigned to device")); }
+          else if (job.status !== "claimed") { response = yoonbotLabNoStore(fail(400, "Job is not claimed")); }
+          else {
+            const resDup = await one(env, "SELECT id FROM yoonbot_job_results WHERE job_id=?", jobId);
+            if (resDup) { response = yoonbotLabNoStore(fail(400, "Duplicate result")); }
+            else {
+              let modeValid = true;
+              const mode = job.execution_mode;
+              if (mode === "dry_run" && !["dry_run_completed", "failed", "held"].includes(body.status)) modeValid = false;
+              if (mode === "input_only" && !["input_only_completed", "failed", "held"].includes(body.status)) modeValid = false;
+              if (!["dry_run_completed", "input_only_completed", "failed", "held"].includes(body.status)) modeValid = false;
+
+              if (!modeValid) {
+                response = yoonbotLabNoStore(fail(400, "Invalid or unknown result status"));
+              } else {
+                let finalJobStatus = body.status;
+                let finalHoldReason = body.hold_reason;
+                let transitionValid = true;
+                let transErr = "";
+
+                if (["dry_run_completed", "input_only_completed"].includes(body.status)) {
+                  if (body.quality_status !== "pass") { transitionValid = false; transErr = "completed status requires quality pass"; }
+                  finalJobStatus = "held";
+                  finalHoldReason = body.status;
+                } else if (body.status === "held") {
+                  if (!["review_needed", "retry_summary", "fail", "blocked"].includes(body.quality_status)) { transitionValid = false; transErr = "held requires valid quality_status"; }
+                  if (!body.hold_reason) { transitionValid = false; transErr = "held requires hold_reason"; }
+                }
+
+                if (!transitionValid) {
+                  response = yoonbotLabNoStore(fail(400, transErr));
+                } else {
+                  const t = iso();
+                  await env.DB.prepare("UPDATE yoonbot_jobs SET status=?, quality_status=?, hold_reason=?, updated_at=? WHERE id=?")
+                    .bind(finalJobStatus, body.quality_status || null, finalHoldReason || null, t, jobId).run();
+
+                  const resId = `res_${crypto.randomUUID().replace(/-/g, "").substring(0, 12)}`;
+                  await env.DB.prepare("INSERT INTO yoonbot_job_results (id, job_id, status, quality_status, reason_code, hold_reason, processed_count, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+                    .bind(resId, jobId, body.status, body.quality_status || null, body.reason_code || null, finalHoldReason || null, body.processed_count || 0, t).run();
+                  await logAction(env, "system", "job_result", `device_id:${auth.deviceId} state:${finalJobStatus}`, request);
+                  response = yoonbotLabNoStore(json({ ok: true }));
+                }
+              }
+            }
+          }
+        }
       }
     } else if (path === "/api/review-board" && request.method === "GET") {
       response = json({ ok: true, data: await reviewBoardRows(env, true) });

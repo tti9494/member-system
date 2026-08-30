@@ -4920,3 +4920,377 @@ async def scheduler_run(body: RunJobRequest, _=Depends(require_admin)):
     fn()
     log.info(f"[manual-run] {body.job_id} 수동 실행")
     return {"ok": True, "message": f"{body.job_id} 실행 완료"}
+
+# ── YOONBOT LAB PHASE A ──────────────────────────────────────
+
+import re
+
+LAB_STATES = {"draft", "pending_approval", "approved", "claimed", "sent", "failed", "cancelled", "held"}
+LAB_ACTIONS = {"detect_app", "detect_window", "capture_ui", "validate_license", "preview_message", "simulate_schedule"}
+LAB_MODES = {"dry_run", "input_only"}
+LAB_QUALITY_STATUSES = {"pass", "review_needed", "retry_summary", "fail", "blocked"}
+
+class LabDeviceCreate(BaseModel):
+    name: str
+    platform: str
+    model_config = {"extra": "forbid"}
+
+class LabTemplateCreate(BaseModel):
+    name: str
+    content: str
+    version: int = 1
+    model_config = {"extra": "forbid"}
+
+class LabJobCreate(BaseModel):
+    idempotency_key: str
+    device_id: str
+    template_id: Optional[str] = None
+    target_alias: str
+    action: str
+    execution_mode: str
+    quality_status: Optional[str] = None
+    hold_reason: Optional[str] = None
+
+    model_config = {"extra": "forbid"}
+
+class LabJobResult(BaseModel):
+    status: str
+    quality_status: Optional[str] = None
+    reason_code: Optional[str] = None
+    hold_reason: Optional[str] = None
+    processed_count: int = 0
+
+    model_config = {"extra": "forbid"}
+
+def require_agent_token(request: Request) -> str:
+    token = _bearer_token(request)
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT id, status FROM yoonbot_devices WHERE token_hash = ?", (token_hash,)).fetchone()
+        if not row:
+            raise HTTPException(401, detail="Invalid agent token")
+        if row["status"] != "active":
+            raise HTTPException(403, detail="Device inactive")
+        return row["id"]
+    finally:
+        conn.close()
+
+def set_no_store(response: Response):
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+
+@app.post("/admin/yoonbot/lab/devices")
+async def create_lab_device(request: Request, response: Response, _=Depends(require_admin)):
+    set_no_store(response)
+    try:
+        data = await request.json()
+        body = LabDeviceCreate(**data)
+    except Exception:
+        raise HTTPException(400, "Validation error: invalid format or extra fields")
+    name = body.name.strip()
+    if not name or len(name) > 100:
+        raise HTTPException(400, "Invalid name length")
+    if body.platform not in ("macos", "windows"):
+        raise HTTPException(400, "Invalid platform")
+    raw_token = secrets.token_hex(32)
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    device_id = f"dev_{uuid.uuid4().hex[:12]}"
+    conn = get_conn()
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            "INSERT INTO yoonbot_devices (id, token_hash, name, platform, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'active', ?, ?)",
+            (device_id, token_hash, name, body.platform, now, now)
+        )
+        conn.commit()
+        log_action(device_id, "create_device", f"platform:{body.platform}", "")
+    finally:
+        conn.close()
+    return {"id": device_id, "token": raw_token, "name": name, "platform": body.platform}
+
+@app.get("/admin/yoonbot/lab/devices")
+def list_lab_devices(response: Response, _=Depends(require_admin)):
+    set_no_store(response)
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT id, name, platform, status, last_heartbeat_at FROM yoonbot_devices").fetchall()
+        return {"devices": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+@app.post("/admin/yoonbot/lab/devices/{device_id}/deactivate")
+def deactivate_lab_device(device_id: str, response: Response, _=Depends(require_admin)):
+    set_no_store(response)
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT status FROM yoonbot_devices WHERE id = ?", (device_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Device not found")
+        if row["status"] != "active":
+            raise HTTPException(400, "Invalid transition")
+        conn.execute("UPDATE yoonbot_devices SET status = 'inactive', updated_at = ? WHERE id = ?", (datetime.now(timezone.utc).isoformat(), device_id))
+        conn.commit()
+        log_action(device_id, "deactivate_device", "", "")
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.post("/admin/yoonbot/lab/templates")
+async def create_lab_template(request: Request, response: Response, _=Depends(require_admin)):
+    set_no_store(response)
+    try:
+        data = await request.json()
+        body = LabTemplateCreate(**data)
+    except Exception:
+        raise HTTPException(400, "Validation error: invalid format or extra fields")
+    name = body.name.strip()
+    if not name or len(name) > 100:
+        raise HTTPException(400, "Invalid name length")
+    if not body.content.strip() or len(body.content) > 10000:
+        raise HTTPException(400, "Invalid content length")
+    if body.version < 1:
+        raise HTTPException(400, "Invalid version")
+    tpl_id = f"tpl_{uuid.uuid4().hex[:12]}"
+    conn = get_conn()
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            "INSERT INTO yoonbot_templates (id, name, content, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (tpl_id, name, body.content, body.version, now, now)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"id": tpl_id}
+
+@app.get("/admin/yoonbot/lab/templates")
+def list_lab_templates(response: Response, _=Depends(require_admin)):
+    set_no_store(response)
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT id, name, version, created_at, updated_at FROM yoonbot_templates").fetchall()
+        return {"templates": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+@app.post("/admin/yoonbot/lab/jobs")
+async def create_lab_job(request: Request, response: Response, _=Depends(require_admin)):
+    set_no_store(response)
+    try:
+        data = await request.json()
+        body = LabJobCreate(**data)
+    except Exception:
+        raise HTTPException(400, "Validation error: invalid format or extra fields")
+
+    if body.action not in LAB_ACTIONS:
+        raise HTTPException(400, "Invalid action")
+    if body.execution_mode not in LAB_MODES:
+        raise HTTPException(400, "Invalid execution_mode")
+    if not re.match(r"^[A-Za-z0-9._:-]{1,128}$", body.idempotency_key):
+        raise HTTPException(400, "Invalid idempotency_key")
+    if not re.match(r"^[A-Za-z0-9._-]{1,64}$", body.target_alias):
+        raise HTTPException(400, "Invalid target_alias")
+    if body.quality_status is not None and body.quality_status not in LAB_QUALITY_STATUSES:
+        raise HTTPException(400, "Invalid quality_status")
+    if body.hold_reason and (len(body.hold_reason) > 500 or any(ord(c) < 32 and c not in "\n\t" for c in body.hold_reason)):
+        raise HTTPException(400, "Invalid hold_reason")
+    if body.quality_status in {"review_needed", "retry_summary", "fail", "blocked"} and not body.hold_reason:
+        raise HTTPException(400, "Held job requires hold_reason")
+
+    conn = get_conn()
+    try:
+        dev = conn.execute("SELECT id FROM yoonbot_devices WHERE id = ? AND status = 'active'", (body.device_id,)).fetchone()
+        if not dev:
+            raise HTTPException(400, "Invalid device")
+
+        if body.template_id:
+            tpl = conn.execute("SELECT id FROM yoonbot_templates WHERE id = ?", (body.template_id,)).fetchone()
+            if not tpl:
+                raise HTTPException(400, "Template missing")
+
+        existing = conn.execute("SELECT * FROM yoonbot_jobs WHERE idempotency_key = ?", (body.idempotency_key,)).fetchone()
+        if existing:
+            if existing["device_id"] != body.device_id or existing["target_alias"] != body.target_alias or \
+               existing["action"] != body.action or existing["execution_mode"] != body.execution_mode or \
+               existing["template_id"] != body.template_id:
+                raise HTTPException(409, "Idempotency conflict")
+            return {"id": existing["id"], "status": existing["status"]}
+
+        job_id = f"job_{uuid.uuid4().hex[:12]}"
+        now = datetime.now(timezone.utc).isoformat()
+
+        status = "draft"
+        if body.quality_status == "pass":
+            status = "pending_approval"
+        elif body.quality_status in ("review_needed", "retry_summary", "fail", "blocked"):
+            status = "held"
+
+        conn.execute(
+            "INSERT INTO yoonbot_jobs (id, idempotency_key, template_id, device_id, target_alias, action, execution_mode, status, quality_status, hold_reason, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (job_id, body.idempotency_key, body.template_id, body.device_id, body.target_alias, body.action, body.execution_mode, status, body.quality_status, body.hold_reason, now, now)
+        )
+        conn.commit()
+        log_action(job_id, "create_job", f"state:{status}", "")
+        return {"id": job_id, "status": status}
+    finally:
+        conn.close()
+
+@app.get("/admin/yoonbot/lab/jobs")
+def list_lab_jobs(response: Response, _=Depends(require_admin)):
+    set_no_store(response)
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT id, idempotency_key, template_id, device_id, target_alias, action, execution_mode, status, quality_status, hold_reason, created_at, updated_at, claimed_at FROM yoonbot_jobs").fetchall()
+        return {"jobs": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+@app.get("/admin/yoonbot/lab/jobs/{job_id}/results")
+def list_lab_job_results(job_id: str, response: Response, _=Depends(require_admin)):
+    set_no_store(response)
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT id, status, quality_status, reason_code, hold_reason, processed_count, created_at FROM yoonbot_job_results WHERE job_id = ?", (job_id,)).fetchall()
+        return {"results": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+@app.post("/admin/yoonbot/lab/jobs/{job_id}/approve")
+def approve_lab_job(job_id: str, response: Response, _=Depends(require_admin)):
+    set_no_store(response)
+    conn = get_conn()
+    try:
+        job = conn.execute("SELECT status FROM yoonbot_jobs WHERE id = ?", (job_id,)).fetchone()
+        if not job:
+            raise HTTPException(404, "Job not found")
+        if job["status"] != "pending_approval":
+            raise HTTPException(400, "Can only approve pending_approval")
+        conn.execute("UPDATE yoonbot_jobs SET status = 'approved', updated_at = ? WHERE id = ?", (datetime.now(timezone.utc).isoformat(), job_id))
+        conn.commit()
+        log_action(job_id, "approve_job", "state:approved", "")
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.post("/admin/yoonbot/lab/jobs/{job_id}/cancel")
+def cancel_lab_job(job_id: str, response: Response, _=Depends(require_admin)):
+    set_no_store(response)
+    conn = get_conn()
+    try:
+        job = conn.execute("SELECT status FROM yoonbot_jobs WHERE id = ?", (job_id,)).fetchone()
+        if not job:
+            raise HTTPException(404, "Job not found")
+        if job["status"] not in ("draft", "pending_approval", "approved", "held"):
+            raise HTTPException(400, "Cannot cancel terminal/claimed state")
+        conn.execute("UPDATE yoonbot_jobs SET status = 'cancelled', updated_at = ? WHERE id = ?", (datetime.now(timezone.utc).isoformat(), job_id))
+        conn.commit()
+        log_action(job_id, "cancel_job", "state:cancelled", "")
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.post("/api/yoonbot/agent/heartbeat")
+def agent_heartbeat(response: Response, device_id: str = Depends(require_agent_token)):
+    set_no_store(response)
+    conn = get_conn()
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute("UPDATE yoonbot_devices SET last_heartbeat_at = ?, updated_at = ? WHERE id = ?", (now, now, device_id))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.post("/api/yoonbot/agent/claim")
+def claim_lab_job(response: Response, device_id: str = Depends(require_agent_token)):
+    set_no_store(response)
+    conn = get_conn()
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute("UPDATE yoonbot_devices SET last_heartbeat_at = ?, updated_at = ? WHERE id = ?", (now, now, device_id))
+
+        job = conn.execute("SELECT id FROM yoonbot_jobs WHERE device_id = ? AND status = 'approved' ORDER BY created_at ASC LIMIT 1", (device_id,)).fetchone()
+        if not job:
+            conn.commit()
+            return {"job": None}
+
+        job_id = job["id"]
+        cur = conn.cursor()
+        cur.execute("UPDATE yoonbot_jobs SET status = 'claimed', claimed_at = ?, updated_at = ? WHERE id = ? AND status = 'approved'", (now, now, job_id))
+        if cur.rowcount == 0:
+            conn.commit()
+            return {"job": None}
+
+        conn.commit()
+        j = conn.execute("SELECT id, idempotency_key, template_id, target_alias, action, execution_mode FROM yoonbot_jobs WHERE id = ?", (job_id,)).fetchone()
+        log_action(job_id, "claim_job", f"device_id:{device_id} state:claimed", "")
+        return {"job": dict(j)}
+    finally:
+        conn.close()
+
+@app.post("/api/yoonbot/agent/jobs/{job_id}/result")
+async def report_lab_job_result(job_id: str, request: Request, response: Response, device_id: str = Depends(require_agent_token)):
+    set_no_store(response)
+    try:
+        data = await request.json()
+        body = LabJobResult(**data)
+    except Exception:
+        raise HTTPException(400, "Validation error: invalid format or extra fields")
+
+    if not (0 <= body.processed_count <= 10000):
+        raise HTTPException(400, "Invalid processed_count")
+    if body.reason_code and (len(body.reason_code) > 100 or not re.match(r"^[A-Za-z0-9._:-]+$", body.reason_code)):
+        raise HTTPException(400, "Invalid reason_code")
+    if body.hold_reason and (len(body.hold_reason) > 500 or any(ord(c) < 32 and c not in "\n\t" for c in body.hold_reason)):
+        raise HTTPException(400, "Invalid hold_reason")
+
+    conn = get_conn()
+    try:
+        job = conn.execute("SELECT id, status, execution_mode FROM yoonbot_jobs WHERE id = ? AND device_id = ?", (job_id, device_id)).fetchone()
+        if not job:
+            raise HTTPException(404, "Job not found or not assigned to device")
+        if job["status"] != "claimed":
+            raise HTTPException(400, "Job is not claimed")
+
+        res = conn.execute("SELECT id FROM yoonbot_job_results WHERE job_id = ?", (job_id,)).fetchone()
+        if res:
+            raise HTTPException(400, "Duplicate result")
+
+        mode = job["execution_mode"]
+        if mode == "dry_run" and body.status not in ("dry_run_completed", "failed", "held"):
+            raise HTTPException(400, "Invalid status for dry_run")
+        if mode == "input_only" and body.status not in ("input_only_completed", "failed", "held"):
+            raise HTTPException(400, "Invalid status for input_only")
+        if body.status not in ("dry_run_completed", "input_only_completed", "failed", "held"):
+            raise HTTPException(400, "Unknown result status")
+
+        final_job_status = body.status
+        final_hold_reason = body.hold_reason
+
+        if body.status in ("dry_run_completed", "input_only_completed"):
+            if body.quality_status != "pass":
+                raise HTTPException(400, "completed status requires quality pass")
+            final_job_status = "held"
+            final_hold_reason = body.status
+        elif body.status == "held":
+            if body.quality_status not in ("review_needed", "retry_summary", "fail", "blocked"):
+                raise HTTPException(400, "held requires valid quality_status")
+            if not body.hold_reason:
+                raise HTTPException(400, "held requires hold_reason")
+        elif body.status == "failed":
+            pass
+
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute("UPDATE yoonbot_jobs SET status = ?, quality_status = ?, hold_reason = ?, updated_at = ? WHERE id = ?",
+                     (final_job_status, body.quality_status, final_hold_reason, now, job_id))
+
+        res_id = f"res_{uuid.uuid4().hex[:12]}"
+        conn.execute("INSERT INTO yoonbot_job_results (id, job_id, status, quality_status, reason_code, hold_reason, processed_count, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                     (res_id, job_id, body.status, body.quality_status, body.reason_code, final_hold_reason, body.processed_count, now))
+        conn.commit()
+        log_action(job_id, "job_result", f"device_id:{device_id} state:{final_job_status}", "")
+        return {"ok": True}
+    finally:
+        conn.close()
