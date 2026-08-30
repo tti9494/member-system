@@ -77,11 +77,16 @@ def test_yoonbot_sales_and_payment_admin_pages_contain_order_contracts():
     assert "/api/yoonbot/orders" in sales_html
     assert 'href="#download"' in sales_html
     assert 'id="download"' in sales_html
-    assert 'id="launcher-download-link"' in sales_html
-    assert "Windows 런처 다운로드" in sales_html
-    assert "/api/daf/launcher/artifacts/arsen-content-launcher-0.1.0-win-x64.zip" in sales_html
-    assert "/api/launcher/release" in sales_html
+    assert 'id="yoonbot-download-link"' in sales_html
+    assert "Windows 다운로드" in sales_html
+    assert "/api/yoonbot/release" in sales_html
     assert "artifact_download_url" in sales_html
+    assert "download_ready" in sales_html
+    assert "릴리스 준비 중" in sales_html
+    # 공개 다운로드 패널에서 이전 런처 ZIP fallback과 redirect 경로를 금지한다.
+    assert "arsen-content-launcher-0.1.0-win-x64.zip" not in sales_html
+    assert "/api/daf/launcher" not in sales_html
+    assert "/api/launcher/release" not in sales_html
     assert "consent_privacy" in sales_html
     assert "LICENSE_API_URL" in sales_html
     assert "https://apply.arsen-ai.com" in sales_html
@@ -95,6 +100,39 @@ def test_yoonbot_sales_and_payment_admin_pages_contain_order_contracts():
     assert "issue-license" in payment_html
     assert "refund-note" in payment_html
     assert "발급된 키는 지금 한 번만 표시됩니다." in payment_html
+
+
+def test_license_admin_page_shows_yoonbot_release_status_panel():
+    html = LICENSE_ADMIN_HTML.read_text(encoding="utf-8")
+
+    assert "YOONBOT 릴리스 상태" in html
+    assert "/admin/yoonbot/release-status" in html
+    assert 'id="release-version"' in html
+    assert 'id="release-artifact-name"' in html
+    assert 'id="release-sha256"' in html
+    assert 'id="release-size"' in html
+    assert 'id="release-code-signing"' in html
+    assert 'id="release-ready-approved"' in html
+    assert 'id="release-download-ready"' in html
+    assert 'id="release-blocked-reasons"' in html
+    assert "blocked_code_signing" in html
+    assert "blocked_release_ready_approval" in html
+    assert "blocked_artifact_unverified" in html
+    assert "코드서명 미완료" in html
+    assert "릴리스 준비 중" in html
+
+
+def test_yoonbot_release_admin_routes_registered_in_both_layers():
+    main_py = MAIN_PY.read_text(encoding="utf-8")
+    worker_js = WORKER_JS.read_text(encoding="utf-8")
+
+    assert '@app.get("/admin/yoonbot/release-status")' in main_py
+    assert 'path === "/admin/yoonbot/release-status"' in worker_js
+    for source in (main_py, worker_js):
+        assert "blocked_code_signing" in source
+        assert "blocked_release_ready_approval" in source
+        assert "YOONBOT_CODE_SIGNING_STATUS" in source
+        assert "YOONBOT_RELEASE_READY_APPROVED" in source
 
 
 def test_status_page_copy_does_not_claim_numeric_eight_digit_codes():

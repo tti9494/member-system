@@ -532,43 +532,125 @@ def _yoonbot_artifact_sha256(artifact_path: Path) -> str:
     return value
 
 
-def _yoonbot_release_contract(request: Request) -> dict[str, Any]:
-    release: dict[str, Any] = {
-        key: (list(value) if isinstance(value, list) else value)
-        for key, value in YOONBOT_RELEASE_BASE.items()
-    }
-    artifact_endpoint = f"/api/yoonbot/artifacts/{YOONBOT_ARTIFACT_NAME}"
-    release["artifact_endpoint"] = artifact_endpoint
-    # Fail-closed defaults: no verified artifact means no download offer.
-    release["download_ready"] = False
-    release["artifact_download_url"] = ""
-    release["sha256"] = ""
-    release["size_bytes"] = 0
+YOONBOT_CODE_SIGNING_READY_STATUS = "signed"
+YOONBOT_BLOCKED_CODE_SIGNING = "blocked_code_signing"
+YOONBOT_BLOCKED_RELEASE_APPROVAL = "blocked_release_ready_approval"
+YOONBOT_BLOCKED_ARTIFACT_UNVERIFIED = "blocked_artifact_unverified"
 
+
+def _yoonbot_code_signing_status() -> str:
+    status = os.getenv("YOONBOT_CODE_SIGNING_STATUS", "").strip().lower()
+    return status or "not_signed"
+
+
+def _yoonbot_release_ready_approved() -> bool:
+    return os.getenv("YOONBOT_RELEASE_READY_APPROVED", "").strip().lower() == "true"
+
+
+def _yoonbot_release_gate_blocks() -> list[str]:
+    # Operator gates for the public download. Fail-closed by default:
+    # an unsigned build or an unapproved release never goes public,
+    # even when a verified artifact is staged and all local checks pass.
+    blocked: list[str] = []
+    if _yoonbot_code_signing_status() != YOONBOT_CODE_SIGNING_READY_STATUS:
+        blocked.append(YOONBOT_BLOCKED_CODE_SIGNING)
+    if not _yoonbot_release_ready_approved():
+        blocked.append(YOONBOT_BLOCKED_RELEASE_APPROVAL)
+    return blocked
+
+
+def _yoonbot_verified_artifact_source(request: Request) -> dict[str, Any] | None:
+    """Verified download source (HTTPS URL + 64-hex SHA-256 + size > 0) or None."""
+    artifact_endpoint = f"/api/yoonbot/artifacts/{YOONBOT_ARTIFACT_NAME}"
     configured_url = os.getenv("YOONBOT_ARTIFACT_DOWNLOAD_URL", "").strip()
     if configured_url:
         configured_sha = os.getenv("YOONBOT_ARTIFACT_SHA256", "").strip().lower()
         configured_size_raw = os.getenv("YOONBOT_ARTIFACT_SIZE_BYTES", "").strip()
         configured_size = int(configured_size_raw) if configured_size_raw.isdigit() else 0
         if configured_url.startswith("https://") and _is_sha256_hex(configured_sha) and configured_size > 0:
-            release["download_ready"] = True
-            release["artifact_download_url"] = configured_url
-            release["sha256"] = configured_sha
-            release["size_bytes"] = configured_size
-        return release
+            return {
+                "artifact_download_url": configured_url,
+                "sha256": configured_sha,
+                "size_bytes": configured_size,
+                "source": "external_url",
+            }
+        return None
 
     artifact_path = YOONBOT_ARTIFACT_DIR / YOONBOT_ARTIFACT_NAME
     if not artifact_path.is_file():
-        return release
+        return None
     size_bytes = artifact_path.stat().st_size
     sha256 = _yoonbot_artifact_sha256(artifact_path)
     base_url = _public_artifact_base_url(request, "ARSEN_YOONBOT_ARTIFACT_BASE_URL")
     download_url = f"{base_url}{artifact_endpoint}" if base_url else ""
-    release["sha256"] = sha256
-    release["size_bytes"] = size_bytes
-    release["artifact_download_url"] = download_url
-    release["download_ready"] = bool(download_url and size_bytes > 0 and _is_sha256_hex(sha256))
+    if not (download_url and size_bytes > 0 and _is_sha256_hex(sha256)):
+        return None
+    return {
+        "artifact_download_url": download_url,
+        "sha256": sha256,
+        "size_bytes": size_bytes,
+        "source": "staged_file",
+    }
+
+
+def _yoonbot_release_contract(request: Request) -> dict[str, Any]:
+    release: dict[str, Any] = {
+        key: (list(value) if isinstance(value, list) else value)
+        for key, value in YOONBOT_RELEASE_BASE.items()
+    }
+    release["artifact_endpoint"] = f"/api/yoonbot/artifacts/{YOONBOT_ARTIFACT_NAME}"
+    # Fail-closed defaults: without a verified artifact plus operator
+    # release-ready approval and completed code signing, the customer only
+    # sees "preparing" and the artifact URL stays private.
+    release["download_ready"] = False
+    release["artifact_download_url"] = ""
+    release["sha256"] = ""
+    release["size_bytes"] = 0
+    release["status"] = "preparing"
+
+    if _yoonbot_release_gate_blocks():
+        return release
+    verified = _yoonbot_verified_artifact_source(request)
+    if not verified:
+        return release
+    release["download_ready"] = True
+    release["artifact_download_url"] = verified["artifact_download_url"]
+    release["sha256"] = verified["sha256"]
+    release["size_bytes"] = verified["size_bytes"]
+    release["status"] = "available"
     return release
+
+
+def _admin_yoonbot_release_status(request: Request) -> dict[str, Any]:
+    release = _yoonbot_release_contract(request)
+    verified = _yoonbot_verified_artifact_source(request)
+    blocked_reasons = _yoonbot_release_gate_blocks()
+    if not verified:
+        blocked_reasons = blocked_reasons + [YOONBOT_BLOCKED_ARTIFACT_UNVERIFIED]
+    code_signing_status = _yoonbot_code_signing_status()
+    return {
+        "service": "yoonbot-windows-release",
+        "source": "member-system-fastapi",
+        "served_at": datetime.now(timezone.utc).isoformat(),
+        "latest_version": YOONBOT_RELEASE_BASE["latest_version"],
+        "minimum_supported_version": YOONBOT_RELEASE_BASE["minimum_supported_version"],
+        "artifact_name": YOONBOT_ARTIFACT_NAME,
+        "sha256": verified["sha256"] if verified else "",
+        "size_bytes": verified["size_bytes"] if verified else 0,
+        "artifact_source": verified["source"] if verified else "",
+        "artifact_verified": bool(verified),
+        "code_signing_status": code_signing_status,
+        "code_signing_ready": code_signing_status == YOONBOT_CODE_SIGNING_READY_STATUS,
+        "release_ready_approved": _yoonbot_release_ready_approved(),
+        "download_ready": release["download_ready"],
+        "public_status": release["status"],
+        "blocked_reasons": blocked_reasons,
+        "endpoints": {
+            "manifest": "/api/yoonbot/manifest",
+            "release": "/api/yoonbot/release",
+            "artifact": release["artifact_endpoint"],
+        },
+    }
 
 
 def _yoonbot_public_manifest(request: Request) -> dict[str, Any]:
@@ -4024,8 +4106,12 @@ async def api_yoonbot_public_artifact(artifact_name: str):
         raise HTTPException(status_code=400, detail="invalid_artifact_name")
     if artifact_name != YOONBOT_ARTIFACT_NAME:
         raise HTTPException(status_code=404, detail="yoonbot_artifact_missing")
+    # Same operator gates as the release contract: an artifact closed in the
+    # manifest can never be downloaded directly either.
+    if _yoonbot_release_gate_blocks():
+        raise HTTPException(status_code=404, detail="yoonbot_release_not_ready")
     artifact_path = YOONBOT_ARTIFACT_DIR / artifact_name
-    if not artifact_path.is_file():
+    if not artifact_path.is_file() or artifact_path.stat().st_size <= 0:
         raise HTTPException(status_code=404, detail="yoonbot_artifact_missing")
     return FileResponse(
         str(artifact_path),
@@ -4048,6 +4134,11 @@ async def admin_site_theme(_=Depends(require_admin)):
 @app.get("/admin/launcher-status")
 async def admin_launcher_status(request: Request, _=Depends(require_admin)):
     return {"ok": True, "data": _admin_launcher_status(request)}
+
+
+@app.get("/admin/yoonbot/release-status")
+async def admin_yoonbot_release_status(request: Request, _=Depends(require_admin)):
+    return {"ok": True, "data": _admin_yoonbot_release_status(request)}
 
 
 @app.put("/admin/site-theme")

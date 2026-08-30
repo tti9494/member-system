@@ -554,31 +554,107 @@ function yoonbotExplicitUrlContract(env) {
   return { download_ready: true, artifact_download_url: explicitUrl, sha256, size_bytes: sizeBytes };
 }
 
-// Fail-closed: download_ready only with a verified HTTPS URL plus a real
-// 64-hex SHA-256 and size. Never invent checksum, size, or availability.
-async function yoonbotArtifactContract(env, request) {
-  const closed = { download_ready: false, artifact_download_url: "", sha256: "", size_bytes: 0 };
+const YOONBOT_CODE_SIGNING_READY_STATUS = "signed";
+const YOONBOT_BLOCKED_CODE_SIGNING = "blocked_code_signing";
+const YOONBOT_BLOCKED_RELEASE_APPROVAL = "blocked_release_ready_approval";
+const YOONBOT_BLOCKED_ARTIFACT_UNVERIFIED = "blocked_artifact_unverified";
+
+function yoonbotCodeSigningStatus(env) {
+  const status = String(env.YOONBOT_CODE_SIGNING_STATUS || "").trim().toLowerCase();
+  return status || "not_signed";
+}
+
+function yoonbotReleaseReadyApproved(env) {
+  return String(env.YOONBOT_RELEASE_READY_APPROVED || "").trim().toLowerCase() === "true";
+}
+
+// Operator gates for the public download. Fail-closed by default: an
+// unsigned build or an unapproved release never goes public, even when a
+// verified artifact exists and every storage check passes.
+function yoonbotReleaseGateBlocks(env) {
+  const blocked = [];
+  if (yoonbotCodeSigningStatus(env) !== YOONBOT_CODE_SIGNING_READY_STATUS) blocked.push(YOONBOT_BLOCKED_CODE_SIGNING);
+  if (!yoonbotReleaseReadyApproved(env)) blocked.push(YOONBOT_BLOCKED_RELEASE_APPROVAL);
+  return blocked;
+}
+
+// Verified download source (HTTPS URL + 64-hex SHA-256 + size > 0) or null.
+// Never invents checksum, size, or availability.
+async function yoonbotVerifiedArtifactSource(env, request) {
   const explicitUrl = String(env.YOONBOT_ARTIFACT_DOWNLOAD_URL || "").trim();
   if (explicitUrl) {
-    return yoonbotExplicitUrlContract(env) || closed;
+    const explicitContract = yoonbotExplicitUrlContract(env);
+    if (!explicitContract) return null;
+    return {
+      artifact_download_url: explicitContract.artifact_download_url,
+      sha256: explicitContract.sha256,
+      size_bytes: explicitContract.size_bytes,
+      source: "external_url",
+    };
   }
   const origin = new URL(request.url);
-  if (origin.protocol !== "https:") return closed;
+  if (origin.protocol !== "https:") return null;
   const selfDownloadUrl = `${origin.origin}/api/yoonbot/artifacts/${YOONBOT_ARTIFACT_NAME}`;
   const assetManifest = await yoonbotAssetManifest(env, request);
   if (assetManifest) {
     return {
-      download_ready: true,
       artifact_download_url: selfDownloadUrl,
       sha256: String(assetManifest.sha256).trim().toLowerCase(),
       size_bytes: Number(assetManifest.size_bytes),
+      source: "pages_assets",
     };
   }
   const r2Contract = await yoonbotR2Contract(env);
   if (r2Contract) {
-    return { download_ready: true, artifact_download_url: selfDownloadUrl, ...r2Contract };
+    return { artifact_download_url: selfDownloadUrl, ...r2Contract, source: "r2" };
   }
-  return closed;
+  return null;
+}
+
+// Fail-closed: download_ready only with a verified source AND the operator
+// gates (code signing + release-ready approval) all passing.
+async function yoonbotArtifactContract(env, request) {
+  const closed = { download_ready: false, artifact_download_url: "", sha256: "", size_bytes: 0 };
+  if (yoonbotReleaseGateBlocks(env).length) return closed;
+  const verified = await yoonbotVerifiedArtifactSource(env, request);
+  if (!verified) return closed;
+  return {
+    download_ready: true,
+    artifact_download_url: verified.artifact_download_url,
+    sha256: verified.sha256,
+    size_bytes: verified.size_bytes,
+  };
+}
+
+async function adminYoonbotReleaseStatusPayload(env, request) {
+  const gateBlocks = yoonbotReleaseGateBlocks(env);
+  const verified = await yoonbotVerifiedArtifactSource(env, request);
+  const blockedReasons = verified ? gateBlocks : [...gateBlocks, YOONBOT_BLOCKED_ARTIFACT_UNVERIFIED];
+  const codeSigningStatus = yoonbotCodeSigningStatus(env);
+  const downloadReady = Boolean(verified) && gateBlocks.length === 0;
+  return {
+    service: "yoonbot-windows-release",
+    source: "member-system-cloudflare",
+    served_at: now(),
+    latest_version: YOONBOT_RELEASE.latest_version,
+    minimum_supported_version: YOONBOT_RELEASE.minimum_supported_version,
+    artifact_name: YOONBOT_ARTIFACT_NAME,
+    sha256: verified ? verified.sha256 : "",
+    size_bytes: verified ? verified.size_bytes : 0,
+    artifact_source: verified ? verified.source : "",
+    artifact_verified: Boolean(verified),
+    code_signing_status: codeSigningStatus,
+    code_signing_ready: codeSigningStatus === YOONBOT_CODE_SIGNING_READY_STATUS,
+    release_ready_approved: yoonbotReleaseReadyApproved(env),
+    download_ready: downloadReady,
+    public_status: downloadReady ? "available" : "preparing",
+    blocked_reasons: blockedReasons,
+    endpoints: {
+      manifest: "/api/yoonbot/manifest",
+      release: "/api/yoonbot/release",
+      artifact: `/api/yoonbot/artifacts/${YOONBOT_ARTIFACT_NAME}`,
+    },
+  };
 }
 
 function yoonbotArtifactHeaders(sizeBytes) {
@@ -627,6 +703,9 @@ async function yoonbotAssetArtifactResponse(env, request) {
 }
 
 async function yoonbotArtifactResponse(env, request) {
+  // Same operator gates as the release contract: an artifact closed in the
+  // manifest can never be downloaded (or redirected to) directly either.
+  if (yoonbotReleaseGateBlocks(env).length) return fail(404, "yoonbot_release_not_ready");
   const explicitUrl = String(env.YOONBOT_ARTIFACT_DOWNLOAD_URL || "").trim();
   if (explicitUrl) {
     const explicitContract = yoonbotExplicitUrlContract(env);
@@ -662,6 +741,7 @@ async function yoonbotReleasePayload(env, request) {
     ...YOONBOT_RELEASE,
     artifact_endpoint: `/api/yoonbot/artifacts/${YOONBOT_ARTIFACT_NAME}`,
     ...contract,
+    status: contract.download_ready ? "available" : "preparing",
   };
 }
 
@@ -6003,6 +6083,9 @@ async function handleAdmin(request, env, path) {
   }
   if (path === "/admin/launcher-status" && method === "GET") {
     return json({ ok: true, data: await adminLauncherStatusPayload(env, request) });
+  }
+  if (path === "/admin/yoonbot/release-status" && method === "GET") {
+    return json({ ok: true, data: await adminYoonbotReleaseStatusPayload(env, request) });
   }
   if (path === "/admin/storage-status" && method === "GET") {
     return json({ ok: true, data: await storageStatus(env) });

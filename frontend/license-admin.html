@@ -327,6 +327,25 @@
   </div>
 
   <section class="panel">
+    <h2>YOONBOT 릴리스 상태</h2>
+    <div class="muted" id="release-status-help">목록 불러오기를 실행하면 공개 다운로드 계약 상태를 함께 확인합니다.</div>
+    <div id="release-status-body" hidden>
+      <table>
+        <tbody>
+          <tr><th scope="row">최신 버전</th><td id="release-version"></td></tr>
+          <tr><th scope="row">설치 파일</th><td id="release-artifact-name" class="mono"></td></tr>
+          <tr><th scope="row">SHA-256</th><td id="release-sha256" class="mono"></td></tr>
+          <tr><th scope="row">크기</th><td id="release-size"></td></tr>
+          <tr><th scope="row">코드서명 상태</th><td id="release-code-signing"></td></tr>
+          <tr><th scope="row">release-ready 승인</th><td id="release-ready-approved"></td></tr>
+          <tr><th scope="row">공개 다운로드</th><td id="release-download-ready"></td></tr>
+          <tr><th scope="row">차단 사유</th><td id="release-blocked-reasons"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
     <div class="list-header">
       <h2>발급 목록</h2>
       <div class="list-toolbar">
@@ -406,6 +425,7 @@
     licenses: [],
     members: [],
     lastCreatedKey: "",
+    releaseStatus: null,
   };
 
   const statusLabels = {
@@ -714,6 +734,41 @@
     }
   }
 
+  const releaseBlockLabels = {
+    blocked_code_signing: "코드서명 미완료",
+    blocked_release_ready_approval: "운영자 release-ready 승인 대기",
+    blocked_artifact_unverified: "검증된 artifact 없음",
+  };
+
+  function renderReleaseStatus() {
+    const data = state.releaseStatus;
+    if (!data) return;
+    const sizeBytes = Number(data.size_bytes) || 0;
+    $("release-version").textContent = data.latest_version || "";
+    $("release-artifact-name").textContent = data.artifact_name || "";
+    $("release-sha256").textContent = data.sha256 || "아직 없음";
+    $("release-size").textContent = sizeBytes > 0
+      ? `${sizeBytes.toLocaleString()} bytes (${(sizeBytes / (1024 * 1024)).toFixed(1)}MB)`
+      : "아직 없음";
+    $("release-code-signing").textContent = data.code_signing_ready
+      ? "서명 완료"
+      : `미완료 (${data.code_signing_status || "not_signed"})`;
+    $("release-ready-approved").textContent = data.release_ready_approved ? "승인됨" : "승인 대기";
+    $("release-download-ready").textContent = data.download_ready ? "공개 가능" : "차단 (릴리스 준비 중)";
+    const reasons = Array.isArray(data.blocked_reasons) ? data.blocked_reasons : [];
+    $("release-blocked-reasons").textContent = reasons.length
+      ? reasons.map((code) => releaseBlockLabels[code] || code).join(", ")
+      : "없음";
+    $("release-status-help").hidden = true;
+    $("release-status-body").hidden = false;
+  }
+
+  async function loadReleaseStatus() {
+    const payload = await requestJson("/admin/yoonbot/release-status");
+    state.releaseStatus = payload.data || null;
+    renderReleaseStatus();
+  }
+
   async function loadDashboardData() {
     try {
       if ($("remember-key").checked) {
@@ -721,6 +776,7 @@
       }
       setStatus("회원과 라이선스 정보를 불러오는 중입니다...");
       await loadMembers();
+      await loadReleaseStatus();
       await loadLicenses();
     } catch (err) {
       setError(err.message);
