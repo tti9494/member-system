@@ -172,6 +172,33 @@ def test_agent_heartbeat(client, admin_headers):
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
 
+def test_claim_includes_assigned_template_only(client, admin_headers):
+    dev_id, token = _create_device(client, admin_headers)
+    tpl_id = _create_template(client, admin_headers)
+    created = client.post("/admin/yoonbot/lab/jobs", json={
+        "idempotency_key": "claim_template_contract",
+        "device_id": dev_id,
+        "template_id": tpl_id,
+        "target_alias": "self-test",
+        "action": "preview_message",
+        "execution_mode": "dry_run",
+        "quality_status": "pass",
+    }, headers=admin_headers)
+    job_id = created.json()["id"]
+    client.post(f"/admin/yoonbot/lab/jobs/{job_id}/approve", headers=admin_headers)
+    claimed = client.post(
+        "/api/yoonbot/agent/claim",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert claimed.status_code == 200
+    job = claimed.json()["job"]
+    assert job["id"] == job_id
+    assert job["template_id"] == tpl_id
+    assert job["template_name"] == "tpl1"
+    assert job["template_content"] == "hello"
+    assert job["template_version"] == 1
+    assert "token" not in job and "token_hash" not in job
+
 def test_job_and_agent_flow(client, admin_headers):
     dev_id, token = _create_device(client, admin_headers)
     

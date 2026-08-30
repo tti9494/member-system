@@ -5224,9 +5224,21 @@ def claim_lab_job(response: Response, device_id: str = Depends(require_agent_tok
             return {"job": None}
 
         conn.commit()
-        j = conn.execute("SELECT id, idempotency_key, template_id, target_alias, action, execution_mode FROM yoonbot_jobs WHERE id = ?", (job_id,)).fetchone()
+        j = conn.execute(
+            """SELECT j.id, j.idempotency_key, j.template_id, j.target_alias, j.action,
+                      j.execution_mode, t.name AS template_name, t.content AS template_content,
+                      t.version AS template_version
+               FROM yoonbot_jobs j
+               LEFT JOIN yoonbot_templates t ON t.id = j.template_id
+               WHERE j.id = ?""",
+            (job_id,),
+        ).fetchone()
         log_action(job_id, "claim_job", f"device_id:{device_id} state:claimed", "")
-        return {"job": dict(j)}
+        payload = dict(j)
+        for key in ("template_id", "template_name", "template_content", "template_version"):
+            if payload.get(key) is None:
+                payload.pop(key, None)
+        return {"job": payload}
     finally:
         conn.close()
 

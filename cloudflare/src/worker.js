@@ -7568,7 +7568,15 @@ export async function handleRequest(request, env) {
           if (res.meta && res.meta.changes === 0) {
             response = yoonbotLabNoStore(json({ job: null }));
           } else {
-            const j = await one(env, "SELECT id, idempotency_key, template_id, target_alias, action, execution_mode FROM yoonbot_jobs WHERE id=?", job.id);
+            const j = await one(env, `SELECT j.id, j.idempotency_key, j.template_id, j.target_alias, j.action,
+                                            j.execution_mode, t.name AS template_name, t.content AS template_content,
+                                            t.version AS template_version
+                                     FROM yoonbot_jobs j
+                                     LEFT JOIN yoonbot_templates t ON t.id=j.template_id
+                                     WHERE j.id=?`, job.id);
+            for (const key of ["template_id", "template_name", "template_content", "template_version"]) {
+              if (j[key] == null) delete j[key];
+            }
             await logAction(env, "system", "claim_job", `device_id:${auth.deviceId} state:claimed`, request);
             response = yoonbotLabNoStore(json({ job: j }));
           }
