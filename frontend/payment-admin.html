@@ -455,14 +455,23 @@
     return payload;
   }
 
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
   function badge(status) {
-    return `<span class="badge ${status || ""}">${status || "unknown"}</span>`;
+    return `<span class="badge ${escapeHtml(status || "")}">${escapeHtml(status || "unknown")}</span>`;
   }
 
   function localDate(value) {
     if (!value) return "-";
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
+    if (Number.isNaN(date.getTime())) return escapeHtml(value);
     return date.toLocaleString("ko-KR", { hour12: false });
   }
 
@@ -491,7 +500,7 @@
 
   function discountCell(order) {
     if (!order.discount_code) return "-";
-    const label = order.discount_label || order.discount_code;
+    const label = escapeHtml(order.discount_label || order.discount_code);
     if (!order.discount_amount_krw) return `<span class="muted">${label}</span>`;
     return `<span style="color:var(--green-strong);">${label}</span><div class="muted">-${money(order.discount_amount_krw)}</div>`;
   }
@@ -507,16 +516,16 @@
       <tr>
         <td>${badge(order.status)}</td>
         <td>
-          <strong>${order.buyer_name}</strong>
-          <div class="muted">${order.buyer_email_masked || "-"} · ${order.buyer_phone_masked || "-"}</div>
+          <strong>${escapeHtml(order.buyer_name)}</strong>
+          <div class="muted">${escapeHtml(order.buyer_email_masked || "-")} · ${escapeHtml(order.buyer_phone_masked || "-")}</div>
         </td>
-        <td>${order.plan_code}</td>
+        <td>${escapeHtml(order.plan_code)}</td>
         <td>${money(order.amount_krw)}${order.discount_amount_krw > 0 ? `<div class="muted" style="font-size:12px;">정가 ${money(order.original_amount_krw || order.amount_krw)}</div>` : ""}</td>
         <td>${discountCell(order)}</td>
-        <td class="mono">${order.payment_ref || "-"}</td>
-        <td class="mono">${order.license_key_hint || order.license_id || "-"}</td>
+        <td class="mono">${escapeHtml(order.payment_ref || "-")}</td>
+        <td class="mono">${escapeHtml(order.license_key_hint || order.license_id || "-")}</td>
         <td>${localDate(order.created_at)}</td>
-        <td><button data-action="select" data-id="${order.id}" type="button">선택</button></td>
+        <td><button data-action="select" data-id="${escapeHtml(order.id)}" type="button">선택</button></td>
       </tr>
     `).join("");
     if (state.selectedOrderId && !selectedOrder()) state.selectedOrderId = "";
@@ -585,19 +594,19 @@
     const base = window.location.origin;
     body.innerHTML = state.discounts.map((dc) => `
       <tr style="${!dc.enabled ? "opacity:0.5;" : ""}">
-        <td class="mono">${dc.code}</td>
-        <td>${dc.label || "-"}</td>
-        <td>${dc.discount_type === "percent" ? `${dc.discount_value}%` : dc.discount_type === "override_amount" ? `확정 ${Number(dc.discount_value).toLocaleString("ko-KR")}원` : `-${Number(dc.discount_value).toLocaleString("ko-KR")}원`}</td>
-        <td>${dc.plan_code || "전체"}</td>
-        <td>${dc.redeemed_count}/${dc.max_redemptions ?? "∞"}</td>
-        <td>${dc.expires_at ? dc.expires_at.slice(0, 10) : "-"}</td>
+        <td class="mono">${escapeHtml(dc.code)}</td>
+        <td>${escapeHtml(dc.label || "-")}</td>
+        <td>${dc.discount_type === "percent" ? `${Number(dc.discount_value)}%` : dc.discount_type === "override_amount" ? `확정 ${Number(dc.discount_value).toLocaleString("ko-KR")}원` : `-${Number(dc.discount_value).toLocaleString("ko-KR")}원`}</td>
+        <td>${escapeHtml(dc.plan_code || "전체")}</td>
+        <td>${Number(dc.redeemed_count || 0)}/${dc.max_redemptions ?? "∞"}</td>
+        <td>${escapeHtml(dc.expires_at ? String(dc.expires_at).slice(0, 10) : "-")}</td>
         <td><span class="badge ${dc.enabled ? "paid" : "canceled"}">${dc.enabled ? "활성" : "비활성"}</span></td>
         <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-          <a href="${base}/frontend/yoonbot.html?discount=${encodeURIComponent(dc.code)}" target="_blank" style="font-size:12px;">
-            yoonbot?discount=${dc.code}
+          <a href="${escapeHtml(`${base}/frontend/yoonbot.html?discount=${encodeURIComponent(dc.code)}`)}" target="_blank" style="font-size:12px;">
+            yoonbot?discount=${escapeHtml(dc.code)}
           </a>
         </td>
-        <td>${dc.enabled ? `<button data-action="disable-discount" data-code="${dc.code}" type="button" class="danger" style="padding:5px 7px; font-size:12px;">비활성화</button>` : ""}</td>
+        <td>${dc.enabled ? `<button data-action="disable-discount" data-code="${escapeHtml(dc.code)}" type="button" class="danger" style="padding:5px 7px; font-size:12px;">비활성화</button>` : ""}</td>
       </tr>
     `).join("");
   }
@@ -711,7 +720,7 @@
       });
       const dc = payload.data;
       const link = `${window.location.origin}/frontend/yoonbot.html?discount=${encodeURIComponent(dc.code)}`;
-      resultEl.innerHTML = `생성 완료. 공유 링크: <a href="${link}" target="_blank">${link}</a>`;
+      resultEl.innerHTML = `생성 완료. 공유 링크: <a href="${escapeHtml(link)}" target="_blank">${escapeHtml(link)}</a>`;
       resultEl.style.color = "var(--green-strong)";
       $("dc-code").value = "";
       $("dc-value").value = "";

@@ -406,12 +406,11 @@
             <th>만료</th>
             <th>기기</th>
             <th>최근 검증</th>
-            <th>개발 키</th>
             <th>작업</th>
           </tr>
         </thead>
         <tbody id="license-body">
-          <tr><td colspan="9" class="empty">아직 불러온 라이선스가 없습니다.</td></tr>
+          <tr><td colspan="8" class="empty">아직 불러온 라이선스가 없습니다.</td></tr>
         </tbody>
       </table>
     </div>
@@ -586,7 +585,6 @@
     const member = memberById(item.member_id);
     return normalizedText([
       item.license_key_hint,
-      item.dev_license_key,
       item.plan_code,
       item.status,
       statusLabels[item.status],
@@ -664,7 +662,7 @@
     const body = $("license-body");
     const items = sortedLicenses();
     if (!items.length) {
-      body.innerHTML = `<tr><td colspan="9" class="empty">조건에 맞는 라이선스가 없습니다.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="8" class="empty">조건에 맞는 라이선스가 없습니다.</td></tr>`;
       return;
     }
     body.innerHTML = items.map((item) => `
@@ -676,11 +674,6 @@
         <td>${localDate(item.expires_at)}</td>
         <td>${item.bound_device ? "등록됨" : "미등록"}</td>
         <td>${localDate(item.last_verified_at)}</td>
-        <td class="mono">
-          ${item.dev_license_key
-            ? `<code>${escapeHtml(item.dev_license_key)}</code> <button data-action="copy-dev-key" data-key="${escapeHtml(item.dev_license_key)}" type="button">복사</button>`
-            : '<span class="muted">보관 없음</span>'}
-        </td>
         <td>
           <div class="small-actions">
             <button class="warn" data-action="reset" data-id="${item.id}" type="button">기기 초기화</button>
@@ -847,11 +840,6 @@
       if (button.dataset.action === "revoke") await revokeLicense(id);
       if (button.dataset.action === "reset") await resetDevice(id);
       if (button.dataset.action === "extend") await extendLicense(id);
-      if (button.dataset.action === "copy-dev-key") {
-        await navigator.clipboard.writeText(button.dataset.key || "");
-        setStatus("개발용 라이선스 키를 복사했습니다.", "success");
-        return;
-      }
       setStatus("작업을 반영했습니다.", "success");
     } catch (err) {
       setError(err.message);

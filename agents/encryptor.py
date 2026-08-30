@@ -12,8 +12,11 @@ load_dotenv(dotenv_path=str(Path.home() / "member-system" / ".env"))
 
 def _get_key(env_var: str) -> bytes:
     raw = os.getenv(env_var, "")
+    # Fail-closed: 빈 secret으로 all-zero key를 만들지 않는다.
+    if not raw:
+        raise RuntimeError(f"{env_var}가 설정되지 않았습니다.")
     key = raw.encode("utf-8")
-    # 32바이트로 맞춤 (부족하면 패딩, 초과하면 자름)
+    # 32바이트로 맞춤 (부족하면 패딩, 초과하면 자름 — 기존 키 호환 유지)
     return (key + b"\x00" * 32)[:32]
 
 

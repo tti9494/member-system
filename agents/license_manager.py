@@ -42,7 +42,10 @@ def _parse_dt(value: str | None) -> datetime | None:
 
 
 def _secret() -> bytes:
-    raw = os.getenv("LICENSE_SECRET_KEY") or os.getenv("CODE_SECRET_KEY") or "local-license-dev-secret"
+    # Fail-closed: no predictable dev fallback secret.
+    raw = os.getenv("LICENSE_SECRET_KEY") or os.getenv("CODE_SECRET_KEY") or ""
+    if not raw:
+        raise RuntimeError("LICENSE_SECRET_KEY 또는 CODE_SECRET_KEY가 설정되지 않았습니다.")
     return raw.encode("utf-8")
 
 
@@ -282,6 +285,11 @@ def activate_license(
     client_ip: str | None = None,
     user_agent: str | None = None,
 ) -> dict:
+    # Worker parity: reject empty/blank inputs before any hashing or DB access.
+    license_key = (license_key or "").strip()
+    hwid = (hwid or "").strip()
+    if not license_key or not hwid:
+        return _failure("INVALID_REQUEST", "라이선스 키와 HWID가 필요합니다.")
     now = _now()
     license_hash = _hash_value("license", license_key)
     hwid_hash = _hash_value("hwid", hwid)
@@ -454,6 +462,13 @@ def verify_license(
     client_ip: str | None = None,
     user_agent: str | None = None,
 ) -> dict:
+    # Worker parity: reject empty/blank inputs before any hashing or DB access.
+    activation_token = (activation_token or "").strip()
+    hwid = (hwid or "").strip()
+    if not activation_token:
+        return _failure("INVALID_REQUEST", "인증 토큰이 필요합니다.")
+    if not hwid:
+        return _failure("INVALID_REQUEST", "HWID가 필요합니다.")
     now = _now()
     token_hash = _hash_value("token", activation_token)
     hwid_hash = _hash_value("hwid", hwid)

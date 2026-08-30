@@ -195,7 +195,6 @@ CREATE TABLE IF NOT EXISTS licenses (
   member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
   license_key_hash TEXT UNIQUE NOT NULL,
   license_key_hint TEXT NOT NULL,
-  dev_license_key TEXT,
   plan_code TEXT NOT NULL DEFAULT 'basic',
   status TEXT NOT NULL DEFAULT 'unused',
   max_devices INTEGER NOT NULL DEFAULT 1,

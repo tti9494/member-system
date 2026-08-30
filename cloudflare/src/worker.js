@@ -89,8 +89,9 @@ const SITE_THEME_PROFILES = Object.freeze([
 const LAUNCHER_ARTIFACT_NAME = "arsen-content-launcher-0.1.0-win-x64.zip";
 const LAUNCHER_ARTIFACT_KEY = LAUNCHER_ARTIFACT_NAME;
 const LAUNCHER_ASSET_MANIFEST_PATH = `/launcher-artifacts/${LAUNCHER_ARTIFACT_NAME}.manifest.json`;
-const LAUNCHER_RELEASE_URL = "https://apply.arsen-ai.com/api/launcher/release";
-const LAUNCHER_DIRECT_DOWNLOAD_URL = `https://apply.arsen-ai.com/api/daf/launcher/artifacts/${LAUNCHER_ARTIFACT_NAME}`;
+// Customer license guidance points only at the public homepage; the old
+// launcher ZIP direct link must never appear in customer-facing copy.
+const YOONBOT_CUSTOMER_DOWNLOAD_PAGE = "https://arsen-ai.com/yoonbot";
 const LAUNCHER_RELEASE = Object.freeze({
   id: "arsen-content-launcher",
   name: "Arsen Content Launcher",
@@ -785,14 +786,24 @@ function withCors(response, request, env) {
     headers.set("access-control-allow-headers", "authorization,content-type,x-admin-key");
     headers.set("access-control-allow-methods", "GET,POST,PUT,DELETE,OPTIONS");
   }
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("x-frame-options", "DENY");
+  headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
+  if (new URL(request.url).protocol === "https:") {
+    headers.set("strict-transport-security", "max-age=31536000");
+  }
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
 function requireAdmin(request, env) {
   const expected = String(env.ADMIN_API_KEY || "");
-  if (!expected) return { ok: false, response: fail(500, "ADMIN_API_KEY is not configured") };
+  // FastAPI parity: unconfigured admin auth is 503 (service not ready), not 500.
+  if (!expected) return { ok: false, response: fail(503, "ADMIN_API_KEY is not configured") };
   const actual = request.headers.get("x-admin-key") || "";
-  if (actual !== expected) return { ok: false, response: fail(401, "관리자 비밀번호가 필요합니다.") };
+  if (!actual || !constantTimeTextEqual(actual, expected)) {
+    return { ok: false, response: fail(401, "관리자 비밀번호가 필요합니다.") };
+  }
   return { ok: true };
 }
 
@@ -854,6 +865,8 @@ function base64ToBytes(text) {
 
 function legacyRawKey(env, secretName) {
   const raw = new TextEncoder().encode(String(env[secretName] || ""));
+  // Fail-closed: never derive an all-zero key from a missing secret.
+  if (!raw.length) throw new Error(`${secretName} is not configured`);
   const key = new Uint8Array(32);
   key.set(raw.slice(0, 32));
   return key;
@@ -975,7 +988,10 @@ function cookieValue(request, name) {
 }
 
 async function kakaoCookieSignature(env, body) {
-  const secret = String(env.KAKAO_SESSION_SECRET || env.ADMIN_KEY || env.TELEGRAM_WEBHOOK_SECRET || "arsen-local-kakao-session");
+  // Fail-closed: session cookies are never signed with a public default.
+  // deploy-cloudflare.mjs generates and stores KAKAO_SESSION_SECRET.
+  const secret = String(env.KAKAO_SESSION_SECRET || "");
+  if (!secret) throw new Error("KAKAO_SESSION_SECRET is not configured");
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -1204,15 +1220,6 @@ function licensePublic(row) {
   };
 }
 
-function licenseAdminPublic(row) {
-  const item = licensePublic(row);
-  if (!item) return null;
-  return {
-    ...item,
-    dev_license_key: row.dev_license_key || null,
-  };
-}
-
 function licenseFailure(code, message, status = "invalid") {
   return { ok: false, status, code, message };
 }
@@ -1265,12 +1272,12 @@ async function listLicenses(env, params = {}) {
   }
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const rows = await all(env, `SELECT * FROM licenses ${clause} ORDER BY created_at DESC`, ...values);
-  return rows.map(licenseAdminPublic);
+  return rows.map(licensePublic);
 }
 
 async function getLicense(env, licenseId) {
   const row = await one(env, "SELECT * FROM licenses WHERE id=?", licenseId);
-  return row ? licenseAdminPublic(row) : null;
+  return row ? licensePublic(row) : null;
 }
 
 async function createLicense(env, body, request) {
@@ -1291,18 +1298,19 @@ async function createLicense(env, body, request) {
     const licenseKey = randomLicenseKey();
     const licenseId = crypto.randomUUID();
     try {
+      // The raw license key is returned exactly once in the create/issue
+      // response. Only the HMAC hash and masked hint are ever persisted.
       await env.DB.prepare(
         `INSERT INTO licenses (
-          id, member_id, license_key_hash, license_key_hint, dev_license_key, plan_code,
+          id, member_id, license_key_hash, license_key_hint, plan_code,
           status, max_devices, app_min_version, expires_at, note, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, 'unused', ?, ?, ?, ?, ?, ?)`
+        ) VALUES (?, ?, ?, ?, ?, 'unused', ?, ?, ?, ?, ?, ?)`
       )
         .bind(
           licenseId,
           memberId,
           await licenseHash(env, "license", licenseKey),
           licenseKeyHint(licenseKey),
-          licenseKey,
           planCode,
           maxDevices,
           appMinVersion,
@@ -1922,10 +1930,18 @@ async function confirmTossPaymentWithToss(env, paymentKey, tossOrderId, amount) 
     body: JSON.stringify({ paymentKey, orderId: tossOrderId, amount }),
   });
   if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Toss confirm HTTP ${response.status}: ${body}`);
+    // Never surface or log the upstream response body — status code only.
+    throw new Error(`toss_confirm_http_${response.status}`);
   }
   return response.json();
+}
+
+// HMAC fingerprint of the Toss paymentKey — the raw key is never persisted,
+// returned, or logged. Same pattern as the education payment flow.
+async function yoonbotPaymentKeyFingerprint(env, paymentKey) {
+  if (!String(env.CODE_SECRET_KEY || "")) throw new Error("CODE_SECRET_KEY is not configured");
+  const digest = await hmacHex(`yoonbot-payment:${paymentKey}`, env, "CODE_SECRET_KEY");
+  return `toss:${digest.slice(0, 48)}`;
 }
 
 async function getYoonbotOrderByTossId(env, tossOrderId) {
@@ -1949,8 +1965,12 @@ async function confirmTossPayment(env, internalOrderId, body, tossConfirmFn) {
   if (YOONBOT_ORDER_TERMINAL_STATUSES.has(order.status)) {
     return { ok: false, message: "취소/환불된 주문은 결제 확인할 수 없습니다.", status: 400 };
   }
+  if (!String(env.CODE_SECRET_KEY || "")) {
+    return { ok: false, message: "온라인 결제 설정이 완료되지 않았습니다.", status: 503 };
+  }
+  const fingerprint = await yoonbotPaymentKeyFingerprint(env, body.payment_key);
   if (order.status === "paid" || order.status === "license_issued") {
-    if (order.payment_ref && body.payment_key && order.payment_ref === body.payment_key) {
+    if (order.payment_ref && constantTimeTextEqual(order.payment_ref, fingerprint)) {
       return { ok: true, data: order, idempotent: true };
     }
     return { ok: false, message: "이미 결제 처리된 주문입니다.", status: 400 };
@@ -1964,18 +1984,18 @@ async function confirmTossPayment(env, internalOrderId, body, tossConfirmFn) {
     return { ok: false, message: "결제 금액이 주문 금액과 일치하지 않습니다.", status: 400 };
   }
   if (!String(env.TOSS_PAYMENTS_SECRET_KEY || "")) {
-    return { ok: false, message: "TOSS_PAYMENTS_SECRET_KEY가 설정되지 않았습니다.", status: 503 };
+    return { ok: false, message: "온라인 결제 설정이 완료되지 않았습니다.", status: 503 };
   }
   let tossResponse;
   try {
     const confirmFn = tossConfirmFn || confirmTossPaymentWithToss;
     tossResponse = await confirmFn(env, body.payment_key, body.order_id, serverAmount);
-  } catch (err) {
-    return { ok: false, message: String(err.message || "Toss 결제 확인에 실패했습니다."), status: 502 };
+  } catch (_) {
+    return { ok: false, message: "Toss 결제 확인에 실패했습니다. 잠시 후 다시 시도해주세요.", status: 502 };
   }
   const tossStatus = String((tossResponse || {}).status || "");
   if (tossStatus && tossStatus !== "DONE") {
-    return { ok: false, message: `Toss 결제 상태가 완료가 아닙니다: ${tossStatus}`, status: 400 };
+    return { ok: false, message: "Toss 결제 상태가 완료가 아닙니다.", status: 400 };
   }
   const tossTotal = (tossResponse || {}).totalAmount;
   if (tossTotal != null && Number(tossTotal) !== serverAmount) {
@@ -1983,7 +2003,7 @@ async function confirmTossPayment(env, internalOrderId, body, tossConfirmFn) {
   }
   return markYoonbotOrderPaid(env, internalOrderId, {
     payment_provider: "toss_payments",
-    payment_ref: body.payment_key,
+    payment_ref: fingerprint,
     note: `toss_confirm:${body.order_id}`,
   });
 }
@@ -2463,15 +2483,14 @@ function yoonbotCustomerLicenseMessage(licenseKey, licenseItem) {
     `라이선스 키: ${licenseKey}`,
     `만료일: ${licenseItem.expires_at}`,
     "",
-    "▶ Windows 런처 다운로드",
-    LAUNCHER_DIRECT_DOWNLOAD_URL,
-    `최신 버전 정보: ${LAUNCHER_RELEASE_URL}`,
+    "▶ 프로그램 다운로드",
+    YOONBOT_CUSTOMER_DOWNLOAD_PAGE,
+    "공식 홈페이지의 다운로드 버튼은 공개 릴리스가 준비된 경우에만 활성화됩니다.",
     "",
     "▶ 설치 방법",
-    "1. 다운로드한 zip 파일의 압축을 원하는 폴더에 해제하세요.",
-    "2. 'Arsen Content Launcher.exe'를 실행하세요.",
-    "3. 라이선스 인증 창에 위 라이선스 키를 입력하세요.",
-    "4. 처음 등록한 PC에 기기가 묶입니다. PC 변경이 필요하면 운영자에게 기기 초기화를 요청해주세요.",
+    "1. 위 공식 홈페이지에서 Windows 설치 파일을 내려받아 실행하세요.",
+    "2. 설치가 끝나면 YOONBOT을 실행하고 라이선스 인증 창에 위 라이선스 키를 입력하세요.",
+    "3. 처음 등록한 PC에 기기가 묶입니다. PC 변경이 필요하면 운영자에게 기기 초기화를 요청해주세요.",
     "",
     "▶ 안내",
     "현재 초기 파일럿/베타 단계로 기능이 순차적으로 확장되고 있습니다.",
@@ -7134,9 +7153,10 @@ export async function handleRequest(request, env) {
         const headers = new Headers(assetResponse.headers);
         headers.set("cache-control", "no-store, max-age=0");
         headers.set("pragma", "no-cache");
-        return new Response(assetResponse.body, { status: assetResponse.status, statusText: assetResponse.statusText, headers });
+        assetResponse = new Response(assetResponse.body, { status: assetResponse.status, statusText: assetResponse.statusText, headers });
       }
-      return assetResponse;
+      // Static assets get the same security headers as API responses.
+      return withCors(assetResponse, request, env);
     }
     let response;
     if (path === "/health") {
@@ -7387,7 +7407,9 @@ export async function handleRequest(request, env) {
     }
     return withCors(response, request, env);
   } catch (error) {
-    return withCors(fail(500, error.message || "server error"), request, env);
+    // Fixed client message; console gets a fixed event name + error class only.
+    console.error("unhandled_error", String(error?.name || "Error"));
+    return withCors(fail(500, "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요."), request, env);
   }
 }
 

@@ -44,8 +44,10 @@ def test_license_admin_page_contains_operator_contracts():
     assert "발급함" in html
     assert "회원 번호순" in html
     assert "회원 연결 없음" in html
-    assert "개발 키" in html
-    assert "copy-dev-key" in html
+    # 원문 라이선스 키는 발급 응답에서 1회만 노출 — 목록/검색/복사 UI 금지
+    assert "개발 키" not in html
+    assert "copy-dev-key" not in html
+    assert "dev_license_key" not in html
     assert 'member.status !== "erased"' in html
     assert "삭제된 회원" in html
     assert "삭제 제외 회원" in html
@@ -208,10 +210,11 @@ def test_cloudflare_worker_license_contract_is_registered():
     assert 'path === "/admin/licenses"' in worker_js
     assert 'parts[3] === "reset-device"' in worker_js
     assert "LICENSE_SECRET_KEY" in worker_js
-    assert "dev_license_key" in worker_js
+    # 원문 라이선스 키는 어떤 계층에도 영속 저장하지 않는다 (해시+힌트만).
+    assert "dev_license_key" not in worker_js
     assert "authorization,content-type,x-admin-key" in worker_js
     assert "CREATE TABLE IF NOT EXISTS licenses" in schema_sql
-    assert "dev_license_key TEXT" in schema_sql
+    assert "dev_license_key" not in schema_sql
     assert "CREATE TABLE IF NOT EXISTS license_activations" in schema_sql
     assert "CREATE TABLE IF NOT EXISTS license_events" in schema_sql
     assert 'path === "/api/yoonbot/products"' in worker_js

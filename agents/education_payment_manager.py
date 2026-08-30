@@ -36,8 +36,11 @@ def _toss_order_id(order_id: str) -> str:
 
 
 def _payment_key_fingerprint(payment_key: str) -> str:
-    secret = (os.getenv("CODE_SECRET_KEY") or "local-education-payment-secret").encode("utf-8")
-    digest = hmac.new(secret, payment_key.encode("utf-8"), hashlib.sha256).hexdigest()
+    # Fail-closed: no predictable dev fallback secret.
+    secret = os.getenv("CODE_SECRET_KEY", "")
+    if not secret:
+        raise RuntimeError("CODE_SECRET_KEY가 설정되지 않았습니다.")
+    digest = hmac.new(secret.encode("utf-8"), payment_key.encode("utf-8"), hashlib.sha256).hexdigest()
     return f"toss:{digest[:48]}"
 
 

@@ -929,7 +929,9 @@ def _run_quiet(args: list[str], timeout: int = 8) -> tuple[bool, str]:
 
 
 def backup_database(reason: str = "manual") -> dict:
-    """Create encrypted SQLite backups in operator-visible mirror locations."""
+    """Create plain (unencrypted) SQLite file copies in operator-visible mirror
+    locations. Only the phone/email columns inside the DB are encrypted at the
+    column level; the backup file itself is NOT encrypted."""
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     filename = f"members-{stamp}.db"
     results = []
@@ -949,7 +951,7 @@ def backup_database(reason: str = "manual") -> dict:
                 _sqlite_backup(dest)
                 result.update({
                     "status": "ok",
-                    "detail": "encrypted_sqlite_backup",
+                    "detail": "plain_sqlite_backup",
                     "file": str(dest),
                     "size_bytes": dest.stat().st_size,
                 })

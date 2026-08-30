@@ -50,12 +50,26 @@ def _iso(dt: datetime) -> str:
 
 
 def _secret(name: str) -> bytes:
-    raw = os.getenv(name) or os.getenv("CODE_SECRET_KEY") or "local-order-dev-secret"
+    # Fail-closed: no predictable dev fallback secret.
+    raw = os.getenv(name) or os.getenv("CODE_SECRET_KEY") or ""
+    if not raw:
+        raise RuntimeError(f"{name} 또는 CODE_SECRET_KEY가 설정되지 않았습니다.")
     return raw.encode("utf-8")
 
 
 def _hmac(name: str, value: str) -> str:
     return hmac.new(_secret(name), value.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def _payment_key_fingerprint(payment_key: str) -> str:
+    """HMAC fingerprint of the Toss paymentKey — the raw key is never persisted,
+    returned, or logged. Fail-closed: requires CODE_SECRET_KEY.
+    Same pattern as the education payment flow."""
+    secret = os.getenv("CODE_SECRET_KEY", "")
+    if not secret:
+        raise RuntimeError("온라인 결제 설정이 완료되지 않았습니다.")
+    digest = hmac.new(secret.encode("utf-8"), f"yoonbot-payment:{payment_key}".encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"toss:{digest[:48]}"
 
 
 def _normalize_email(value: str | None) -> str:
@@ -474,8 +488,8 @@ class TossConfirmClient:
             with urllib.request.urlopen(req, timeout=15) as resp:
                 return _json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"Toss confirm HTTP {exc.code}: {body}") from exc
+            # Never surface or log the upstream response body — status code only.
+            raise RuntimeError(f"Toss 결제 확인에 실패했습니다. (HTTP {exc.code})") from exc
 
 
 def confirm_toss_payment(
@@ -509,10 +523,11 @@ def confirm_toss_payment(
     status = order.get("status", "")
     if status in {"canceled", "refunded"}:
         raise ValueError("취소/환불된 주문은 결제 확인할 수 없습니다.")
+    fingerprint = _payment_key_fingerprint(payment_key)
     if status in {"paid", "license_issued"}:
-        # Idempotent: already paid — check if same payment
+        # Idempotent: already paid — same payment matches by fingerprint only
         stored_ref = order.get("payment_ref", "")
-        if stored_ref and payment_key and stored_ref == payment_key:
+        if stored_ref and hmac.compare_digest(stored_ref, fingerprint):
             return {"ok": True, "data": order, "idempotent": True}
         raise ValueError("이미 결제 처리된 주문입니다.")
 
@@ -525,14 +540,14 @@ def confirm_toss_payment(
         raise ValueError("결제 금액이 주문 금액과 일치하지 않습니다.")
 
     if not os.getenv("TOSS_PAYMENTS_SECRET_KEY", ""):
-        raise RuntimeError("TOSS_PAYMENTS_SECRET_KEY가 설정되지 않았습니다.")
+        raise RuntimeError("온라인 결제 설정이 완료되지 않았습니다.")
 
     client = confirm_client if confirm_client is not None else TossConfirmClient()
     toss_response = client.confirm(payment_key, toss_order_id, server_amount)
 
     toss_status = (toss_response or {}).get("status", "")
     if toss_status and toss_status != "DONE":
-        raise ValueError(f"Toss 결제 상태가 완료가 아닙니다: {toss_status}")
+        raise ValueError("Toss 결제 상태가 완료가 아닙니다.")
     toss_total = (toss_response or {}).get("totalAmount")
     if toss_total is not None and int(toss_total) != server_amount:
         raise ValueError("Toss 응답 금액이 주문 금액과 일치하지 않습니다.")
@@ -540,7 +555,7 @@ def confirm_toss_payment(
     result = mark_paid(
         order_id,
         payment_provider="toss_payments",
-        payment_ref=payment_key,
+        payment_ref=fingerprint,
         note=f"toss_confirm:{toss_order_id}",
     )
     return result
@@ -648,11 +663,9 @@ def issue_license(order_id: str) -> dict:
     }
 
 
-LAUNCHER_RELEASE_URL = "https://apply.arsen-ai.com/api/launcher/release"
-LAUNCHER_DOWNLOAD_URL = (
-    "https://apply.arsen-ai.com/api/daf/launcher/artifacts/"
-    "arsen-content-launcher-0.1.0-win-x64.zip"
-)
+# Customer license guidance points only at the public homepage; the old
+# launcher ZIP direct link must never appear in customer-facing copy.
+YOONBOT_CUSTOMER_DOWNLOAD_PAGE = "https://arsen-ai.com/yoonbot"
 
 
 def customer_license_message(license_key: str, license_item: dict) -> str:
@@ -662,15 +675,14 @@ def customer_license_message(license_key: str, license_item: dict) -> str:
             f"라이선스 키: {license_key}",
             f"만료일: {license_item.get('expires_at')}",
             "",
-            "▶ Windows 런처 다운로드",
-            f"  {LAUNCHER_DOWNLOAD_URL}",
-            f"  최신 버전 정보: {LAUNCHER_RELEASE_URL}",
+            "▶ 프로그램 다운로드",
+            f"  {YOONBOT_CUSTOMER_DOWNLOAD_PAGE}",
+            "  공식 홈페이지의 다운로드 버튼은 공개 릴리스가 준비된 경우에만 활성화됩니다.",
             "",
             "▶ 설치 방법",
-            "  1. 다운로드한 zip 파일의 압축을 원하는 폴더에 해제하세요.",
-            "  2. 'Arsen Content Launcher.exe'를 실행하세요.",
-            "  3. 라이선스 인증 창에 위 라이선스 키를 입력하세요.",
-            "  4. 처음 등록한 PC에 기기가 묶입니다. PC 변경이 필요하면 운영자에게 기기 초기화를 요청해주세요.",
+            "  1. 위 공식 홈페이지에서 Windows 설치 파일을 내려받아 실행하세요.",
+            "  2. 설치가 끝나면 YOONBOT을 실행하고 라이선스 인증 창에 위 라이선스 키를 입력하세요.",
+            "  3. 처음 등록한 PC에 기기가 묶입니다. PC 변경이 필요하면 운영자에게 기기 초기화를 요청해주세요.",
             "",
             "▶ 안내",
             "  현재 초기 파일럿/베타 단계로 기능이 순차적으로 확장되고 있습니다.",

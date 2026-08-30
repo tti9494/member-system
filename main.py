@@ -265,6 +265,13 @@ async def no_cache_admin_preview(request: Request, call_next):
     if request.url.path == "/frontend/admin.html":
         response.headers["Cache-Control"] = "no-store, max-age=0"
         response.headers["Pragma"] = "no-cache"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    # HSTS only on HTTPS (direct or behind a TLS-terminating proxy); no includeSubDomains.
+    if request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "") == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000"
     return response
 
 FRONTEND_DIR = Path.home() / "member-system" / "frontend"
@@ -766,7 +773,7 @@ def require_admin_key(request: Request):
     if not ADMIN_API_KEY:
         log.error("ADMIN_API_KEY 미설정 — 관리자 엔드포인트 차단")
         raise HTTPException(status_code=503, detail="관리자 인증 설정이 필요합니다.")
-    if not key or key != ADMIN_API_KEY:
+    if not key or not hmac.compare_digest(key.encode("utf-8"), ADMIN_API_KEY.encode("utf-8")):
         raise HTTPException(status_code=401, detail="관리자 비밀번호가 필요합니다.")
 
 
@@ -1618,12 +1625,11 @@ def _b64url_decode(text: str) -> bytes:
 
 
 def _kakao_session_secret() -> bytes:
-    secret = (
-        os.getenv("KAKAO_SESSION_SECRET")
-        or os.getenv("ADMIN_KEY")
-        or os.getenv("TELEGRAM_WEBHOOK_SECRET")
-        or "arsen-local-kakao-session"
-    )
+    # Fail-closed: session cookies are never signed with a shared or public
+    # fallback secret. KAKAO_SESSION_SECRET must be configured explicitly.
+    secret = os.getenv("KAKAO_SESSION_SECRET", "")
+    if not secret:
+        raise RuntimeError("KAKAO_SESSION_SECRET이 설정되지 않았습니다.")
     return secret.encode("utf-8")
 
 
@@ -4090,18 +4096,23 @@ async def public_launcher_artifact(artifact_name: str):
     )
 
 
+_YOONBOT_NO_STORE_HEADERS = {"Cache-Control": "no-store, max-age=0", "Pragma": "no-cache"}
+
+
 @app.get("/api/yoonbot/manifest")
-async def api_yoonbot_public_manifest(request: Request):
+async def api_yoonbot_public_manifest(request: Request, response: Response):
+    response.headers.update(_YOONBOT_NO_STORE_HEADERS)
     return _yoonbot_public_manifest(request)
 
 
 @app.get("/api/yoonbot/release")
-async def api_yoonbot_public_release(request: Request):
+async def api_yoonbot_public_release(request: Request, response: Response):
+    response.headers.update(_YOONBOT_NO_STORE_HEADERS)
     return _yoonbot_release_contract(request)
 
 
 @app.api_route("/api/yoonbot/artifacts/{artifact_name}", methods=["GET", "HEAD"])
-async def api_yoonbot_public_artifact(artifact_name: str):
+async def api_yoonbot_public_artifact(artifact_name: str, request: Request):
     if not _safe_launcher_artifact_name(artifact_name) or not artifact_name.lower().endswith(".exe"):
         raise HTTPException(status_code=400, detail="invalid_artifact_name")
     if artifact_name != YOONBOT_ARTIFACT_NAME:
@@ -4110,6 +4121,12 @@ async def api_yoonbot_public_artifact(artifact_name: str):
     # manifest can never be downloaded directly either.
     if _yoonbot_release_gate_blocks():
         raise HTTPException(status_code=404, detail="yoonbot_release_not_ready")
+    # Fail-closed: serve only the verified staged-file contract (HTTPS base URL
+    # + 64-hex SHA-256 + size > 0). A file merely existing on disk is not enough,
+    # and a configured external URL never serves from this local endpoint.
+    verified = _yoonbot_verified_artifact_source(request)
+    if not verified or verified.get("source") != "staged_file":
+        raise HTTPException(status_code=404, detail="yoonbot_artifact_not_verified")
     artifact_path = YOONBOT_ARTIFACT_DIR / artifact_name
     if not artifact_path.is_file() or artifact_path.stat().st_size <= 0:
         raise HTTPException(status_code=404, detail="yoonbot_artifact_missing")

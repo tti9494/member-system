@@ -171,15 +171,16 @@ class YoonbotOrderFlowTest(unittest.TestCase):
         payload = issued.json()
         msg = payload.get("customer_message", "")
 
-        # 다운로드 URL 포함 여부
-        self.assertIn(
-            "https://apply.arsen-ai.com/api/daf/launcher/artifacts/arsen-content-launcher-0.1.0-win-x64.zip",
-            msg,
-        )
-        self.assertIn("https://apply.arsen-ai.com/api/launcher/release", msg)
-        # 압축 해제 및 실행 안내 포함 여부
-        self.assertIn("압축", msg)
-        self.assertIn("exe", msg)
+        # 다운로드 안내는 공식 홈페이지 한 곳만 가리킨다
+        self.assertIn("https://arsen-ai.com/yoonbot", msg)
+        self.assertIn("공개 릴리스가 준비된 경우에만", msg)
+        # 구 Arsen Content Launcher ZIP 직접 링크와 launcher release 링크 금지
+        self.assertNotIn("arsen-content-launcher-0.1.0-win-x64.zip", msg)
+        self.assertNotIn("/api/daf/launcher", msg)
+        self.assertNotIn("/api/launcher/release", msg)
+        # 설치 안내 포함 여부
+        self.assertIn("설치 방법", msg)
+        self.assertIn("라이선스 키를 입력", msg)
         # 초기 파일럿/베타 안내 포함 여부
         self.assertIn("파일럿", msg)
         # 문의/피드백 안내 포함 여부
@@ -235,8 +236,10 @@ class TossPaymentIntegrationTest(unittest.TestCase):
         self.main.LOCAL_ADMIN_OPEN_FLAG = Path(self.tmpdir.name) / ".local_admin_open"
         self.client = TestClient(self.main.app)
 
-        # Ensure clean env (no Toss keys by default)
+        # Ensure clean env (no Toss keys by default) + fingerprint secret for tests
         self._clear_toss_env()
+        self.original_code_secret = os.environ.get("CODE_SECRET_KEY")
+        os.environ["CODE_SECRET_KEY"] = "toss-test-code-secret-key-32chars!!"
 
     def tearDown(self):
         self.main.ADMIN_API_KEY = self.original_admin_key
@@ -245,6 +248,10 @@ class TossPaymentIntegrationTest(unittest.TestCase):
         db.DB_PATH = self.original_db_path
         self.tmpdir.cleanup()
         self._clear_toss_env()
+        if self.original_code_secret is None:
+            os.environ.pop("CODE_SECRET_KEY", None)
+        else:
+            os.environ["CODE_SECRET_KEY"] = self.original_code_secret
 
     def _clear_toss_env(self):
         for key in ("YOONBOT_PAYMENT_PROVIDER", "TOSS_PAYMENTS_CLIENT_KEY", "TOSS_PAYMENTS_SECRET_KEY"):
@@ -575,6 +582,95 @@ class TossPaymentIntegrationTest(unittest.TestCase):
                 confirm_client=stub_client,
             )
         self.assertIn("상태", str(ctx.exception))
+
+        from agents.order_manager import get_order
+        updated = get_order(order_id)
+        self.assertEqual(updated["status"], "payment_pending")
+
+    def test_toss_confirm_stores_fingerprint_never_raw_payment_key(self):
+        """payment_ref must hold an HMAC fingerprint; the raw paymentKey never
+        appears in the DB row, the response, or error messages."""
+        from agents.order_manager import confirm_toss_payment, generate_toss_order_id
+
+        os.environ["TOSS_PAYMENTS_SECRET_KEY"] = "test_sk_secret"
+        raw_payment_key = "pk_live_raw_key_must_not_persist_0001"
+
+        api_payload = self._create_order("monthly")
+        order = api_payload["data"]
+        order_id = order["id"]
+        correct_toss_order_id = generate_toss_order_id(order_id)
+        correct_amount = int(order["amount_krw"])
+
+        stub_client = MagicMock()
+        stub_client.confirm.return_value = {"status": "DONE"}
+
+        result = confirm_toss_payment(
+            order_id=order_id,
+            payment_key=raw_payment_key,
+            client_amount=correct_amount,
+            toss_order_id=correct_toss_order_id,
+            confirm_client=stub_client,
+        )
+        self.assertTrue(result["ok"])
+        self.assertNotIn(raw_payment_key, str(result))
+
+        conn = sqlite3.connect(str(self.db_path))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM orders WHERE id=?", (order_id,)).fetchone()
+        conn.close()
+        self.assertNotIn(raw_payment_key, str(dict(row)))
+        self.assertTrue(str(row["payment_ref"]).startswith("toss:"))
+
+        # Same paymentKey → idempotent success (fingerprint constant-time match)
+        idem = confirm_toss_payment(
+            order_id=order_id,
+            payment_key=raw_payment_key,
+            client_amount=correct_amount,
+            toss_order_id=correct_toss_order_id,
+            confirm_client=stub_client,
+        )
+        self.assertTrue(idem.get("idempotent"))
+
+        # Different paymentKey on a paid order → rejected
+        with self.assertRaises(ValueError):
+            confirm_toss_payment(
+                order_id=order_id,
+                payment_key="pk_live_other_key_0002",
+                client_amount=correct_amount,
+                toss_order_id=correct_toss_order_id,
+                confirm_client=stub_client,
+            )
+
+    def test_toss_confirm_fails_closed_without_fingerprint_secret(self):
+        """Missing CODE_SECRET_KEY must fail closed (RuntimeError), never fall
+        back to storing the raw paymentKey."""
+        from agents.order_manager import confirm_toss_payment, generate_toss_order_id
+
+        os.environ["TOSS_PAYMENTS_SECRET_KEY"] = "test_sk_secret"
+
+        api_payload = self._create_order("monthly")
+        order = api_payload["data"]
+        order_id = order["id"]
+        correct_toss_order_id = generate_toss_order_id(order_id)
+        correct_amount = int(order["amount_krw"])
+
+        stub_client = MagicMock()
+        stub_client.confirm.return_value = {"status": "DONE"}
+
+        saved = os.environ.pop("CODE_SECRET_KEY", None)
+        try:
+            with self.assertRaises(RuntimeError):
+                confirm_toss_payment(
+                    order_id=order_id,
+                    payment_key="pk_test_failclosed",
+                    client_amount=correct_amount,
+                    toss_order_id=correct_toss_order_id,
+                    confirm_client=stub_client,
+                )
+        finally:
+            if saved is not None:
+                os.environ["CODE_SECRET_KEY"] = saved
+        stub_client.confirm.assert_not_called()
 
         from agents.order_manager import get_order
         updated = get_order(order_id)
