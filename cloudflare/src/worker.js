@@ -270,6 +270,24 @@ const YOONBOT_RELEASE = Object.freeze({
     "공식 HTTPS 다운로드와 SHA-256 검증 정보를 함께 제공합니다.",
   ],
 });
+const YOONBOT_MACOS_ARTIFACT_NAME = "YoonBot-1.1.0-arm64.dmg";
+const YOONBOT_MACOS_RELEASE = Object.freeze({
+  id: "yoonbot-macos",
+  name: "YOONBOT",
+  product_code: YOONBOT_PRODUCT_CODE,
+  platform: "macos",
+  arch: "arm64",
+  package_type: "dmg",
+  executable: "YoonBot.app",
+  latest_version: "1.1.0",
+  minimum_supported_version: "1.0.0",
+  release_channel: "stable",
+  artifact_name: YOONBOT_MACOS_ARTIFACT_NAME,
+  release_notes: [
+    "YOONBOT 1.1.0 macOS 업데이트입니다.",
+    "Apple 서명·공증과 운영자 승인이 끝난 뒤 다운로드를 제공합니다.",
+  ],
+});
 const YOONBOT_NOTICES = Object.freeze([
   {
     id: "2026-08-28-yoonbot-1-1-0-update",
@@ -771,6 +789,17 @@ async function yoonbotArtifactResponse(env, request) {
 }
 
 async function yoonbotReleasePayload(env, request) {
+  if (new URL(request.url).searchParams.get("platform")?.toLowerCase() === "macos") {
+    return {
+      ...YOONBOT_MACOS_RELEASE,
+      artifact_endpoint: `/api/yoonbot/artifacts/${YOONBOT_MACOS_ARTIFACT_NAME}`,
+      download_ready: false,
+      artifact_download_url: "",
+      sha256: "",
+      size_bytes: 0,
+      status: "preparing",
+    };
+  }
   const contract = await yoonbotArtifactContract(env, request);
   return {
     ...YOONBOT_RELEASE,

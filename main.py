@@ -306,6 +306,24 @@ YOONBOT_RELEASE_BASE = {
         "공식 HTTPS 다운로드와 SHA-256 검증 정보를 함께 제공합니다.",
     ],
 }
+YOONBOT_MACOS_ARTIFACT_NAME = "YoonBot-1.1.0-arm64.dmg"
+YOONBOT_MACOS_RELEASE_BASE = {
+    "id": "yoonbot-macos",
+    "name": "YOONBOT",
+    "product_code": "yoonbot",
+    "platform": "macos",
+    "arch": "arm64",
+    "package_type": "dmg",
+    "executable": "YoonBot.app",
+    "latest_version": "1.1.0",
+    "minimum_supported_version": "1.0.0",
+    "release_channel": "stable",
+    "artifact_name": YOONBOT_MACOS_ARTIFACT_NAME,
+    "release_notes": [
+        "YOONBOT 1.1.0 macOS 업데이트입니다.",
+        "Apple 서명·공증과 운영자 승인이 끝난 뒤 다운로드를 제공합니다.",
+    ],
+}
 YOONBOT_NOTICES = [
     {
         "id": "2026-08-28-yoonbot-1-1-0-update",
@@ -624,6 +642,16 @@ def _yoonbot_verified_artifact_source(request: Request) -> dict[str, Any] | None
 
 
 def _yoonbot_release_contract(request: Request) -> dict[str, Any]:
+    if request.query_params.get("platform", "").strip().lower() == "macos":
+        return {
+            **YOONBOT_MACOS_RELEASE_BASE,
+            "artifact_endpoint": f"/api/yoonbot/artifacts/{YOONBOT_MACOS_ARTIFACT_NAME}",
+            "download_ready": False,
+            "artifact_download_url": "",
+            "sha256": "",
+            "size_bytes": 0,
+            "status": "preparing",
+        }
     release: dict[str, Any] = {
         key: (list(value) if isinstance(value, list) else value)
         for key, value in YOONBOT_RELEASE_BASE.items()

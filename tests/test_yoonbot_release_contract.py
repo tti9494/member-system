@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT))
 import db
 
 ARTIFACT_NAME = "YoonBot-Setup-1.1.0.exe"
+MACOS_ARTIFACT_NAME = "YoonBot-1.1.0-arm64.dmg"
 ARTIFACT_ENDPOINT = f"/api/yoonbot/artifacts/{ARTIFACT_NAME}"
 EXE_CONTENT_TYPE = "application/vnd.microsoft.portable-executable"
 YOONBOT_ENV_VARS = (
@@ -182,6 +183,20 @@ class YoonbotReleaseContractTest(unittest.TestCase):
         )
         self.assertEqual(release["sha256"], hashlib.sha256(payload).hexdigest())
         self.assertEqual(release["size_bytes"], len(payload))
+
+    def test_macos_manifest_is_platform_specific_and_fails_closed(self):
+        response = self.client.get("/api/yoonbot/manifest?platform=macos")
+        self.assertEqual(response.status_code, 200)
+        release = response.json()["release"]
+        self.assertEqual(release["platform"], "macos")
+        self.assertEqual(release["arch"], "arm64")
+        self.assertEqual(release["package_type"], "dmg")
+        self.assertEqual(release["artifact_name"], MACOS_ARTIFACT_NAME)
+        self.assertTrue(release["artifact_endpoint"].endswith(MACOS_ARTIFACT_NAME))
+        self._assert_closed(release)
+
+        direct = self.client.get("/api/yoonbot/release?platform=macos").json()
+        self.assertEqual(direct, release)
 
     def test_release_fails_closed_over_plain_http(self):
         self._write_artifact()

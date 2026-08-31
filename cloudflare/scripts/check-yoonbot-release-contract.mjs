@@ -1,6 +1,7 @@
 import { handleRequest } from "../src/worker.js";
 
 const EXPECTED_ARTIFACT = "YoonBot-Setup-1.1.0.exe";
+const EXPECTED_MACOS_ARTIFACT = "YoonBot-1.1.0-arm64.dmg";
 const EXPECTED_ENDPOINT = `/api/yoonbot/artifacts/${EXPECTED_ARTIFACT}`;
 const EXPECTED_CONTENT_TYPE = "application/vnd.microsoft.portable-executable";
 const TEST_SHA256 = "a".repeat(64);
@@ -53,6 +54,20 @@ const closedRelease = await request("/api/yoonbot/release", { ADMIN_API_KEY: "so
 assert(closedRelease.response.status === 200, "yoonbot release must be public (no auth)");
 assertReleaseShape(closedRelease.body, "closed release");
 assertClosedRelease(closedRelease.body, "closed release");
+
+// 2b) macOS clients get their own arm64 DMG contract. It stays closed until
+// Apple signing/notarization and an operator-approved artifact path exist.
+const macosManifest = await request("/api/yoonbot/manifest?platform=macos", { ADMIN_API_KEY: "some-admin-key" });
+assert(macosManifest.response.status === 200, "macOS manifest must be public");
+assert(macosManifest.body?.release?.platform === "macos", "macOS platform mismatch");
+assert(macosManifest.body?.release?.arch === "arm64", "macOS architecture mismatch");
+assert(macosManifest.body?.release?.package_type === "dmg", "macOS package type mismatch");
+assert(macosManifest.body?.release?.artifact_name === EXPECTED_MACOS_ARTIFACT, "macOS artifact name mismatch");
+assertClosedRelease(macosManifest.body?.release, "macOS manifest");
+
+const macosRelease = await request("/api/yoonbot/release?platform=macos");
+assert(macosRelease.body?.artifact_name === EXPECTED_MACOS_ARTIFACT, "macOS release artifact mismatch");
+assertClosedRelease(macosRelease.body, "macOS release");
 
 // 3) Explicit verified HTTPS URL + allowlisted host + sha256 + size: download ready.
 const externalEnv = {
