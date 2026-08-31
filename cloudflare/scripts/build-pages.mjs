@@ -41,6 +41,7 @@ const frontendHtmlFiles = [
   "session-admin.html",
   "status.html",
   "study.html",
+  "yoonbot-lab.html",
   "yoonbot.html",
 ];
 const frontendAssetFiles = [
