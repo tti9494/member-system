@@ -316,3 +316,11 @@ def test_lab_ui_auto_connects_and_builds_safe_one_click_jobs():
     assert 'execution_mode: "dry_run"' in html
     assert "quality_status: \"pass\"" in html
     assert "`/jobs/${data.id}/approve`" in html
+
+
+def test_cloudflare_lab_routes_use_existing_clock_helper():
+    source = (WORKSPACE_DIR / "cloudflare" / "src" / "worker.js").read_text(encoding="utf-8")
+    lab_source = source[source.index("// ── YOONBOT LAB PHASE A2 HELPERS"):]
+
+    assert "iso()" not in lab_source
+    assert "now()" in lab_source

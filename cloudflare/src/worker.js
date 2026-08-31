@@ -7261,7 +7261,7 @@ async function handleAdmin(request, env, path) {
     const tokenHash = await sha256Hex(rawToken);
 
     const deviceId = `dev_${crypto.randomUUID().replace(/-/g, "").substring(0, 12)}`;
-    const t = iso();
+    const t = now();
     await env.DB.prepare("INSERT INTO yoonbot_devices (id, token_hash, name, platform, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'active', ?, ?)")
       .bind(deviceId, tokenHash, name, platform, t, t).run();
     await logAction(env, "system", "create_device", `platform:${platform}`, request);
@@ -7271,7 +7271,7 @@ async function handleAdmin(request, env, path) {
     const dev = await one(env, "SELECT status FROM yoonbot_devices WHERE id=?", parts[4]);
     if (!dev) return yoonbotLabNoStore(fail(404, "Device not found"));
     if (dev.status !== "active") return yoonbotLabNoStore(fail(400, "Invalid transition"));
-    await env.DB.prepare("UPDATE yoonbot_devices SET status='inactive', updated_at=? WHERE id=?").bind(iso(), parts[4]).run();
+    await env.DB.prepare("UPDATE yoonbot_devices SET status='inactive', updated_at=? WHERE id=?").bind(now(), parts[4]).run();
     await logAction(env, "system", "deactivate_device", "", request);
     return yoonbotLabNoStore(json({ ok: true }));
   }
@@ -7291,7 +7291,7 @@ async function handleAdmin(request, env, path) {
     if (!Number.isInteger(version) || version < 1) return yoonbotLabNoStore(fail(400, "Invalid version"));
 
     const tplId = `tpl_${crypto.randomUUID().replace(/-/g, "").substring(0, 12)}`;
-    const t = iso();
+    const t = now();
     await env.DB.prepare("INSERT INTO yoonbot_templates (id, name, content, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
       .bind(tplId, name, content, version, t, t).run();
     return yoonbotLabNoStore(json({ id: tplId }));
@@ -7337,7 +7337,7 @@ async function handleAdmin(request, env, path) {
     if (body.quality_status === "pass") status = "pending_approval";
     else if (["review_needed", "retry_summary", "fail", "blocked"].includes(body.quality_status)) status = "held";
 
-    const t = iso();
+    const t = now();
     await env.DB.prepare("INSERT INTO yoonbot_jobs (id, idempotency_key, template_id, device_id, target_alias, action, execution_mode, status, quality_status, hold_reason, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .bind(jobId, body.idempotency_key, body.template_id || null, body.device_id, body.target_alias, body.action, body.execution_mode, status, body.quality_status || null, body.hold_reason || null, t, t).run();
     await logAction(env, "system", "create_job", `state:${status}`, request);
@@ -7352,7 +7352,7 @@ async function handleAdmin(request, env, path) {
     const job = await one(env, "SELECT status FROM yoonbot_jobs WHERE id=?", parts[4]);
     if (!job) return yoonbotLabNoStore(fail(404, "Job not found"));
     if (job.status !== "pending_approval") return yoonbotLabNoStore(fail(400, "Can only approve pending_approval"));
-    await env.DB.prepare("UPDATE yoonbot_jobs SET status='approved', updated_at=? WHERE id=?").bind(iso(), parts[4]).run();
+    await env.DB.prepare("UPDATE yoonbot_jobs SET status='approved', updated_at=? WHERE id=?").bind(now(), parts[4]).run();
     await logAction(env, "system", "approve_job", "state:approved", request);
     return yoonbotLabNoStore(json({ ok: true }));
   }
@@ -7360,7 +7360,7 @@ async function handleAdmin(request, env, path) {
     const job = await one(env, "SELECT status FROM yoonbot_jobs WHERE id=?", parts[4]);
     if (!job) return yoonbotLabNoStore(fail(404, "Job not found"));
     if (!["draft", "pending_approval", "approved", "held"].includes(job.status)) return yoonbotLabNoStore(fail(400, "Cannot cancel terminal/claimed state"));
-    await env.DB.prepare("UPDATE yoonbot_jobs SET status='cancelled', updated_at=? WHERE id=?").bind(iso(), parts[4]).run();
+    await env.DB.prepare("UPDATE yoonbot_jobs SET status='cancelled', updated_at=? WHERE id=?").bind(now(), parts[4]).run();
     await logAction(env, "system", "cancel_job", "state:cancelled", request);
     return yoonbotLabNoStore(json({ ok: true }));
   }
@@ -7639,7 +7639,7 @@ export async function handleRequest(request, env) {
       const auth = await requireAgentToken(request, env);
       if (!auth.ok) { response = yoonbotLabNoStore(auth.response); }
       else {
-        const t = iso();
+        const t = now();
         await env.DB.prepare("UPDATE yoonbot_devices SET last_heartbeat_at=?, updated_at=? WHERE id=?").bind(t, t, auth.deviceId).run();
         response = yoonbotLabNoStore(json({ ok: true }));
       }
@@ -7647,7 +7647,7 @@ export async function handleRequest(request, env) {
       const auth = await requireAgentToken(request, env);
       if (!auth.ok) { response = yoonbotLabNoStore(auth.response); }
       else {
-        const t = iso();
+        const t = now();
         await env.DB.prepare("UPDATE yoonbot_devices SET last_heartbeat_at=?, updated_at=? WHERE id=?").bind(t, t, auth.deviceId).run();
         const job = await one(env, "SELECT id FROM yoonbot_jobs WHERE device_id=? AND status='approved' ORDER BY created_at ASC LIMIT 1", auth.deviceId);
         if (!job) {
@@ -7722,7 +7722,7 @@ export async function handleRequest(request, env) {
                 if (!transitionValid) {
                   response = yoonbotLabNoStore(fail(400, transErr));
                 } else {
-                  const t = iso();
+                  const t = now();
                   await env.DB.prepare("UPDATE yoonbot_jobs SET status=?, quality_status=?, hold_reason=?, updated_at=? WHERE id=?")
                     .bind(finalJobStatus, body.quality_status || null, finalHoldReason || null, t, jobId).run();
 
