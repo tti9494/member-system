@@ -302,3 +302,17 @@ def test_held_requires_safe_hold_reason(client, admin_headers):
         "hold_reason": "safe reason"
     }, headers=agent_headers)
     assert resp.status_code == 200
+
+
+def test_lab_ui_auto_connects_and_builds_safe_one_click_jobs():
+    html = (WORKSPACE_DIR / "frontend" / "yoonbot-lab.html").read_text(encoding="utf-8")
+
+    assert 'id="auth-section" hidden' in html
+    assert "async function autoConnect()" in html
+    assert '<select id="job-device">' in html
+    assert 'id="job-idempotency"' not in html
+    assert 'id="job-mode"' not in html
+    assert "crypto.randomUUID()" in html
+    assert 'execution_mode: "dry_run"' in html
+    assert "quality_status: \"pass\"" in html
+    assert "`/jobs/${data.id}/approve`" in html

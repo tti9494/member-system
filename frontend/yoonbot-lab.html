@@ -14,13 +14,19 @@
     margin: 0;
   }
   .container { max-width: 1120px; margin: 0 auto; }
-  .hero { display:flex; justify-content:space-between; gap:1rem; align-items:flex-end; margin:1.25rem 0; }
+  .hero { display:flex; justify-content:space-between; gap:1rem; align-items:flex-end; margin:1.25rem 0; padding:1.2rem 1.35rem; box-sizing:border-box; }
   .eyebrow { color:#13705d; font-size:.78rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
   h1 { font-size: clamp(1.7rem, 4vw, 2.35rem); margin:.25rem 0; letter-spacing:-.04em; }
   .subtitle { margin:0; color:#52605d; }
   .badge { padding:.45rem .7rem; border-radius:999px; background:#e4f4ef; color:#0f6957; font-size:.78rem; font-weight:800; white-space:nowrap; }
   .section { margin-bottom: 1.25rem; background: color-mix(in srgb, var(--surface, #fff) 96%, transparent); padding: 1.4rem; border: 1px solid var(--line, #d8e1df); border-radius: 14px; box-shadow:0 14px 34px rgba(22,55,49,.06); }
   .section h2 { margin-top:0; font-size:1.05rem; }
+  details.section { padding:0; }
+  details.section > summary { cursor:pointer; list-style:none; padding:1.15rem 1.4rem; font-weight:800; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::after { content:"열기"; float:right; color:#5a6b67; font-size:.78rem; }
+  details.section[open] > summary::after { content:"닫기"; }
+  .details-body { padding:0 1.4rem 1.4rem; }
   .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
   .toolbar { display:flex; flex-wrap:wrap; gap:.55rem; align-items:center; }
   .form-group { margin-bottom: 1rem; }
@@ -39,6 +45,14 @@
   th { background-color: var(--surface, #ffffff); }
   .notice { color:#8a4c10; background:#fff7e8; border:1px solid #f2d4a5; border-radius:10px; padding:.8rem 1rem; font-size: 0.9rem; margin-bottom: 1rem; font-weight: bold; }
   .status { min-height:1.4rem; color:#344a45; font-size:.9rem; }
+  .connection { display:flex; gap:.55rem; align-items:center; margin:.75rem 0 1.25rem; color:#52605d; font-size:.9rem; }
+  .connection::before { content:""; width:.65rem; height:.65rem; border-radius:50%; background:#d69a3a; box-shadow:0 0 0 4px #fff1d8; }
+  .connection.connected::before { background:#1a8b70; box-shadow:0 0 0 4px #dff3ed; }
+  .test-card { border-color:#add7cc; box-shadow:0 18px 42px rgba(22,109,92,.10); }
+  .test-card h2 { font-size:1.22rem; }
+  .help { margin:-.35rem 0 1rem; color:#62716e; font-size:.88rem; }
+  .empty { padding:.85rem; border-radius:9px; background:#fff7e8; color:#85521e; font-size:.88rem; }
+  #btn-run-test { width:100%; min-height:48px; font-size:1rem; }
   .results { white-space:pre-wrap; word-break:break-word; background:#101b19; color:#dcece8; border-radius:10px; padding:1rem; min-height:3rem; }
   .links a { color: var(--primary, #2563eb); text-decoration: none; }
   .links a:hover { text-decoration: underline; }
@@ -54,19 +68,52 @@
     <div><div class="eyebrow">Developer Control Plane</div><h1>YOONBOT Lab</h1><p class="subtitle">Mac·Windows 기능을 안전하게 검증하는 개발자 제어판</p></div>
     <span class="badge">DRY-RUN ONLY</span>
   </header>
-  <p class="notice">실제 카카오 전송은 비활성화되어 있습니다. 모든 완료 작업은 운영자 검토를 위해 자동으로 ‘보류’됩니다.</p>
+  <p class="notice">안전 테스트 전용입니다. 실제 카카오 메시지는 보내지 않으며 모든 작업은 dry-run으로 실행됩니다.</p>
+  <p id="connection" class="connection"><span id="status" class="status" role="status" aria-live="polite">로컬 API 연결을 확인하고 있습니다.</span></p>
 
-  <div class="section" id="auth-section">
+  <div class="section" id="auth-section" hidden>
     <h2>관리자 연결</h2>
+    <p class="help">원격·운영 서버에서만 필요합니다. 로컬 개발 서버는 자동으로 연결됩니다.</p>
     <div class="form-group">
       <label for="admin-key">관리자 비밀번호</label>
       <input type="password" id="admin-key" autocomplete="off" placeholder="이 화면을 닫으면 즉시 사라집니다">
     </div>
-    <div class="toolbar"><button id="btn-connect">연결</button><button id="btn-lock" class="secondary">잠금</button><button id="btn-refresh-all" class="secondary">전체 새로고침</button></div>
-    <p id="status" class="status" role="status" aria-live="polite">연결되지 않았습니다.</p>
+    <div class="toolbar"><button id="btn-connect">연결</button><button id="btn-lock" class="secondary">잠금</button></div>
   </div>
 
-  <div class="section">
+  <div class="section test-card">
+    <h2>기능 테스트</h2>
+    <p class="help">장비와 기능을 고른 뒤 한 번만 누르세요. 작업 생성과 승인은 자동으로 처리됩니다.</p>
+    <div id="no-devices" class="empty" hidden>등록된 테스트 장비가 없습니다. 아래 ‘장비·템플릿 설정’을 열어 장비를 먼저 등록하세요.</div>
+    <div class="grid">
+      <div class="form-group">
+        <label for="job-device">테스트할 장비</label>
+        <select id="job-device"><option value="">연결 후 자동으로 표시됩니다</option></select>
+        <p class="help" style="margin:.45rem 0 0">장비 에이전트가 켜져 있으면 승인된 작업을 자동으로 가져갑니다.</p>
+      </div>
+      <div class="form-group">
+        <label for="job-action">확인할 기능</label>
+        <select id="job-action">
+          <option value="detect_app">카카오톡 실행 확인</option>
+          <option value="detect_window">테스트 창 확인</option>
+          <option value="capture_ui">화면 캡처 권한 확인</option>
+          <option value="validate_license">라이선스 상태 확인</option>
+          <option value="preview_message">메시지 미리보기</option>
+          <option value="simulate_schedule">예약 실행 점검</option>
+        </select>
+      </div>
+    </div>
+    <p id="action-help" class="help"></p>
+    <div class="form-group" id="template-field" hidden>
+      <label for="job-template">미리보기 템플릿</label>
+      <select id="job-template"><option value="">템플릿을 선택하세요</option></select>
+    </div>
+    <button id="btn-run-test" disabled>테스트 실행</button>
+  </div>
+
+  <details class="section">
+    <summary>장비·템플릿 설정</summary>
+    <div class="details-body">
     <h2>테스트 장비</h2>
     <div class="form-group">
       <label for="dev-name">장비 이름</label>
@@ -93,9 +140,7 @@
       <tbody></tbody>
     </table></div>
     <button id="btn-refresh-dev" class="secondary" style="margin-top: 1rem;">장비 새로고침</button>
-  </div>
-
-  <div class="section">
+    <hr style="border:0;border-top:1px solid var(--line,#e2e8f0);margin:1.5rem 0">
     <h2>메시지 템플릿</h2>
     <div class="form-group">
       <label for="tpl-name">템플릿 이름</label>
@@ -111,119 +156,110 @@
       <tbody></tbody>
     </table></div>
     <button id="btn-refresh-tpl" class="secondary" style="margin-top: 1rem;">템플릿 새로고침</button>
-  </div>
+    </div>
+  </details>
 
-  <div class="section">
-    <h2>기능 테스트 작업</h2>
-    <div class="form-group">
-      <label for="job-idempotency">중복 방지 키</label>
-      <input type="text" id="job-idempotency" placeholder="예: ui-check-001">
-    </div>
-    <div class="form-group">
-      <label for="job-device">장비 ID</label>
-      <input type="text" id="job-device" placeholder="dev_...">
-    </div>
-    <div class="form-group">
-      <label for="job-template">템플릿 ID (선택)</label>
-      <input type="text" id="job-template" placeholder="tpl_...">
-    </div>
-    <div class="form-group">
-      <label for="job-alias">테스트 대상 별칭</label>
-      <input type="text" id="job-alias" placeholder="실제 연락처가 아닌 별칭" value="self-test">
-    </div>
-    <div class="form-group">
-      <label for="job-action">검증 기능</label>
-      <select id="job-action">
-        <option value="detect_app">detect_app</option>
-        <option value="detect_window">detect_window</option>
-        <option value="capture_ui">capture_ui</option>
-        <option value="validate_license">validate_license</option>
-        <option value="preview_message">preview_message</option>
-        <option value="simulate_schedule">simulate_schedule</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label for="job-mode">실행 모드</label>
-      <select id="job-mode">
-        <option value="dry_run">dry_run</option>
-        <option value="input_only">input_only</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label for="job-quality">초기 품질 판정</label>
-      <select id="job-quality"><option value="pass">통과 — 승인 대기</option><option value="">미판정 — 초안</option><option value="review_needed">검토 필요 — 보류</option><option value="blocked">차단 — 보류</option></select>
-    </div>
-    <div class="form-group">
-      <label for="job-hold-reason">보류 사유 (보류 판정 시 필수)</label>
-      <input type="text" id="job-hold-reason" maxlength="500" placeholder="민감정보 없이 사유만 입력하세요">
-    </div>
-    <button id="btn-create-job">테스트 작업 만들기</button>
-
+  <details class="section">
+    <summary>최근 테스트 기록과 결과</summary>
+    <div class="details-body">
     <div class="table-wrap"><table id="table-jobs">
       <thead><tr><th>ID</th><th>장비</th><th>기능</th><th>모드</th><th>상태</th><th>품질</th><th>보류 사유</th><th>작업</th></tr></thead>
       <tbody></tbody>
     </table></div>
     <button id="btn-refresh-jobs" class="secondary" style="margin-top: 1rem;">작업 새로고침</button>
     <h3>선택한 작업 결과</h3><pre id="job-results" class="results">아직 조회한 결과가 없습니다.</pre>
-  </div>
+    </div>
+  </details>
 </div>
 
 <script>
   let adminKey = "";
+  let connected = false;
   const BASE_URL = "/admin/yoonbot/lab";
+  const ACTION_HELP = {
+    detect_app: "선택한 장비에서 카카오톡 앱이 실행 중인지 확인합니다.",
+    detect_window: "테스트에 사용할 카카오톡 창을 찾을 수 있는지 확인합니다.",
+    capture_ui: "화면 캡처와 접근성 권한을 안전하게 확인합니다.",
+    validate_license: "YOONBOT 라이선스 연결 상태를 확인합니다.",
+    preview_message: "선택한 템플릿을 실제 전송 없이 미리보기로 확인합니다.",
+    simulate_schedule: "예약 시간 계산과 실행 준비 상태를 점검합니다."
+  };
 
   function getHeaders() {
-    return { "Content-Type": "application/json", "X-Admin-Key": adminKey };
+    const headers = { "Content-Type": "application/json" };
+    if (adminKey) headers["X-Admin-Key"] = adminKey;
+    return headers;
   }
 
   function setStatus(message, isError = false) {
     const el = document.getElementById("status");
     el.textContent = message;
     el.style.color = isError ? "#a83232" : "#176d5c";
+    document.getElementById("connection").classList.toggle("connected", connected && !isError);
   }
 
-  document.getElementById("btn-connect").addEventListener("click", async () => {
+  function setConnected(value) {
+    connected = value;
+    document.getElementById("btn-run-test").disabled = !value || !document.getElementById("job-device").value;
+  }
+
+  async function connectWithPassword() {
     const el = document.getElementById("admin-key");
     adminKey = el.value.trim();
     el.value = "";
     if (!adminKey) { setStatus("관리자 비밀번호를 입력하세요.", true); return; }
-    const connected = await refreshDevices();
-    if (!connected) { adminKey = ""; return; }
+    if (!await refreshDevices({ silent: true })) {
+      adminKey = "";
+      setStatus("비밀번호를 확인하거나 서버 연결 상태를 점검하세요.", true);
+      return;
+    }
+    setConnected(true);
     await Promise.all([refreshTemplates(), refreshJobs()]);
-    setStatus("YOONBOT Lab에 연결했습니다. 비밀번호는 현재 화면의 메모리에만 보관됩니다.");
+    document.getElementById("auth-section").hidden = true;
+    setStatus("관리자 API에 연결되었습니다.");
+  }
+
+  async function autoConnect() {
+    if (await refreshDevices({ silent: true })) {
+      setConnected(true);
+      await Promise.all([refreshTemplates(), refreshJobs()]);
+      setStatus("로컬 YOONBOT API에 자동 연결되었습니다.");
+      return;
+    }
+    setConnected(false);
+    document.getElementById("auth-section").hidden = false;
+    setStatus("자동 연결을 사용할 수 없습니다. 개발 서버를 실행하거나 관리자 비밀번호로 연결하세요.", true);
+  }
+
+  document.getElementById("btn-connect").addEventListener("click", connectWithPassword);
+  document.getElementById("admin-key").addEventListener("keydown", event => {
+    if (event.key === "Enter") connectWithPassword();
   });
 
   document.getElementById("btn-lock").addEventListener("click", () => {
     adminKey = "";
+    setConnected(false);
     clearToken();
     ["#table-devices tbody", "#table-templates tbody", "#table-jobs tbody"].forEach(selector => document.querySelector(selector).replaceChildren());
     document.getElementById("job-results").textContent = "아직 조회한 결과가 없습니다.";
+    document.getElementById("auth-section").hidden = false;
     setStatus("잠금 상태입니다.");
   });
 
-  document.getElementById("btn-refresh-all").addEventListener("click", refreshAll);
-
-  async function apiCall(path, options = {}) {
-    if (!adminKey) { setStatus("먼저 관리자 연결을 완료하세요.", true); return null; }
+  async function apiCall(path, options = {}, silent = false) {
     try {
       const res = await fetch(BASE_URL + path, { ...options, headers: getHeaders() });
       if (!res.ok) {
         let detail = "요청을 처리하지 못했습니다.";
         try { detail = (await res.json()).detail || detail; } catch (_) { /* generic message */ }
-        setStatus(`오류 ${res.status}: ${detail}`, true);
+        if (!silent) setStatus(`오류 ${res.status}: ${detail}`, true);
         return null;
       }
       return await res.json();
-    } catch (e) {
-      setStatus("서버에 연결할 수 없습니다.", true);
+    } catch (_) {
+      if (!silent) setStatus("서버에 연결할 수 없습니다.", true);
       return null;
     }
-  }
-
-  async function refreshAll() {
-    if (!adminKey) { setStatus("먼저 관리자 연결을 완료하세요.", true); return; }
-    await Promise.all([refreshDevices(), refreshTemplates(), refreshJobs()]);
-    setStatus("최신 상태로 갱신했습니다.");
   }
 
   // Devices
@@ -235,7 +271,9 @@
       document.getElementById("raw-token-display").textContent = data.token;
       document.getElementById("token-box").style.display = "block";
       setStatus("장비를 등록했습니다. 토큰을 안전한 장비 설정에 복사한 뒤 화면에서 지우세요.");
-      refreshDevices();
+      await refreshDevices();
+      document.getElementById("job-device").value = data.id;
+      setConnected(true);
     }
   });
   document.getElementById("btn-copy-token").addEventListener("click", async () => {
@@ -250,8 +288,8 @@
   }
   document.getElementById("btn-clear-token").addEventListener("click", clearToken);
   document.getElementById("btn-refresh-dev").addEventListener("click", refreshDevices);
-  async function refreshDevices() {
-    const data = await apiCall("/devices");
+  async function refreshDevices({ silent = false } = {}) {
+    const data = await apiCall("/devices", {}, silent);
     if (!data) return false;
     const tbody = document.querySelector("#table-devices tbody");
     tbody.replaceChildren();
@@ -264,6 +302,14 @@
       });
       tbody.appendChild(tr);
     });
+    const select = document.getElementById("job-device");
+    const selected = select.value;
+    const activeDevices = data.devices.filter(device => device.status === "active");
+    select.replaceChildren(new Option(activeDevices.length ? "장비를 선택하세요" : "등록된 장비가 없습니다", ""));
+    activeDevices.forEach(device => select.add(new Option(`${device.name} · ${device.platform} · ${device.last_heartbeat_at ? "연결됨" : "연결 대기"}`, device.id)));
+    select.value = activeDevices.some(device => device.id === selected) ? selected : (activeDevices[0]?.id || "");
+    document.getElementById("no-devices").hidden = activeDevices.length > 0;
+    document.getElementById("btn-run-test").disabled = !connected || !select.value;
     return true;
   }
 
@@ -277,7 +323,7 @@
   document.getElementById("btn-refresh-tpl").addEventListener("click", refreshTemplates);
   async function refreshTemplates() {
     const data = await apiCall("/templates");
-    if (!data) return;
+    if (!data) return false;
     const tbody = document.querySelector("#table-templates tbody");
     tbody.replaceChildren();
     data.templates.forEach(t => {
@@ -289,26 +335,49 @@
       });
       tbody.appendChild(tr);
     });
+    const select = document.getElementById("job-template");
+    const selected = select.value;
+    select.replaceChildren(new Option(data.templates.length ? "템플릿을 선택하세요" : "등록된 템플릿이 없습니다", ""));
+    data.templates.forEach(template => select.add(new Option(`${template.name} · v${template.version}`, template.id)));
+    if (data.templates.some(template => template.id === selected)) select.value = selected;
+    return true;
   }
 
   // Jobs
-  document.getElementById("btn-create-job").addEventListener("click", async () => {
-    const body = {
-      idempotency_key: document.getElementById("job-idempotency").value,
-      device_id: document.getElementById("job-device").value,
-      target_alias: document.getElementById("job-alias").value,
-      action: document.getElementById("job-action").value,
-      execution_mode: document.getElementById("job-mode").value
-    };
-    const tpl = document.getElementById("job-template").value;
-    if (tpl) body.template_id = tpl;
-    const qs = document.getElementById("job-quality").value;
-    if (qs) body.quality_status = qs;
-    const holdReason = document.getElementById("job-hold-reason").value.trim();
-    if (holdReason) body.hold_reason = holdReason;
+  document.getElementById("job-device").addEventListener("change", () => setConnected(connected));
+  document.getElementById("job-action").addEventListener("change", updateActionUI);
+  function updateActionUI() {
+    const action = document.getElementById("job-action").value;
+    document.getElementById("action-help").textContent = ACTION_HELP[action];
+    document.getElementById("template-field").hidden = action !== "preview_message";
+  }
 
+  document.getElementById("btn-run-test").addEventListener("click", async () => {
+    const button = document.getElementById("btn-run-test");
+    const deviceId = document.getElementById("job-device").value;
+    const action = document.getElementById("job-action").value;
+    const templateId = document.getElementById("job-template").value;
+    if (!deviceId) { setStatus("테스트할 장비를 선택하세요.", true); return; }
+    if (action === "preview_message" && !templateId) { setStatus("메시지 미리보기용 템플릿을 선택하세요.", true); return; }
+    button.disabled = true;
+    button.textContent = "작업 준비 중…";
+    const body = {
+      idempotency_key: `ui-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`,
+      device_id: deviceId,
+      target_alias: "self-test",
+      action,
+      execution_mode: "dry_run",
+      quality_status: "pass"
+    };
+    if (action === "preview_message") body.template_id = templateId;
     const data = await apiCall("/jobs", { method: "POST", body: JSON.stringify(body) });
-    if (data) { setStatus(`테스트 작업 ${data.id}을 만들었습니다.`); refreshJobs(); }
+    if (data) {
+      const approved = await apiCall(`/jobs/${data.id}/approve`, { method: "POST" });
+      if (approved) setStatus(`${document.getElementById("job-action").selectedOptions[0].textContent} 작업을 준비했습니다. 장비 에이전트가 자동으로 가져갑니다.`);
+      await refreshJobs();
+    }
+    button.textContent = "테스트 실행";
+    setConnected(connected);
   });
   document.getElementById("btn-refresh-jobs").addEventListener("click", refreshJobs);
 
@@ -363,6 +432,9 @@
       tbody.appendChild(tr);
     });
   }
+
+  updateActionUI();
+  autoConnect();
 </script>
 </body>
 </html>
