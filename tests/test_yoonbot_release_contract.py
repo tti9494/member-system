@@ -22,6 +22,7 @@ YOONBOT_ENV_VARS = (
     "YOONBOT_ARTIFACT_DOWNLOAD_URL",
     "YOONBOT_ARTIFACT_SHA256",
     "YOONBOT_ARTIFACT_SIZE_BYTES",
+    "YOONBOT_ARTIFACT_URL_ALLOWED_HOSTS",
     "ARSEN_YOONBOT_ARTIFACT_BASE_URL",
     "YOONBOT_RELEASE_READY_APPROVED",
     "YOONBOT_CODE_SIGNING_STATUS",
@@ -267,6 +268,7 @@ class YoonbotReleaseContractTest(unittest.TestCase):
     def test_release_uses_verified_external_url_only_with_sha256_and_size(self):
         self._open_gates()
         os.environ["YOONBOT_ARTIFACT_DOWNLOAD_URL"] = f"https://downloads.example.test/{ARTIFACT_NAME}"
+        os.environ["YOONBOT_ARTIFACT_URL_ALLOWED_HOSTS"] = "downloads.example.test"
         os.environ["YOONBOT_ARTIFACT_SHA256"] = "A" * 64
         os.environ["YOONBOT_ARTIFACT_SIZE_BYTES"] = "12345"
         release = self.client.get("/api/yoonbot/release").json()
@@ -280,6 +282,41 @@ class YoonbotReleaseContractTest(unittest.TestCase):
         artifact = self.client.get(ARTIFACT_ENDPOINT, follow_redirects=False)
         self.assertNotIn(artifact.status_code, (301, 302, 307, 308))
         self.assertEqual(artifact.status_code, 404)
+
+    def test_external_url_fails_closed_without_host_allowlist(self):
+        # HTTPS + SHA-256 + size alone must never open an arbitrary domain.
+        self._open_gates()
+        os.environ["YOONBOT_ARTIFACT_DOWNLOAD_URL"] = f"https://attacker.example.test/{ARTIFACT_NAME}"
+        os.environ["YOONBOT_ARTIFACT_SHA256"] = "a" * 64
+        os.environ["YOONBOT_ARTIFACT_SIZE_BYTES"] = "12345"
+        self._assert_closed(self.client.get("/api/yoonbot/release").json())
+        artifact = self.client.get(ARTIFACT_ENDPOINT, follow_redirects=False)
+        self.assertNotIn(artifact.status_code, (301, 302, 307, 308))
+        self.assertEqual(artifact.status_code, 404)
+
+    def test_external_url_fails_closed_when_host_not_in_allowlist(self):
+        self._open_gates()
+        os.environ["YOONBOT_ARTIFACT_DOWNLOAD_URL"] = f"https://attacker.example.test/{ARTIFACT_NAME}"
+        os.environ["YOONBOT_ARTIFACT_URL_ALLOWED_HOSTS"] = "downloads.example.test"
+        os.environ["YOONBOT_ARTIFACT_SHA256"] = "a" * 64
+        os.environ["YOONBOT_ARTIFACT_SIZE_BYTES"] = "12345"
+        self._assert_closed(self.client.get("/api/yoonbot/release").json())
+
+    def test_external_url_fails_closed_without_canonical_basename(self):
+        self._open_gates()
+        os.environ["YOONBOT_ARTIFACT_DOWNLOAD_URL"] = "https://downloads.example.test/other-app.exe"
+        os.environ["YOONBOT_ARTIFACT_URL_ALLOWED_HOSTS"] = "downloads.example.test"
+        os.environ["YOONBOT_ARTIFACT_SHA256"] = "a" * 64
+        os.environ["YOONBOT_ARTIFACT_SIZE_BYTES"] = "12345"
+        self._assert_closed(self.client.get("/api/yoonbot/release").json())
+
+    def test_external_url_fails_closed_on_nonstandard_port(self):
+        self._open_gates()
+        os.environ["YOONBOT_ARTIFACT_DOWNLOAD_URL"] = f"https://downloads.example.test:8443/{ARTIFACT_NAME}"
+        os.environ["YOONBOT_ARTIFACT_URL_ALLOWED_HOSTS"] = "downloads.example.test"
+        os.environ["YOONBOT_ARTIFACT_SHA256"] = "a" * 64
+        os.environ["YOONBOT_ARTIFACT_SIZE_BYTES"] = "12345"
+        self._assert_closed(self.client.get("/api/yoonbot/release").json())
 
     def test_artifact_get_and_head_use_exe_attachment_nosniff(self):
         payload = self._write_artifact()
@@ -357,6 +394,19 @@ class YoonbotReleaseContractTest(unittest.TestCase):
             self.assertIn("YOONBOT_CODE_SIGNING_STATUS", source)
             self.assertIn("YOONBOT_RELEASE_READY_APPROVED", source)
             self.assertIn("yoonbot_release_not_ready", source)
+            self.assertIn("YOONBOT_ARTIFACT_URL_ALLOWED_HOSTS", source)
+
+    def test_worker_parity_license_abuse_contract_strings(self):
+        license_py = (ROOT / "agents" / "license_manager.py").read_text(encoding="utf-8")
+        worker_js = (ROOT / "cloudflare" / "src" / "worker.js").read_text(encoding="utf-8")
+        for source in (license_py, worker_js):
+            self.assertIn("RATE_LIMITED", source)
+            self.assertIn("LICENSE_RATE_WINDOW_SECONDS", source)
+            self.assertIn("LICENSE_ACTIVATE_RATE_MAX", source)
+            self.assertIn("LICENSE_VERIFY_FAIL_RATE_MAX", source)
+            self.assertIn("LICENSE_KEY_MAX_LEN", source)
+            self.assertIn("LICENSE_HWID_MAX_LEN", source)
+            self.assertIn("LICENSE_TOKEN_MAX_LEN", source)
 
 
 if __name__ == "__main__":

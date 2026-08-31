@@ -309,6 +309,7 @@ CREATE INDEX IF NOT EXISTS idx_licenses_member ON licenses(member_id);
 CREATE INDEX IF NOT EXISTS idx_licenses_status_expires ON licenses(status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_license_activations_license_status ON license_activations(license_id, status);
 CREATE INDEX IF NOT EXISTS idx_license_events_license_created ON license_events(license_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_license_events_ip_type_created ON license_events(ip_hash, event_type, created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_status_created ON orders(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_plan_created ON orders(plan_code, created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_license ON orders(license_id);

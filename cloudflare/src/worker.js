@@ -35,6 +35,18 @@ const LICENSE_GRACE_SECONDS = 3 * 24 * 60 * 60;
 const LICENSE_TOKEN_DAYS = 90;
 const LICENSE_KEY_PREFIX = "YB";
 const LICENSE_KEY_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+// Trust-boundary bounds shared with agents/license_manager.py (FastAPI parity).
+const LICENSE_KEY_MAX_LEN = 64;
+const LICENSE_HWID_MAX_LEN = 128;
+const LICENSE_TOKEN_MAX_LEN = 128;
+const LICENSE_APP_VERSION_MAX_LEN = 40;
+const LICENSE_PLATFORM_MAX_LEN = 80;
+const LICENSE_DEVICE_NAME_MAX_LEN = 120;
+// Server-side abuse limits keyed on license_events.ip_hash. Only blocked
+// attempts count, so a healthy client verifying on schedule is never limited.
+const LICENSE_RATE_WINDOW_SECONDS = 600;
+const LICENSE_ACTIVATE_RATE_MAX = 10;
+const LICENSE_VERIFY_FAIL_RATE_MAX = 20;
 const YOONBOT_PRODUCT_CODE = "yoonbot";
 const YOONBOT_PLANS = Object.freeze([
   {
@@ -544,14 +556,36 @@ async function yoonbotR2Contract(env) {
   return yoonbotR2ObjectContract(await env.YOONBOT_RELEASES.head(YOONBOT_ARTIFACT_KEY));
 }
 
-// Single validation rule for the explicit external URL: HTTPS + real 64-hex
-// SHA-256 + positive size, or nothing. Shared by release and artifact paths.
+// Fail-closed origin allowlist for the explicit external URL. Without an
+// explicit YOONBOT_ARTIFACT_URL_ALLOWED_HOSTS entry, HTTPS + SHA-256 + size
+// alone never redirect customers to an arbitrary domain. The URL path must
+// also end in the canonical artifact basename.
+function yoonbotExternalUrlAllowed(env, explicitUrl) {
+  const allowedHosts = String(env.YOONBOT_ARTIFACT_URL_ALLOWED_HOSTS || "")
+    .split(",")
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean);
+  if (!allowedHosts.length) return false;
+  let parsed;
+  try {
+    parsed = new URL(explicitUrl);
+  } catch (_) {
+    return false;
+  }
+  if (parsed.protocol !== "https:" || !parsed.hostname || (parsed.port && parsed.port !== "443")) return false;
+  if (!allowedHosts.includes(parsed.hostname.toLowerCase())) return false;
+  return parsed.pathname.split("/").pop() === YOONBOT_ARTIFACT_NAME;
+}
+
+// Single validation rule for the explicit external URL: allowlisted HTTPS
+// origin + canonical basename + real 64-hex SHA-256 + positive size, or
+// nothing. Shared by release and artifact paths.
 function yoonbotExplicitUrlContract(env) {
   const explicitUrl = String(env.YOONBOT_ARTIFACT_DOWNLOAD_URL || "").trim();
   if (!explicitUrl) return null;
   const sha256 = String(env.YOONBOT_ARTIFACT_SHA256 || "").trim().toLowerCase();
   const sizeBytes = Number(env.YOONBOT_ARTIFACT_SIZE_BYTES || 0);
-  if (!explicitUrl.startsWith("https://") || !isSha256Hex(sha256) || !(sizeBytes > 0)) return null;
+  if (!yoonbotExternalUrlAllowed(env, explicitUrl) || !isSha256Hex(sha256) || !(sizeBytes > 0)) return null;
   return { download_ready: true, artifact_download_url: explicitUrl, sha256, size_bytes: sizeBytes };
 }
 
@@ -1224,6 +1258,34 @@ function licenseFailure(code, message, status = "invalid") {
   return { ok: false, status, code, message };
 }
 
+// Strip + bound an untrusted field. null = empty, overlong, or control chars.
+function licenseBounded(value, maxLen) {
+  const text = String(value || "").trim();
+  if (!text || text.length > maxLen) return null;
+  if (/[\u0000-\u001f\u007f]/.test(text)) return null;
+  return text;
+}
+
+function licenseRateLimitFailure() {
+  // One generic error for every limited request, on both endpoints.
+  return licenseFailure("RATE_LIMITED", "요청이 제한되었습니다. 잠시 후 다시 시도해 주세요.");
+}
+
+async function isLicenseRateLimited(env, ipHash, eventType, maxCount) {
+  if (!ipHash || !(maxCount > 0)) return false;
+  const windowSeconds = Number(env.LICENSE_RATE_WINDOW_SECONDS || LICENSE_RATE_WINDOW_SECONDS);
+  const windowStart = licenseIso(new Date(Date.now() - windowSeconds * 1000));
+  const row = await one(
+    env,
+    `SELECT COUNT(*) AS count FROM license_events
+     WHERE ip_hash=? AND event_type=? AND result='blocked' AND created_at>=?`,
+    ipHash,
+    eventType,
+    windowStart
+  );
+  return Number(row?.count || 0) >= maxCount;
+}
+
 async function licenseEvent(env, eventType, result, options = {}) {
   await env.DB.prepare(
     `INSERT INTO license_events (
@@ -1398,17 +1460,30 @@ async function extendLicense(env, licenseId, expiresAtValue, request) {
 }
 
 async function activateLicense(env, body, request) {
-  const licenseKey = String(body.license_key || "").trim();
-  const hwid = String(body.hwid || "").trim();
+  // FastAPI parity: reject empty/blank/overlong inputs before any hashing or DB access.
+  const licenseKey = licenseBounded(body.license_key, LICENSE_KEY_MAX_LEN);
+  const hwid = licenseBounded(body.hwid, LICENSE_HWID_MAX_LEN);
   if (!licenseKey || !hwid) return licenseFailure("INVALID_REQUEST", "라이선스 키와 HWID가 필요합니다.");
-  const appVersion = String(body.app_version || "").trim() || null;
-  const platform = String(body.platform || "windows").trim().slice(0, 80) || "windows";
-  const deviceName = String(body.device_name || "").trim().slice(0, 120) || null;
+  const rawAppVersion = String(body.app_version || "").trim();
+  const appVersion = rawAppVersion ? licenseBounded(rawAppVersion, LICENSE_APP_VERSION_MAX_LEN) : null;
+  const rawPlatform = String(body.platform || "").trim();
+  const platform = rawPlatform ? licenseBounded(rawPlatform, LICENSE_PLATFORM_MAX_LEN) : "windows";
+  const rawDeviceName = String(body.device_name || "").trim();
+  const deviceName = rawDeviceName ? licenseBounded(rawDeviceName, LICENSE_DEVICE_NAME_MAX_LEN) : null;
+  if ((rawAppVersion && !appVersion) || !platform || (rawDeviceName && !deviceName)) {
+    return licenseFailure("INVALID_REQUEST", "요청 값을 확인해 주세요.");
+  }
   const ip = licenseRequestIp(request);
   const userAgent = safeUserAgent(request);
   const current = new Date();
   const licenseKeyHash = await licenseHash(env, "license", licenseKey);
   const hwidHash = await licenseHash(env, "hwid", hwid);
+  const ipHash = await licenseHashLoose(env, "ip", ip || null);
+  const activateRateMax = Number(env.LICENSE_ACTIVATE_RATE_MAX || LICENSE_ACTIVATE_RATE_MAX);
+  if (await isLicenseRateLimited(env, ipHash, "license_activate", activateRateMax)) {
+    await licenseEvent(env, "license_activate", "blocked", { reason_code: "RATE_LIMITED", ip, user_agent: userAgent, app_version: appVersion, platform });
+    return licenseRateLimitFailure();
+  }
   const row = await one(env, "SELECT * FROM licenses WHERE license_key_hash=?", licenseKeyHash);
 
   if (!row) {
@@ -1473,15 +1548,29 @@ async function activateLicense(env, body, request) {
 }
 
 async function verifyLicense(env, body, request, activationToken) {
-  const hwid = String(body.hwid || "").trim();
+  // FastAPI parity: reject empty/blank/overlong inputs before any hashing or DB access.
+  const token = licenseBounded(activationToken, LICENSE_TOKEN_MAX_LEN);
+  if (!token) return licenseFailure("INVALID_REQUEST", "인증 토큰이 필요합니다.");
+  const hwid = licenseBounded(body.hwid, LICENSE_HWID_MAX_LEN);
   if (!hwid) return licenseFailure("INVALID_REQUEST", "HWID가 필요합니다.");
-  const appVersion = String(body.app_version || "").trim() || null;
-  const platform = String(body.platform || "windows").trim().slice(0, 80) || "windows";
+  const rawAppVersion = String(body.app_version || "").trim();
+  const appVersion = rawAppVersion ? licenseBounded(rawAppVersion, LICENSE_APP_VERSION_MAX_LEN) : null;
+  const rawPlatform = String(body.platform || "").trim();
+  const platform = rawPlatform ? licenseBounded(rawPlatform, LICENSE_PLATFORM_MAX_LEN) : "windows";
+  if ((rawAppVersion && !appVersion) || !platform) {
+    return licenseFailure("INVALID_REQUEST", "요청 값을 확인해 주세요.");
+  }
   const ip = licenseRequestIp(request);
   const userAgent = safeUserAgent(request);
   const current = new Date();
-  const tokenHash = await licenseHash(env, "token", activationToken);
+  const tokenHash = await licenseHash(env, "token", token);
   const hwidHash = await licenseHash(env, "hwid", hwid);
+  const ipHash = await licenseHashLoose(env, "ip", ip || null);
+  const verifyFailRateMax = Number(env.LICENSE_VERIFY_FAIL_RATE_MAX || LICENSE_VERIFY_FAIL_RATE_MAX);
+  if (await isLicenseRateLimited(env, ipHash, "license_verify", verifyFailRateMax)) {
+    await licenseEvent(env, "license_verify", "blocked", { reason_code: "RATE_LIMITED", ip, user_agent: userAgent, app_version: appVersion, platform });
+    return licenseRateLimitFailure();
+  }
   const row = await one(
     env,
     `SELECT

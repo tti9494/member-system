@@ -19,6 +19,18 @@ LICENSE_KEY_ALPHABET = os.getenv(
     "LICENSE_KEY_ALPHABET",
     "ABCDEFGHJKLMNPQRSTUVWXYZ23456789",
 )
+# Trust-boundary bounds shared with cloudflare/src/worker.js (worker parity).
+LICENSE_KEY_MAX_LEN = 64
+LICENSE_HWID_MAX_LEN = 128
+LICENSE_TOKEN_MAX_LEN = 128
+LICENSE_APP_VERSION_MAX_LEN = 40
+LICENSE_PLATFORM_MAX_LEN = 80
+LICENSE_DEVICE_NAME_MAX_LEN = 120
+# Server-side abuse limits keyed on license_events.ip_hash. Only blocked
+# attempts count, so a healthy client verifying on schedule is never limited.
+LICENSE_RATE_WINDOW_SECONDS = int(os.getenv("LICENSE_RATE_WINDOW_SECONDS", "600"))
+LICENSE_ACTIVATE_RATE_MAX = int(os.getenv("LICENSE_ACTIVATE_RATE_MAX", "10"))
+LICENSE_VERIFY_FAIL_RATE_MAX = int(os.getenv("LICENSE_VERIFY_FAIL_RATE_MAX", "20"))
 
 
 def _now() -> datetime:
@@ -165,6 +177,35 @@ def _failure(code: str, message: str, status: str = "invalid") -> dict:
     return {"ok": False, "status": status, "code": code, "message": message}
 
 
+def _bounded(value: str | None, max_len: int) -> str | None:
+    """Strip + bound an untrusted field. None = empty, overlong, or control chars."""
+    text = (value or "").strip()
+    if not text or len(text) > max_len:
+        return None
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in text):
+        return None
+    return text
+
+
+def _rate_limit_failure() -> dict:
+    # One generic error for every limited request, on both endpoints.
+    return _failure("RATE_LIMITED", "요청이 제한되었습니다. 잠시 후 다시 시도해 주세요.")
+
+
+def _is_rate_limited(conn, ip_hash: str | None, event_type: str, max_count: int) -> bool:
+    if not ip_hash or max_count <= 0:
+        return False
+    window_start = _iso(_now() - timedelta(seconds=LICENSE_RATE_WINDOW_SECONDS))
+    row = conn.execute(
+        """
+        SELECT COUNT(*) AS count FROM license_events
+        WHERE ip_hash=? AND event_type=? AND result='blocked' AND created_at>=?
+        """,
+        (ip_hash, event_type, window_start),
+    ).fetchone()
+    return int(row["count"] if row else 0) >= max_count
+
+
 def create_license(
     *,
     member_id: str | None = None,
@@ -285,17 +326,39 @@ def activate_license(
     client_ip: str | None = None,
     user_agent: str | None = None,
 ) -> dict:
-    # Worker parity: reject empty/blank inputs before any hashing or DB access.
-    license_key = (license_key or "").strip()
-    hwid = (hwid or "").strip()
+    # Worker parity: reject empty/blank/overlong inputs before any hashing or DB access.
+    license_key = _bounded(license_key, LICENSE_KEY_MAX_LEN)
+    hwid = _bounded(hwid, LICENSE_HWID_MAX_LEN)
     if not license_key or not hwid:
         return _failure("INVALID_REQUEST", "라이선스 키와 HWID가 필요합니다.")
+    raw_app_version = (app_version or "").strip()
+    app_version = _bounded(raw_app_version, LICENSE_APP_VERSION_MAX_LEN) if raw_app_version else None
+    raw_platform = (platform or "").strip()
+    platform = _bounded(raw_platform, LICENSE_PLATFORM_MAX_LEN) if raw_platform else "windows"
+    raw_device_name = (device_name or "").strip()
+    device_name = _bounded(raw_device_name, LICENSE_DEVICE_NAME_MAX_LEN) if raw_device_name else None
+    if (raw_app_version and app_version is None) or platform is None or (raw_device_name and device_name is None):
+        return _failure("INVALID_REQUEST", "요청 값을 확인해 주세요.")
     now = _now()
     license_hash = _hash_value("license", license_key)
     hwid_hash = _hash_value("hwid", hwid)
+    ip_hash = _hash_loose("ip", client_ip)
     conn = get_conn()
     try:
         conn.execute("BEGIN IMMEDIATE")
+        if _is_rate_limited(conn, ip_hash, "license_activate", LICENSE_ACTIVATE_RATE_MAX):
+            _event(
+                conn,
+                "license_activate",
+                "blocked",
+                reason_code="RATE_LIMITED",
+                ip=client_ip,
+                user_agent=user_agent,
+                app_version=app_version,
+                platform=platform,
+            )
+            conn.commit()
+            return _rate_limit_failure()
         row = conn.execute("SELECT * FROM licenses WHERE license_key_hash=?", (license_hash,)).fetchone()
         if not row:
             _event(
@@ -462,19 +525,39 @@ def verify_license(
     client_ip: str | None = None,
     user_agent: str | None = None,
 ) -> dict:
-    # Worker parity: reject empty/blank inputs before any hashing or DB access.
-    activation_token = (activation_token or "").strip()
-    hwid = (hwid or "").strip()
+    # Worker parity: reject empty/blank/overlong inputs before any hashing or DB access.
+    activation_token = _bounded(activation_token, LICENSE_TOKEN_MAX_LEN)
+    hwid = _bounded(hwid, LICENSE_HWID_MAX_LEN)
     if not activation_token:
         return _failure("INVALID_REQUEST", "인증 토큰이 필요합니다.")
     if not hwid:
         return _failure("INVALID_REQUEST", "HWID가 필요합니다.")
+    raw_app_version = (app_version or "").strip()
+    app_version = _bounded(raw_app_version, LICENSE_APP_VERSION_MAX_LEN) if raw_app_version else None
+    raw_platform = (platform or "").strip()
+    platform = _bounded(raw_platform, LICENSE_PLATFORM_MAX_LEN) if raw_platform else "windows"
+    if (raw_app_version and app_version is None) or platform is None:
+        return _failure("INVALID_REQUEST", "요청 값을 확인해 주세요.")
     now = _now()
     token_hash = _hash_value("token", activation_token)
     hwid_hash = _hash_value("hwid", hwid)
+    ip_hash = _hash_loose("ip", client_ip)
     conn = get_conn()
     try:
         conn.execute("BEGIN IMMEDIATE")
+        if _is_rate_limited(conn, ip_hash, "license_verify", LICENSE_VERIFY_FAIL_RATE_MAX):
+            _event(
+                conn,
+                "license_verify",
+                "blocked",
+                reason_code="RATE_LIMITED",
+                ip=client_ip,
+                user_agent=user_agent,
+                app_version=app_version,
+                platform=platform,
+            )
+            conn.commit()
+            return _rate_limit_failure()
         row = conn.execute(
             """
             SELECT

@@ -566,6 +566,29 @@ def _yoonbot_release_gate_blocks() -> list[str]:
     return blocked
 
 
+def _yoonbot_external_url_allowed(configured_url: str) -> bool:
+    # Fail-closed origin allowlist for the external download URL. Without an
+    # explicit YOONBOT_ARTIFACT_URL_ALLOWED_HOSTS entry, HTTPS + SHA-256 + size
+    # alone never redirect customers to an arbitrary domain. The URL path must
+    # also end in the canonical artifact basename.
+    allowed_hosts = {
+        host.strip().lower()
+        for host in os.getenv("YOONBOT_ARTIFACT_URL_ALLOWED_HOSTS", "").split(",")
+        if host.strip()
+    }
+    if not allowed_hosts:
+        return False
+    try:
+        parsed = urllib.parse.urlsplit(configured_url)
+    except ValueError:
+        return False
+    if parsed.scheme != "https" or not parsed.hostname or parsed.port not in (None, 443):
+        return False
+    if parsed.hostname.lower() not in allowed_hosts:
+        return False
+    return Path(parsed.path).name == YOONBOT_ARTIFACT_NAME
+
+
 def _yoonbot_verified_artifact_source(request: Request) -> dict[str, Any] | None:
     """Verified download source (HTTPS URL + 64-hex SHA-256 + size > 0) or None."""
     artifact_endpoint = f"/api/yoonbot/artifacts/{YOONBOT_ARTIFACT_NAME}"
@@ -574,7 +597,7 @@ def _yoonbot_verified_artifact_source(request: Request) -> dict[str, Any] | None
         configured_sha = os.getenv("YOONBOT_ARTIFACT_SHA256", "").strip().lower()
         configured_size_raw = os.getenv("YOONBOT_ARTIFACT_SIZE_BYTES", "").strip()
         configured_size = int(configured_size_raw) if configured_size_raw.isdigit() else 0
-        if configured_url.startswith("https://") and _is_sha256_hex(configured_sha) and configured_size > 0:
+        if _yoonbot_external_url_allowed(configured_url) and _is_sha256_hex(configured_sha) and configured_size > 0:
             return {
                 "artifact_download_url": configured_url,
                 "sha256": configured_sha,

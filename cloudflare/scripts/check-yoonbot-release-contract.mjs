@@ -54,10 +54,11 @@ assert(closedRelease.response.status === 200, "yoonbot release must be public (n
 assertReleaseShape(closedRelease.body, "closed release");
 assertClosedRelease(closedRelease.body, "closed release");
 
-// 3) Explicit verified HTTPS URL + sha256 + size: download ready.
+// 3) Explicit verified HTTPS URL + allowlisted host + sha256 + size: download ready.
 const externalEnv = {
   ...GATE_ENV,
   YOONBOT_ARTIFACT_DOWNLOAD_URL: EXTERNAL_URL,
+  YOONBOT_ARTIFACT_URL_ALLOWED_HOSTS: "downloads.example.test",
   YOONBOT_ARTIFACT_SHA256: TEST_SHA256.toUpperCase(),
   YOONBOT_ARTIFACT_SIZE_BYTES: "12345",
 };
@@ -82,10 +83,44 @@ assert(!badExternalArtifact.headers.get("location"), "unverified external artifa
 const httpExternal = await request("/api/yoonbot/release", {
   ...GATE_ENV,
   YOONBOT_ARTIFACT_DOWNLOAD_URL: `http://downloads.example.test/${EXPECTED_ARTIFACT}`,
+  YOONBOT_ARTIFACT_URL_ALLOWED_HOSTS: "downloads.example.test",
   YOONBOT_ARTIFACT_SHA256: TEST_SHA256,
   YOONBOT_ARTIFACT_SIZE_BYTES: "12345",
 });
 assertClosedRelease(httpExternal.body, "non-https external URL");
+
+// 4b) Origin allowlist: HTTPS + sha256 + size alone never redirect customers
+//     to an arbitrary domain. No allowlist, non-allowlisted host, and a
+//     non-canonical basename all stay fail-closed.
+const noAllowlistEnv = {
+  ...GATE_ENV,
+  YOONBOT_ARTIFACT_DOWNLOAD_URL: EXTERNAL_URL,
+  YOONBOT_ARTIFACT_SHA256: TEST_SHA256,
+  YOONBOT_ARTIFACT_SIZE_BYTES: "12345",
+};
+const noAllowlist = await request("/api/yoonbot/release", noAllowlistEnv);
+assertClosedRelease(noAllowlist.body, "external URL without host allowlist");
+const noAllowlistArtifact = await handleRequest(new Request(`https://apply.arsen-ai.com${EXPECTED_ENDPOINT}`), noAllowlistEnv);
+assert(noAllowlistArtifact.status === 404, "external artifact without allowlist must return 404, not redirect");
+assert(!noAllowlistArtifact.headers.get("location"), "external artifact without allowlist must not expose a redirect location");
+
+const wrongHost = await request("/api/yoonbot/release", {
+  ...externalEnv,
+  YOONBOT_ARTIFACT_DOWNLOAD_URL: `https://attacker.example.test/${EXPECTED_ARTIFACT}`,
+});
+assertClosedRelease(wrongHost.body, "external URL host not in allowlist");
+
+const wrongBasename = await request("/api/yoonbot/release", {
+  ...externalEnv,
+  YOONBOT_ARTIFACT_DOWNLOAD_URL: "https://downloads.example.test/other-app.exe",
+});
+assertClosedRelease(wrongBasename.body, "external URL without canonical basename");
+
+const nonstandardPort = await request("/api/yoonbot/release", {
+  ...externalEnv,
+  YOONBOT_ARTIFACT_DOWNLOAD_URL: `https://downloads.example.test:8443/${EXPECTED_ARTIFACT}`,
+});
+assertClosedRelease(nonstandardPort.body, "external URL on nonstandard port");
 
 // 5) No storage configured: artifact endpoint fails closed even with gates.
 const noStorage = await request(EXPECTED_ENDPOINT, { ...GATE_ENV });
@@ -235,6 +270,7 @@ const gatelessHead = await handleRequest(new Request(`https://apply.arsen-ai.com
 assert(gatelessHead.status === 404, "gateless artifact HEAD must return 404");
 const gatelessRedirect = await handleRequest(new Request(`https://apply.arsen-ai.com${EXPECTED_ENDPOINT}`), {
   YOONBOT_ARTIFACT_DOWNLOAD_URL: EXTERNAL_URL,
+  YOONBOT_ARTIFACT_URL_ALLOWED_HOSTS: "downloads.example.test",
   YOONBOT_ARTIFACT_SHA256: TEST_SHA256,
   YOONBOT_ARTIFACT_SIZE_BYTES: "12345",
 });
