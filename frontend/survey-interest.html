@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARSEN AI 맞춤 강의 & 추가 개설 수요조사</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --bg: #0b111c;
+    --card: #121a28;
+    --border: #2d3b52;
+    --text: #eef4ff;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    padding: 36px 18px 80px;
+    line-height: 1.6;
+  }
+  .container { max-width: 680px; margin: 0 auto; }
+  .header { text-align: center; margin-bottom: 28px; }
+  .badge { display: inline-block; padding: 6px 14px; background: rgba(56, 189, 248, 0.12); color: var(--accent); border-radius: 999px; font-size: 0.88rem; font-weight: 700; margin-bottom: 12px; border: 1px solid rgba(56, 189, 248, 0.25); }
+  h1 { font-size: 1.95rem; font-weight: 850; letter-spacing: -0.02em; margin-bottom: 10px; }
+  .subtitle { color: var(--muted); font-size: 1.02rem; line-height: 1.5; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px 26px; box-shadow: 0 16px 36px rgba(0,0,0,0.35); margin-bottom: 20px; }
+  .field { margin-bottom: 24px; }
+  label { display: block; font-weight: 750; margin-bottom: 9px; font-size: 1rem; color: var(--text); }
+  .required { color: #f87171; margin-left: 4px; }
+  .hint { color: var(--muted); font-size: 0.88rem; margin-top: 6px; }
+  input[type=text], input[type=tel], select, textarea {
+    width: 100%; padding: 13px 15px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: 1rem; color: var(--text); background: #0e1726; outline: none; transition: all 0.2s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.25); }
+  textarea { resize: vertical; min-height: 100px; }
+  .checkbox-grid, .radio-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 8px; }
+  .check-label {
+    display: flex; align-items: center; gap: 10px; background: #0e1726; border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; cursor: pointer; font-size: 0.95rem; font-weight: 650; transition: all 0.15s;
+  }
+  .check-label:hover { border-color: var(--primary); }
+  .check-label input { width: 18px; height: 18px; accent-color: var(--primary); }
+  .check-label:has(input:checked) { border-color: var(--primary); background: #172642; color: #fff; }
+  .btn-submit {
+    width: 100%; padding: 16px; background: var(--primary); color: #fff; border: none; border-radius: 12px;
+    font-size: 1.1rem; font-weight: 800; cursor: pointer; transition: background 0.2s; margin-top: 10px;
+  }
+  .btn-submit:hover { background: var(--primary-hover); }
+  .success-msg { display: none; text-align: center; padding: 40px 20px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; }
+  .success-msg h2 { color: var(--accent); margin-bottom: 12px; font-size: 1.6rem; }
+  .success-msg p { color: var(--muted); font-size: 1.05rem; }
+  @media (max-width: 520px) {
+    .checkbox-grid, .radio-grid { grid-template-columns: 1fr; }
+    .card { padding: 24px 18px; }
+    h1 { font-size: 1.65rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="badge">ARSEN AI 수요조사 & 맞춤 개설</div>
+    <h1>내가 원하는 시간과 주제로 배우는 AI 실전</h1>
+    <p class="subtitle">정규반 일정(목 저녁 / 토 오전)에 시간이 안 맞거나, 특별히 배우고 싶은 자동화 주제가 있으신가요? 의견을 남겨주시면 맞춤 개설 시 우선 안내드립니다.</p>
+  </div>
+
+  <div class="card" id="form-card">
+    <form id="interest-form">
+      <div class="field">
+        <label>성함 <span class="required">*</span></label>
+        <input type="text" id="name" required placeholder="예: 윤상욱">
+      </div>
+
+      <div class="field">
+        <label>연락처 <span class="required">*</span></label>
+        <input type="tel" id="phone" required placeholder="010-1234-5678">
+        <div class="hint">희망하시는 클래스 개설 시 가장 먼저 문자로 알림을 드립니다.</div>
+      </div>
+
+      <div class="field">
+        <label>현재 하시는 일 / 업종 <span class="required">*</span></label>
+        <input type="text" id="job" required placeholder="예: 1인 기업, 요식업, 직장인, 프리랜서 등">
+      </div>
+
+      <div class="field">
+        <label>참여 가능한 희망 요일 및 시간대 (복수 선택 가능) <span class="required">*</span></label>
+        <div class="checkbox-grid">
+          <label class="check-label"><input type="checkbox" name="preferred_day" value="월요일"> 월요일</label>
+          <label class="check-label"><input type="checkbox" name="preferred_day" value="화요일"> 화요일</label>
+          <label class="check-label"><input type="checkbox" name="preferred_day" value="수요일"> 수요일</label>
+          <label class="check-label"><input type="checkbox" name="preferred_day" value="목요일"> 목요일</label>
+          <label class="check-label"><input type="checkbox" name="preferred_day" value="금요일"> 금요일</label>
+          <label class="check-label"><input type="checkbox" name="preferred_day" value="토요일"> 토요일</label>
+          <label class="check-label"><input type="checkbox" name="preferred_day" value="일요일"> 일요일</label>
+          <label class="check-label"><input type="checkbox" name="preferred_day" value="평일 오전(11시)"> 평일 오전 (11시)</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>희망 시간대 <span class="required">*</span></label>
+        <div class="radio-grid">
+          <label class="check-label"><input type="radio" name="preferred_time" value="오전 (10시~13시)" required> 오전 (10:00~13:00)</label>
+          <label class="check-label"><input type="radio" name="preferred_time" value="오후 (14시~17시)"> 오후 (14:00~17:00)</label>
+          <label class="check-label"><input type="radio" name="preferred_time" value="저녁 (19시~22시)"> 저녁 (19:30~22:30)</label>
+          <label class="check-label"><input type="radio" name="preferred_time" value="무관/상관없음"> 시간대 무관</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>가장 배우고 싶거나 내 사업에 구축하고 싶은 AI 주제는? (복수 선택) <span class="required">*</span></label>
+        <div class="checkbox-grid">
+          <label class="check-label"><input type="checkbox" name="desired_topic" value="블로그·카드뉴스 자동화"> 블로그·카드뉴스 자동화</label>
+          <label class="check-label"><input type="checkbox" name="desired_topic" value="유튜브 쇼츠 영상 자동화"> 유튜브 쇼츠 영상 자동화</label>
+          <label class="check-label"><input type="checkbox" name="desired_topic" value="스마트폰·PC 업무 자동화"> 스마트폰·PC 업무 자동화</label>
+          <label class="check-label"><input type="checkbox" name="desired_topic" value="n8n & API 무인 파이프라인"> n8n & API 무인 파이프라인</label>
+          <label class="check-label"><input type="checkbox" name="desired_topic" value="1:1 / 1:2 밀착 맞춤 과외"> 1:1 / 1:2 밀착 맞춤 과외</label>
+          <label class="check-label"><input type="checkbox" name="desired_topic" value="개발자·현직자 네트워킹"> 개발자·현직자 네트워킹</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>희망 실습 지역</label>
+        <div class="radio-grid">
+          <label class="check-label"><input type="radio" name="region" value="강남권 (논현역)" checked> 강남권 (논현역)</label>
+          <label class="check-label"><input type="radio" name="region" value="서남권 (영등포시장역)"> 서남권 (영등포시장역)</label>
+          <label class="check-label"><input type="radio" name="region" value="경기 남부 (안양/수원)"> 경기 남부 (안양/수원)</label>
+          <label class="check-label"><input type="radio" name="region" value="온라인 라이브 (Zoom)"> 온라인 라이브 (Zoom)</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>AI를 통해 해결하고 싶은 가장 큰 고민이나 바라는 점 (자유 기술)</label>
+        <textarea id="comments" placeholder="예: 매일 반복되는 업무를 자동화하고 싶습니다. / 주말 일요일에 2~3명이 모여서 들을 수 있는 과외를 희망합니다."></textarea>
+      </div>
+
+      <button type="submit" class="btn-submit" id="submit-btn">수요조사 제출하고 우선 알림 받기</button>
+    </form>
+  </div>
+
+  <div class="success-msg" id="success-card">
+    <h2>소중한 의견이 접수되었습니다!</h2>
+    <p>남겨주신 희망 요일과 주제를 취합하여, 클래스 개설 시 가장 먼저 우선 등록 혜택과 함께 연락드리겠습니다.</p>
+    <p style="margin-top: 14px; color: var(--text); font-weight: 700;">감사합니다. — ARSEN 윤상욱 대표</p>
+  </div>
+</div>
+
+<script>
+document.getElementById('interest-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '제출 중...';
+
+  const getChecked = (name) => Array.from(document.querySelectorAll(`input[name=${name}]:checked`)).map(el => el.value);
+
+  const payload = {
+    name: document.getElementById('name').value.trim(),
+    phone: document.getElementById('phone').value.trim(),
+    job: document.getElementById('job').value.trim(),
+    preferred_days: getChecked('preferred_day'),
+    preferred_time: document.querySelector('input[name=preferred_time]:checked')?.value || '',
+    desired_topics: getChecked('desired_topic'),
+    region: document.querySelector('input[name=region]:checked')?.value || '',
+    comments: document.getElementById('comments').value.trim(),
+    created_at: new Date().toISOString()
+  };
+
+  try {
+    // 1. 아르센 member-system API 연동
+    fetch('/api/survey-interest', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    }).catch(() => {});
+
+    // 2. 구글 시트 / 구글 폼 웹훅 확장 지원
+    if (window.GOOGLE_FORM_WEBHOOK_URL) {
+      fetch(window.GOOGLE_FORM_WEBHOOK_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      }).catch(() => {});
+    }
+
+    document.getElementById('form-card').style.display = 'none';
+    document.getElementById('success-card').style.display = 'block';
+  } catch(err) {
+    alert('제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    btn.disabled = false;
+    btn.textContent = '다시 제출하기';
+  }
+});
+</script>
+</body>
+</html>
