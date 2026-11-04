@@ -1,7 +1,7 @@
 """Base Video Generation Engine Adapter Interface.
 
-Defines the abstract interface and verification status for all AI video models
-(Veo, Kling, Runway, Sora, etc.) in the modular pipeline.
+Defines the abstract interface, verification status, and production provenance
+for all AI video models (Veo, Kling, Runway, Sora, etc.) in the modular pipeline.
 """
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -10,18 +10,19 @@ from typing import Dict, Any, Optional
 
 class EngineStatus(str, Enum):
     """Engine integration and verification status."""
-    VERIFIED = "verified"                # 실연동 및 실사 렌더링 검증 완료
-    INTERFACE_ONLY = "interface_only"    # 인터페이스 및 파라미터 매핑만 정의됨 (실연동 미확인)
-    PLANNED = "planned"                  # 향후 연동 계획 단계 (API 미출시 또는 대기)
-    DEPRECATED = "deprecated"            # 지원 중단
+    ADAPTER_IMPLEMENTED = "adapter_implemented"  # 어댑터 인터페이스 및 작업 스펙 생성 코드 구현 완료
+    INTERFACE_ONLY = "interface_only"            # 파라미터 규격 정의 단계 (실연동 미확인)
+    PLANNED = "planned"                          # 향후 연동 계획 단계 (상용 API 대기 등)
+    DEPRECATED = "deprecated"                    # 지원 중단
 
 
 class BaseVideoAdapter(ABC):
     """Abstract Base Class for Video Generation Model Adapters."""
 
-    def __init__(self, name: str, status: EngineStatus):
+    def __init__(self, name: str, status: EngineStatus, production_provenance: Optional[str] = None):
         self.name = name
         self.status = status
+        self.production_provenance = production_provenance
 
     @abstractmethod
     def get_info(self) -> Dict[str, Any]:

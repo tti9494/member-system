@@ -1,4 +1,4 @@
-"""Tests for Video Assembler, Schemas, and Adapters (Modular Pipeline v1.1)."""
+"""Tests for Video Assembler, Schemas, and Adapters (Modular Pipeline v1.2)."""
 import os
 import json
 import pytest
@@ -6,12 +6,14 @@ from scripts.video_assembler import VideoAssembler, VideoProbe, run_counterexamp
 from scripts.adapters import get_adapter, list_engines, EngineStatus
 
 
-def test_engine_registry_statuses():
-    """Verify that Google Veo is VERIFIED, others are INTERFACE_ONLY or PLANNED."""
+def test_engine_registry_statuses_and_provenance():
+    """Verify that Google Veo adapter separates code implementation from historical production provenance."""
     veo = get_adapter("google_veo")
-    assert veo.status == EngineStatus.VERIFIED
+    assert veo.status == EngineStatus.ADAPTER_IMPLEMENTED
     info = veo.get_info()
-    assert info["status"] == "verified"
+    assert info["status"] == "adapter_implemented"
+    assert "80씬 전수 실사 렌더링 제작 및 검수 통과" in info["production_provenance"]
+    assert "BaseVideoAdapter 인터페이스 구현" in info["adapter_verification"]
     assert info["recommended_cutoff_sec"] == 1.35
 
     kling = get_adapter("kling_1.5")
@@ -56,25 +58,36 @@ def test_schema_and_scene_order_validation():
 
 
 def test_counterexample_diagnostics():
-    """Run full diagnostic test verifying fixes for Counterexamples A and B."""
+    """Run full diagnostic test verifying fixes for Counterexamples A, B, C, D and EP01."""
     results = run_counterexample_diagnostics()
 
-    # Counterexample A check
-    a = results["counterexample_a_7s"]
-    assert a["old_naive_check"]["status"] == "FAIL"
-    assert "14.800s" in a["old_naive_check"]["diagnostics"][0]
-    assert a["flexible_range_check"]["status"] == "PASS"
+    # Counterexample A: 7s raw clips under EP01 (55~65s) MUST FAIL and abort
+    a = results["counterexample_a_7s_production_check"]
+    assert a["status"] == "FAIL"
+    assert "Flexible range violation" in a["diagnostics"][0]
+    assert a["total_planned_duration_sec"] == 45.2
 
-    # Counterexample B check
-    b = results["counterexample_b_10s"]
-    assert b["old_flaw_explanation"]["s08_frames_in_old_script"] == 0
-    assert b["new_fixed_check"]["status"] == "PASS"
-    assert b["new_fixed_check"]["s08_frames"] == 180
-    assert b["new_fixed_check"]["all_scenes_have_frames"] is True
-    assert b["new_fixed_check"]["total_frames"] == 1440
+    # Counterexample B: 160x90 resolution mismatch against 1920x1080 MUST FAIL
+    b = results["counterexample_b_resolution_mismatch"]
+    assert b["status"] == "FAIL"
+    assert any("resolution mismatch" in d for d in b["diagnostics"])
 
-    # EP01 solution check
+    # Counterexample C: Corrupted MP4 MUST be caught without fake fallback
+    c = results["counterexample_c_corrupted_mp4"]
+    assert c["corrupted_caught"] is True
+
+    # Counterexample D: 10s clips S08 0-frame bug resolution MUST PASS
+    d = results["counterexample_d_10s_s08_zero_frame_fix"]
+    assert d["status"] == "PASS"
+    assert d["s08_allocated_frames"] == 180
+    assert d["all_scenes_have_frames"] is True
+    assert d["total_frames"] == 1440
+
+    # EP01 solution check: 58.54s, planned discrete frames 1,406 vs actual air master 1,405
     ep01 = results["ep01_canonical_solution"]
     assert ep01["status"] == "PASS"
-    assert ep01["total_duration_sec"] == 58.54
-    assert len(ep01["scene_table"]) == 8
+    assert ep01["planned_total_duration_sec"] == 58.54
+    assert ep01["planned_discrete_frames_sum"] == 1406
+    air = ep01["air_physical_master_measurement"]
+    assert air["actual_frames"] == 1405
+    assert air["file_size_bytes"] == 61512282

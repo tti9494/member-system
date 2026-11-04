@@ -1,6 +1,6 @@
 # 🎬 AI 영상 제작 파이프라인 모듈화 아키텍처 및 제작 표준 운영 지침 (SOP)
-## Storyboard-to-Video Modular Pipeline Specification v1.1
-### (검수 후속 개정판: 두 반례 결함 해결, 씬별 슬라이스 조립, 작품별 규격 분리)
+## Storyboard-to-Video Modular Pipeline Specification v1.2
+### (독립 재검수 후속 개정판: 엄격한 운영 기준 반영, 해상도/무결성 사전 차단, CLI 실조립 지원 및 실측치 분리)
 
 ---
 
@@ -8,26 +8,19 @@
 
 본 문서는 **스토리보드 기획·생성부터 프롬프트 규격화, AI 영상 렌더링, 씬별 프레임 슬라이스 조립 및 마스터링**에 이르는 전 과정을 모듈화하여, 특정 인공지능 모델(Veo, Kling, Runway, Sora 등)이나 특정 제작 툴에 종속되지 않고 **어떤 엔진과 애플리케이션으로도 즉시 교체·적용할 수 있도록 표준화한 제작 규격서**입니다.
 
-### v1.1 긴급 개정 배경 (두 가지 반례 결함 분석 및 해결)
-SOP v1.0의 단순 Bash 스크립트 실행 검수 과정에서 다음과 같은 두 가지 심각한 결함이 실측되었습니다:
-1. **[반례 1] 7초 원본 클립 8개 투입 시 조기 종료 결함**:
-   - 앞 1.35초만 자르고 뒤를 자르지 않으면 클립당 5.65초가 되어, 8개 씬 합계가 45.2초에 불과합니다. 이를 `-t 60.000`으로 리먹싱하면 45.000초 / 1,080프레임으로 렌더링이 실패합니다.
-   - **해결**: 조립기(`video_assembler.py`)가 렌더링 전 사전 계획 단계에서 총 가용 길이를 전수 검증하여, 부족량(14.80초 / 360프레임)을 진단하고 조기 차단합니다.
-2. **[반례 2] 10초 원본 클립 8개 투입 시 S08 0프레임 잘림 결함 (치명적 결함)**:
-   - 클립당 8.65초(10.0s - 1.35s)가 되어 S01부터 S07까지만으로 이미 60.55초를 채워버립니다. 이 상태에서 전체 영상을 뒤에서 일괄 자르는 `-t 60.000`을 적용하면, **S08은 단 1프레임도 들어가지 못하고(0프레임) 잘려나감에도 총 프레임은 1,440프레임이라 거짓 통과(False PASS)**가 발생합니다.
-   - **해결**: 전체 영상을 끝에서 자르는 방식을 영구 폐기하고, **씬 계획(`scene_plan.json`)에 승인된 씬별 사용 구간(`trim_start_sec` ~ `trim_end_sec`)만을 추출하여 조립**합니다. 또한 S01~S08 전 씬이 각각 `> 0 frames`를 가짐을 엄격히 강제합니다.
-
-### 핵심 5대 설계 원칙
-1. **단일 모델 종속 탈피 및 실연동 상태 명시 (Model-Agnostic with Explicit Status)**
-   - 멀티 모델 어댑터 인터페이스를 표준화하되, 실연동 검증 완료(`VERIFIED`)와 단순 인터페이스 매핑(`INTERFACE_ONLY`), 계획 단계(`PLANNED`)를 명확히 구분합니다.
-2. **작품별 규격 분리 (Decoupled Project Duration Modes)**
-   - 60.00초/1,440프레임 고정 규격(`fixed_exact`)과 55~65초 유동 호흡 규격(`flexible_range`, 예: EP01)을 작품별 설정으로 분리합니다. 영상 위 차기작 엔드카드 조건 또한 선택적 플래그(`require_endcard_overlay`)로 분리합니다.
-3. **승인된 씬별 슬라이스 조립 원칙 (Approved Slice Assembly)**
-   - 전체 영상을 끝에서 임의로 자르지 않고, 각 씬의 연출 호흡에 맞게 승인된 `trim_start_sec`와 `trim_end_sec` 구간만 정밀 추출한 뒤 Concat합니다.
-4. **프레임 단위 경계 및 무결성 전수 검증 (Boundary & Frame Integrity)**
-   - 스토리보드 전환 구간(앞 `1.35초`) 컷오프를 준수하며, `0.0 <= trim_start_sec < trim_end_sec <= clip_duration` 경계를 수학적으로 검증합니다.
-5. **스키마-조립기-어댑터 모듈 분리 (Modular Separation of Concerns)**
-   - 스키마 파일(`schemas/scene_plan_schema.json`), 조립기(`scripts/video_assembler.py`), 어댑터 모듈(`scripts/adapters/`)을 독립된 파일로 물리적 분리하여 자동화 파이프라인에 직결합니다.
+### v1.2 독립 재검수 보완 핵심 사항
+1. **[운영 기준 엄격 적용] 부족한 원본 입력 시 인위적 통과 금지 및 즉각 중단 (ABORT)**:
+   - 7초 원본 8개는 1.35초 컷오프 적용 시 총 가용 길이가 45.20초에 불과합니다.
+   - EP01의 운영 표준(55~65초 유동)이나 60.00초 고정 규격에서, 진단 범위를 인위적으로 낮춰(40~50초) 통과시키는 것은 금지되며, **실제 운영 기준에 따라 명백한 FAIL 및 즉시 중단(ABORT)** 처리합니다.
+2. **[해상도 및 컨테이너 무결성 사전 검증] 저해상도 및 손상된 파일 원천 차단**:
+   - 목표 해상도(`1920×1080`)와 다른 저해상도 원본(예: `160×90`) 주입 시 사전 검증 단계에서 즉시 FAIL 차단합니다.
+   - MP4 파일 손상/헤더 누락 시 기본 7초 가상 메타데이터로 대체하지 않고 즉각 `ValueError` 예외로 파이프라인 가동을 중단합니다.
+3. **[CLI 실조립 진입점 제공] 진단과 실제 ffmpeg 조립 실행 분리**:
+   - 단순 사전 진단 외에 실제 슬라이스 추출과 Concat 및 후속 ffprobe QC를 실행하는 CLI(`validate`, `assemble`, `test-counterexamples`)를 완비했습니다.
+4. **[실측치와 계획 수치 명확한 분리] EP01 Air 마스터 실측 영수증 공인**:
+   - 계획 슬롯 이산 합계(`1,406프레임`: 176+175+176+176+176+175+176+176)와 실제 제작된 물리 마스터본(`1,405프레임`: 58.541667초 * 24fps)의 차이를 정직하게 분리 기록합니다.
+5. **[이력과 어댑터 코드 상태 분리]**:
+   - Google Veo의 80씬 실증 이력(MacBook Air Ego 6계정 브릿지)과 본 레포지토리의 파이썬 어댑터 코드 상태(`ADAPTER_IMPLEMENTED`)를 분리 정의합니다.
 
 ---
 
@@ -36,22 +29,22 @@ SOP v1.0의 단순 Bash 스크립트 실행 검수 과정에서 다음과 같은
 ```
 member-system/
 ├── schemas/
-│   └── scene_plan_schema.json      # 씬 계획 및 프로젝트 프로필 JSON 스키마
+│   └── scene_plan_schema.json      # 씬 계획 및 프로젝트 프로필 JSON 스키마 (Draft-07)
 ├── scripts/
-│   ├── video_assembler.py          # 씬 검증, 클립 프로브, 슬라이스 조립 및 QC 엔진
+│   ├── video_assembler.py          # 씬 검증, 클립 프로브, 슬라이스 조립, 실조립 CLI 및 QC 엔진
 │   └── adapters/                   # 멀티 모델 렌더링 어댑터 패키지
 │       ├── __init__.py
 │       ├── base_adapter.py         # 베이스 어댑터 추상 클래스 & EngineStatus Enum
-│       ├── veo_batch_adapter.py    # Google Veo 6계정 연동 어댑터 [VERIFIED]
+│       ├── veo_batch_adapter.py    # Google Veo 어댑터 (80씬 실증 이력 분리)
 │       ├── kling_adapter.py        # Kling 1.5 어댑터 [INTERFACE_ONLY]
 │       ├── runway_adapter.py       # Runway Gen-3 어댑터 [INTERFACE_ONLY]
 │       ├── sora_adapter.py         # OpenAI Sora 어댑터 [PLANNED]
 │       └── engine_registry.py      # 어댑터 레지스트리 및 조회 API
 ├── docs/
-│   └── MODULAR_AI_VIDEO_PIPELINE_SPEC.md   # 본 SOP 명세서 v1.1
+│   └── MODULAR_AI_VIDEO_PIPELINE_SPEC.md   # 본 SOP 명세서 v1.2
 └── tests/
     └── video_pipeline/
-        └── test_video_assembler.py # 조립기 단위 테스트 및 두 반례 회귀 검증
+        └── test_video_assembler.py # 조립기 단위 테스트 및 회귀 검증
 ```
 
 ---
@@ -72,18 +65,19 @@ member-system/
 - 16:9 와이드 비율, 카메라 워크, 조명, 인물 의상, 물리 법칙, 네거티브 프롬프트 기술.
 
 ### [Stage 4] 멀티 모델 렌더링 추상화 (Engine Adapters)
-- 각 엔진의 연동 확인 상태를 명확히 구분:
-  | 엔진명 | 어댑터 클래스 | 실연동 상태 | 비고 |
+- 각 엔진의 연동 확인 상태와 제작 이력 분리:
+  | 엔진명 | 어댑터 클래스 | 어댑터 코드 상태 | 제작 실증 이력 (Provenance) |
   | :--- | :--- | :--- | :--- |
-  | **Google Veo** | `VeoBatchAdapter` | **`VERIFIED` (검증 완료)** | EP01~EP10 80씬 전수 실사 렌더링 완료. MacBridge 및 Ego 6프로필 연동. |
-  | **Kling AI 1.5** | `KlingAdapter` | **`INTERFACE_ONLY` (규격 정의)** | 프롬프트·파라미터 매핑 완료, 실 API 파이프라인 미확인. |
-  | **Runway Gen-3** | `RunwayAdapter` | **`INTERFACE_ONLY` (규격 정의)** | First Frame + Text 매핑 완료, 실 API 파이프라인 미확인. |
-  | **OpenAI Sora** | `SoraAdapter` | **`PLANNED` (계획 단계)** | 상용 배치 API 미출시, 스펙 사전 정의. |
+  | **Google Veo** | `VeoBatchAdapter` | **`ADAPTER_IMPLEMENTED`** | **EP01~EP10 80씬 전수 실사 렌더링 검수 통과** (MacAir M2 6계정 브릿지) |
+  | **Kling AI 1.5** | `KlingAdapter` | **`INTERFACE_ONLY`** | 파라미터 규격 정의 완료, 실 API 파이프라인 미확인 |
+  | **Runway Gen-3** | `RunwayAdapter` | **`INTERFACE_ONLY`** | First Frame + Text 매핑 완료, 실 API 파이프라인 미확인 |
+  | **OpenAI Sora** | `SoraAdapter` | **`PLANNED`** | 상용 배치 API 미출시, 스펙 사전 정의 |
 
 ### [Stage 5] 프레임 트리밍 및 전환 구간 컷오프 (Slice Trimming)
 - **컷오프 원칙**: 스토리보드 정지화면 잔상 구간(앞 `1.35초`) 영구 제거.
 - **경계 검증**: `trim_end_sec <= actual_raw_duration` (원본 길이 초과 금지).
-- **유효 프레임 보장**: 각 씬별 추출 프레임수 `> 0` 필수.
+- **해상도 검증**: 원본 클립 해상도 == `target_resolution` (불일치 시 즉각 FAIL).
+- **유효 프레임 보장**: 각 씬별 추출 프레임수 `> 0` 필수 (S08 0프레임 원천 방지).
 
 ### [Stage 6] 감독판 재편집 및 조립 (Assembly & Remuxing)
 - **조립 방식**: 개별 씬 슬라이스 추출(`-ss {start} -t {duration}`) ➔ 비파괴 무손실 Concat (`-c copy`).
@@ -95,46 +89,41 @@ member-system/
 ### [Stage 7] 자동 품질 검수 (QC Checklist)
 - [ ] S01부터 S08까지 8개 씬 순서 일치, 중복 0건, 누락 0건.
 - [ ] S01~S08 각 씬의 추출 프레임수 > 0 (0프레임 잘림 0건).
-- [ ] 해상도 `1920×1080` (16:9 가로 와이드).
+- [ ] 해상도 `1920×1080` 일치 (저해상도 원본 차단).
 - [ ] 오디오 스트림 0개 (`-an` 무음성 클린 마스터).
 - [ ] 프레임레이트 24fps.
 
 ---
 
-## 4. 두 반례 시나리오 재검사 결과표 (Counterexample Diagnostic Results)
+## 4. CLI 도구 사용법 (CLI Execution Guide)
 
-`python3 member-system/scripts/video_assembler.py test-counterexamples` 실행 실측 결과:
+`scripts/video_assembler.py`를 통해 진단 및 실제 조립을 실행합니다:
 
-| 구분 | [반례 1] 7초 원본 클립 8개 투입 | [반례 2] 10초 원본 클립 8개 투입 | [정본] 사극 EP01 실측 규격 |
-| :--- | :--- | :--- | :--- |
-| **구버전 Bash 결과** | **FAIL** (총 45.000s / 1,080f로 중단) | **False PASS** (1,440f 통과했으나 **S08이 0프레임**) | 60초 고정과 충돌 (EP01은 58.54s 유동 마스터) |
-| **결함 원인** | 앞 1.35s만 자르고 뒤를 안 자름 (5.65s * 8 = 45.2s) | 앞 1.35s만 자름 (8.65s * 7 = 60.55s ➔ S08 전량 유실) | 작품별 러닝타임 모드 미분리 |
-| **신규 조립기 판정** | **사전 차단 (FAIL)**: 부족량(-14.80s / -352f) 조기 진단 | **정상 통과 (PASS)**: 씬당 7.50s 균등 배분 (180f씩) | **정상 통과 (PASS)**: 55~65s 유동 범위 완벽 충족 |
-| **S08 프레임수** | 136 프레임 (유효) | **180 프레임 (정상 할당, 0프레임 결함 해결)** | **176 프레임 (7.34초 정상 할당)** |
-| **총 러닝타임/프레임** | 45.200초 / 1,088프레임 (사전 진단) | **60.000초 / 1,440프레임 (S01~S08 전원 포함)** | **58.540초 / 1,406프레임** |
+```bash
+# 1. 4대 반례 및 EP01 정본 진단 테스트 실행
+python3 scripts/video_assembler.py test-counterexamples
 
----
+# 2. 씬 계획과 원본 클립 무결성 사전 검증 (해상도, 길이, 프레임)
+python3 scripts/video_assembler.py validate --plan schemas/ep01_plan.json --clips-dir /path/to/clips
 
-## 5. 사극 「혈화의 궐」 제1화 (EP01) 씬별 정본 타임코드 및 프레임표
-
-- **규격**: 가로 16:9 (`1920×1080`), 24fps, 무음성(`-an`)·무자막 순수 영상 마스터본, 분리형 SRT 자막 별도.
-- **러닝타임 모드**: `flexible_range` (55.0초 ~ 65.0초).
-- **실측 총합**: **`58.54초`** / **`1,406프레임`** (오차 0, 전 8씬 유효).
-
-| 씬 ID | 원본 길이 | trim_start_sec | trim_end_sec | 채택 길이 | 프레임수 (24fps) | 연출 및 서브샷 내용 |
-| :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **S01** | 10.00s | 1.350s | 8.670s | **7.320s** | **176f** | 화염 속 야간 궁궐 박석 (멸문 5컷) |
-| **S02** | 10.00s | 1.350s | 8.650s | **7.300s** | **175f** | 진흙탕에 쓰러진 궁녀들 (빗속 결의 3컷) |
-| **S03** | 10.00s | 1.350s | 8.670s | **7.320s** | **176f** | 어둠 속 궁녀들의 숨죽인 대열 (입궁 3컷) |
-| **S04** | 10.00s | 1.350s | 8.670s | **7.320s** | **176f** | 대전 안 군주의 분노와 찻잔 파산 (대전 4컷) |
-| **S05** | 10.00s | 1.350s | 8.670s | **7.320s** | **176f** | 소매 속 은장도를 쥐는 떨리는 손 (은장도 3컷) |
-| **S06** | 10.00s | 1.350s | 8.650s | **7.300s** | **175f** | 회랑 벽면을 스치는 검은 그림자 (그림자 3컷) |
-| **S07** | 10.00s | 1.350s | 8.670s | **7.320s** | **176f** | 문틈 사이로 교차하는 눈빛 (조우 4컷) |
-| **S08** | 10.00s | 1.350s | 8.690s | **7.340s** | **176f** | 불타는 궁궐 밖으로 번지는 횃불 추격 (추격 5컷) |
-| **합계** | - | - | - | **58.540s** | **1,406f** | **PASS (55.0s ~ 65.0s 유동 규격 100% 충족)** |
+# 3. 실제 ffmpeg 조립 및 마스터본 생성 (ffprobe 자동 QC 포함)
+python3 scripts/video_assembler.py assemble \
+  --plan schemas/ep01_plan.json \
+  --clips-dir /path/to/clips \
+  --output output/EP01_Master.mp4 \
+  --work-dir /tmp/assembler_work
+```
 
 ---
 
-## 6. 결론
+## 5. EP01 실측 영수증 및 계획 대조 (Measurement Provenance)
 
-본 개정(v1.1)을 통해 스토리보드-영상 모듈화 파이프라인의 **두 가지 핵심 논리적 결함(짧은 클립 실패 및 S08 0프레임 잘림)이 완전히 해결**되었습니다. 조립기는 독립된 파이썬 모듈(`video_assembler.py`)로 격리되어 프로덕션 렌더링 전 사전 유효성 검증을 100% 보장하며, 작품별 규격(고정 60초 vs 유동 55~65초)에 유연하게 대응합니다.
+- **Air 실측 물리 마스터본 (MacBook Air F0CESPS2WH2)**:
+  - 파일 크기: `61,512,282` bytes
+  - SHA-256: `7b18f28ffc65d6484e1b8b2e50529d3c5f9498a44c9b33a4664c3c3a076cb738`
+  - 실측 길이: `58.541667초`
+  - 실측 프레임: **`1,405 frames`** (58.541667s * 24fps)
+  - 해상도 / 규격: `1920×1080`, 24fps, 무음성(`audio=0`)
+- **씬 계획표 이산 프레임 합계**:
+  - `176 + 175 + 176 + 176 + 176 + 175 + 176 + 176 = 1,406 frames` (이산 정수 올림 슬롯 합계)
+  - *비고: 계획표 상의 1,406은 정수 올림 슬롯 합계이며, 실제 인코딩된 물리 마스터본은 정확히 1,405프레임임을 명확히 구분 기록함.*

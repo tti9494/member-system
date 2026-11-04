@@ -1,8 +1,13 @@
-"""Google Veo Batch Adapter (Verified Production Engine).
+"""Google Veo Batch Adapter (Production Engine Adapter).
 
-Connects to the verified multi-account Veo pipeline (Ego 6 profiles)
-used for '혈화의 궐' EP01~EP10 production.
-Status: VERIFIED.
+Connects to the multi-account Veo pipeline specifications used for
+'혈화의 궐' EP01~EP10 production.
+
+Historical Production Provenance:
+- 10부작 전편(EP01~EP10) 80씬 전수 실사 렌더링 제작 및 검수 통과 (MacBook Air M2 6계정 브릿지 실증 이력)
+
+Adapter Implementation Status:
+- ADAPTER_IMPLEMENTED: BaseVideoAdapter 인터페이스 구현 및 로컬 태스크 스펙 생성/경로 탐색 코드 완비.
 """
 import os
 import glob
@@ -14,15 +19,24 @@ class VeoBatchAdapter(BaseVideoAdapter):
     """Adapter for Google Veo 16:9 cinematic batch generation."""
 
     def __init__(self):
-        super().__init__(name="Google Veo", status=EngineStatus.VERIFIED)
+        super().__init__(
+            name="Google Veo",
+            status=EngineStatus.ADAPTER_IMPLEMENTED,
+            production_provenance=(
+                "사극 10부작 전편(EP01~EP10) 80씬 전수 실사 렌더링 제작 및 검수 통과 "
+                "(MacBook Air M2 Ego 6계정 브릿지 파이프라인 실증 이력)"
+            )
+        )
 
     def get_info(self) -> Dict[str, Any]:
         return {
             "name": self.name,
             "status": self.status.value,
-            "verification_notes": (
-                "실연동 및 10부작 전편(EP01~EP10) 80씬 전수 실사 렌더링 검증 완료. "
-                "MacBook Air M2 멀티 프로필 브릿지 및 로컬 큐원 연동."
+            "production_provenance": self.production_provenance,
+            "adapter_verification": (
+                "어댑터 코드 구현 완료: BaseVideoAdapter 인터페이스 구현, 씬별 렌더 태스크 페이로드(prepare_render_spec) "
+                "및 로컬/원격 클립 경로 탐색(resolve_clip_path) 단위 테스트 검증 완료. "
+                "(참고: 80씬 실증 이력은 MacAir 멀티프로필 브릿지 운영 결과물이며, 본 파이썬 클래스는 해당 규격을 추상화한 어댑터임)"
             ),
             "input_mode": "Image-to-Video (1:1 Canonical Storyboard + Prompt)",
             "native_aspect_ratio": "16:9 (1920x1080)",
