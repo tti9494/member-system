@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ScenePlanSchema",
+  "description": "AI 영상 제작 파이프라인 모듈화 씬 계획 및 프로젝트 프로필 표준 스키마 v1.1",
+  "type": "object",
+  "required": [
+    "episode",
+    "title",
+    "target_fps",
+    "target_resolution",
+    "duration_mode",
+    "scenes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "프로젝트 고유 식별자 (예: sageuk_series, baridegi_series)"
+    },
+    "episode": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "에피소드 회차 번호 (1부터 시작)"
+    },
+    "title": {
+      "type": "string",
+      "description": "에피소드 부제/제목"
+    },
+    "target_fps": {
+      "type": "integer",
+      "enum": [24, 30, 60],
+      "default": 24,
+      "description": "마스터본 타겟 프레임레이트 (기본 24fps)"
+    },
+    "target_resolution": {
+      "type": "object",
+      "required": ["width", "height"],
+      "additionalProperties": false,
+      "properties": {
+        "width": { "type": "integer", "enum": [1920, 1080, 3840] },
+        "height": { "type": "integer", "enum": [1080, 1920, 2160] }
+      },
+      "description": "타겟 해상도 (예: 1920x1080 가로 16:9)"
+    },
+    "audio_streams": {
+      "type": "integer",
+      "enum": [0],
+      "default": 0,
+      "description": "클린 마스터 비디오의 오디오 스트림 수 (-an 기준 0개 필수)"
+    },
+    "require_endcard_overlay": {
+      "type": "boolean",
+      "default": false,
+      "description": "영상 내 차기작 예고 타이틀/엔드카드 오버레이 필수 여부 (작품별 설정 분리)"
+    },
+    "duration_mode": {
+      "type": "object",
+      "description": "작품별 러닝타임 규격 (정확히 60초 고정 vs 55~65초 유동 범위)",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "target_seconds", "target_frames"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string", "enum": ["fixed_exact"] },
+            "target_seconds": { "type": "number", "minimum": 1.0 },
+            "target_frames": { "type": "integer", "minimum": 24 },
+            "tolerance_frames": { "type": "integer", "minimum": 0, "default": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "min_seconds", "max_seconds"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string", "enum": ["flexible_range"] },
+            "min_seconds": { "type": "number", "minimum": 1.0 },
+            "max_seconds": { "type": "number", "minimum": 1.0 }
+          }
+        }
+      ]
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "description": "S01부터 S08까지의 8개 씬 정의 목록 (순서 엄수, 중복/누락 금지)",
+      "items": {
+        "type": "object",
+        "required": [
+          "scene_id",
+          "canonical_storyboard",
+          "trim_start_sec",
+          "trim_end_sec",
+          "camera_motion",
+          "prompt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "scene_id": {
+            "type": "string",
+            "pattern": "^S0[1-8]$",
+            "description": "씬 식별자 (S01 ~ S08)"
+          },
+          "canonical_storyboard": {
+            "type": "string",
+            "description": "정본 연필 소묘 콘티 시트 경로 또는 파일명"
+          },
+          "trim_start_sec": {
+            "type": "number",
+            "minimum": 0.0,
+            "description": "채택 구간 시작 타임코드 (초 단위, 스토리보드 전환 컷오프 포함)"
+          },
+          "trim_end_sec": {
+            "type": "number",
+            "minimum": 0.0,
+            "description": "채택 구간 종료 타임코드 (초 단위, trim_start_sec보다 커야 함)"
+          },
+          "camera_motion": {
+            "type": "string",
+            "description": "카메라 앵글 및 워크 (예: Slow push-in, low-angle tracking)"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "v3.1 비주얼 프롬프트 전문"
+          },
+          "dialogue": {
+            "type": "string",
+            "description": "씬 내 대사/내레이션 (SRT 자막 생성용)"
+          },
+          "notes": {
+            "type": "string",
+            "description": "연출 및 QC 특이사항"
+          }
+        }
+      }
+    }
+  }
+}
